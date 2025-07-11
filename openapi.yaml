@@ -1,0 +1,55 @@
+openapi: 3.0.0
+info:
+  title: Ruckus1-MCP API
+  version: 1.0.0
+  description: |
+    API server for proxying requests to RUCKUS One and other platforms.
+servers:
+  - url: http://localhost:4000
+paths:
+  /:
+    get:
+      summary: Health check
+      description: Returns a message indicating the API is running.
+      responses:
+        '200':
+          description: API is running
+          content:
+            text/plain:
+              schema:
+                type: string
+  /venues:
+    get:
+      summary: Get list of venues
+      description: Returns a list of venue records from RUCKUS One.
+      responses:
+        '200':
+          description: List of venue records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+  /ruckus-auth/token:
+    get:
+      summary: Get RUCKUS One JWT token
+      description: Returns a JWT token for RUCKUS One API access.
+      responses:
+        '200':
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string 
