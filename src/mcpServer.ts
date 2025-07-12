@@ -1,14 +1,12 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListResourcesRequestSchema,
-  ListToolsRequestSchema,
-  ReadResourceRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
+import dotenv from 'dotenv';
+import { getRuckusJwtToken } from './services/ruckusAuthService';
 
-// Initialize the server
+dotenv.config();
+
 const server = new Server(
   {
     name: 'ruckus1-mcp',
@@ -22,7 +20,6 @@ const server = new Server(
   }
 );
 
-// Tool: Get Ruckus Auth Token
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
@@ -48,25 +45,29 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-// Tool: Get Ruckus Auth Token Implementation
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
+  const { name } = request.params;
+  console.log(`[MCP] Tool called: ${name}`);
 
   switch (name) {
-    case 'get_ruckus_auth_token':
+    case 'get_ruckus_auth_token': {
       try {
-        // This would typically call your existing ruckusAuthService
-        // For now, we'll make a direct API call
-        const response = await axios.get('http://localhost:3000/ruckus-auth/token');
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(response.data, null, 2),
+              text: token,
             },
           ],
         };
       } catch (error) {
+        console.error('[MCP] Error getting auth token:', error);
         return {
           content: [
             {
@@ -77,11 +78,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           isError: true,
         };
       }
-
-    case 'get_ruckus_venues':
+    }
+    case 'get_ruckus_venues': {
       try {
-        // This would typically call your existing ruckusVenuesService
-        const response = await axios.get('http://localhost:3000/venues');
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        const region = process.env.RUCKUS_REGION;
+        const apiUrl = region && region.trim() !== ''
+          ? `https://api.${region}.ruckus.cloud/venues/query`
+          : 'https://api.ruckus.cloud/venues/query';
+        const payload = {
+          fields: ["id", "name"],
+          searchTargetFields: ["name", "addressLine", "description", "tagList"],
+          filters: {},
+          sortField: "name",
+          sortOrder: "ASC",
+          page: 1,
+          pageSize: 10000,
+          defaultPageSize: 10,
+          total: 0
+        };
+        const response = await axios.post(apiUrl, payload, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('[MCP] Venues response:', response.data);
         return {
           content: [
             {
@@ -91,6 +118,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       } catch (error) {
+        console.error('[MCP] Error getting venues:', error);
         return {
           content: [
             {
@@ -101,7 +129,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           isError: true,
         };
       }
-
+    }
     default:
       return {
         content: [
@@ -115,7 +143,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-// Resources: List available resources
 server.setRequestHandler(ListResourcesRequestSchema, async () => {
   return {
     resources: [
@@ -123,7 +150,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
         uri: 'ruckus://auth/token',
         name: 'Ruckus Auth Token',
         description: 'Current RUCKUS One JWT token',
-        mimeType: 'application/json',
+        mimeType: 'text/plain',
       },
       {
         uri: 'ruckus://venues/list',
@@ -135,40 +162,73 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
   };
 });
 
-// Resources: Read resource content
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
-
   try {
-    let response;
-    switch (uri) {
-      case 'ruckus://auth/token':
-        response = await axios.get('http://localhost:3000/ruckus-auth/token');
-        break;
-      case 'ruckus://venues/list':
-        response = await axios.get('http://localhost:3000/venues');
-        break;
-      default:
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Unknown resource: ${uri}`,
-            },
-          ],
-          isError: true,
-        };
+    if (uri === 'ruckus://auth/token') {
+      const token = await getRuckusJwtToken(
+        process.env.RUCKUS_TENANT_ID!,
+        process.env.RUCKUS_CLIENT_ID!,
+        process.env.RUCKUS_CLIENT_SECRET!,
+        process.env.RUCKUS_REGION
+      );
+      return {
+        contents: [
+          {
+            uri,
+            mimeType: 'text/plain',
+            text: token,
+          },
+        ],
+      };
+    } else if (uri === 'ruckus://venues/list') {
+      const token = await getRuckusJwtToken(
+        process.env.RUCKUS_TENANT_ID!,
+        process.env.RUCKUS_CLIENT_ID!,
+        process.env.RUCKUS_CLIENT_SECRET!,
+        process.env.RUCKUS_REGION
+      );
+      const region = process.env.RUCKUS_REGION;
+      const apiUrl = region && region.trim() !== ''
+        ? `https://api.${region}.ruckus.cloud/venues/query`
+        : 'https://api.ruckus.cloud/venues/query';
+      const payload = {
+        fields: ["id", "name"],
+        searchTargetFields: ["name", "addressLine", "description", "tagList"],
+        filters: {},
+        sortField: "name",
+        sortOrder: "ASC",
+        page: 1,
+        pageSize: 10000,
+        defaultPageSize: 10,
+        total: 0
+      };
+      const response = await axios.post(apiUrl, payload, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return {
+        contents: [
+          {
+            uri,
+            mimeType: 'application/json',
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    } else {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Unknown resource: ${uri}`,
+          },
+        ],
+        isError: true,
+      };
     }
-
-    return {
-      contents: [
-        {
-          uri,
-          mimeType: 'application/json',
-          text: JSON.stringify(response.data, null, 2),
-        },
-      ],
-    };
   } catch (error) {
     return {
       content: [
@@ -182,6 +242,6 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   }
 });
 
-// Start the server
 const transport = new StdioServerTransport();
+console.log('RUCKUS1 MCP server is running and ready for connections.');
 server.connect(transport); 
