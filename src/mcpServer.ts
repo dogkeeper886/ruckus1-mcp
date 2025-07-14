@@ -41,6 +41,44 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: [],
         },
       },
+      {
+        name: 'create_ruckus_venue',
+        description: 'Create a new venue in RUCKUS One',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            name: {
+              type: 'string',
+              description: 'Name of the venue',
+            },
+            addressLine: {
+              type: 'string',
+              description: 'Street address of the venue',
+            },
+            city: {
+              type: 'string',
+              description: 'City where the venue is located',
+            },
+            country: {
+              type: 'string',
+              description: 'Country where the venue is located',
+            },
+            latitude: {
+              type: 'number',
+              description: 'Latitude coordinate (optional)',
+            },
+            longitude: {
+              type: 'number',
+              description: 'Longitude coordinate (optional)',
+            },
+            timezone: {
+              type: 'string',
+              description: 'Timezone for the venue (optional)',
+            },
+          },
+          required: ['name', 'addressLine', 'city', 'country'],
+        },
+      },
     ],
   };
 });
@@ -124,6 +162,66 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: `Error getting Ruckus venues: ${error}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'create_ruckus_venue': {
+      try {
+        const { name, addressLine, city, country, latitude, longitude, timezone } = request.params.arguments as {
+          name: string;
+          addressLine: string;
+          city: string;
+          country: string;
+          latitude?: number;
+          longitude?: number;
+          timezone?: string;
+        };
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        const region = process.env.RUCKUS_REGION;
+        const apiUrl = region && region.trim() !== ''
+          ? `https://api.${region}.ruckus.cloud/venues`
+          : 'https://api.ruckus.cloud/venues';
+        const payload = {
+          name,
+          address: {
+            addressLine,
+            city,
+            country,
+            ...(latitude !== undefined && { latitude }),
+            ...(longitude !== undefined && { longitude }),
+            ...(timezone && { timezone }),
+          },
+        };
+        const response = await axios.post(apiUrl, payload, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('[MCP] Create venue response:', response.data);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(response.data, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        console.error('[MCP] Error creating venue:', error);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error creating venue: ${error}`,
             },
           ],
           isError: true,
