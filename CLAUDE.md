@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Build**: `npm run build` - Compiles TypeScript to JavaScript in `dist/`
 - **Run MCP Server**: `npm run mcp` - Starts the MCP server using ts-node
-- **Development**: `npm run dev` - Runs development server (Express-based, but main focus is MCP)
-- **Production**: `npm start` - Runs the built server from `dist/`
+- **Development**: `npm run dev` - Runs development server with ts-node (main focus is MCP)
+- **Production**: `npm start` - Runs the built MCP server from `dist/`
 
 ## Architecture Overview
 
@@ -15,12 +15,15 @@ This is a **Model Context Protocol (MCP) server** for RUCKUS One network managem
 
 ### Core Components
 - **`src/mcpServer.ts`**: Main MCP server implementation using `@modelcontextprotocol/sdk`
-  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `create_ruckus_venue` (with status checking)
+  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `get_ruckus_activity_details`, `create_ruckus_venue`, `delete_ruckus_venue` (with status checking and retry logic)
   - Implements MCP resources: `ruckus://auth/token`, `ruckus://venues/list`
   - Uses stdio transport for MCP communication
-- **`src/services/ruckusAuthService.ts`**: Handles OAuth2 authentication with RUCKUS One API
-  - Implements client credentials grant flow
+- **`src/services/ruckusApiService.ts`**: Comprehensive RUCKUS One API service layer
+  - Handles OAuth2 authentication with client credentials grant flow
   - Supports multi-region RUCKUS cloud endpoints
+  - Provides venue CRUD operations with retry mechanisms and polling
+  - Manages async operation tracking via activity details
+  - Implements structured error handling and timeout management
 
 ### Configuration
 Environment variables required:
@@ -37,3 +40,28 @@ This server is designed to be used with MCP clients (like Claude Desktop). Confi
 - Venues API supports pagination and filtering (configured for 10,000 max results)
 - Error handling returns structured MCP error responses
 - Regional API endpoints are dynamically constructed based on configuration
+- Async operations (venue create/delete) use polling with configurable retry logic
+- Activity tracking system monitors long-running operations via requestId
+
+### Additional Documentation
+- **`docs/ruckus-api-behavior.md`**: Detailed RUCKUS API behavior documentation
+- **`docs/venue-creation-flow.md`**: Step-by-step venue creation process flow
+
+### Venue Creation Validation Rules
+**IMPORTANT**: Country and address are validated by the RUCKUS One API. Invalid combinations will cause venue creation to fail.
+
+**Best Practices**:
+- **Use city name as address** for reliability (e.g., `"addressLine": "Paris"` instead of `"addressLine": "123 Rue de la Paix"`)
+- **Use the country where the city is actually located** (e.g., `"city": "Paris", "country": "France"`)
+- Always test with simple, well-known city/country combinations
+- Use major cities to avoid validation issues
+
+**Example Valid Venue Creation**:
+```json
+{
+  "name": "Test Venue",
+  "addressLine": "Tokyo",
+  "city": "Tokyo", 
+  "country": "Japan"
+}
+```
