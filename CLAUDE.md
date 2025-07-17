@@ -15,7 +15,7 @@ This is a **Model Context Protocol (MCP) server** for RUCKUS One network managem
 
 ### Core Components
 - **`src/mcpServer.ts`**: Main MCP server implementation using `@modelcontextprotocol/sdk`
-  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `create_ruckus_venue`
+  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `create_ruckus_venue` (with status checking)
   - Implements MCP resources: `ruckus://auth/token`, `ruckus://venues/list`
   - Uses stdio transport for MCP communication
 - **`src/services/ruckusAuthService.ts`**: Handles OAuth2 authentication with RUCKUS One API

@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken } from './services/ruckusAuthService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -42,8 +42,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'get_ruckus_activity_details',
+        description: 'Get activity details from RUCKUS One using activity ID (e.g., requestId from venue creation)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            activityId: {
+              type: 'string',
+              description: 'Activity ID (requestId) to get details for',
+            },
+          },
+          required: ['activityId'],
+        },
+      },
+      {
         name: 'create_ruckus_venue',
-        description: 'Create a new venue in RUCKUS One',
+        description: 'Create a new venue in RUCKUS One with automatic status checking for async operations',
         inputSchema: {
           type: 'object',
           properties: {
@@ -75,8 +89,38 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: 'string',
               description: 'Timezone for the venue (optional)',
             },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
           },
           required: ['name', 'addressLine', 'city', 'country'],
+        },
+      },
+      {
+        name: 'delete_ruckus_venue',
+        description: 'Delete a venue from RUCKUS One with automatic status checking for async operations',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue to delete',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['venueId'],
         },
       },
     ],
@@ -104,13 +148,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
-      } catch (error) {
+      } catch (error: any) {
         console.error('[MCP] Error getting auth token:', error);
+        let errorMessage = `Error getting Ruckus auth token: ${error}`;
+        
+        // If it's an axios error, provide more detailed information
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
         return {
           content: [
             {
               type: 'text',
-              text: `Error getting Ruckus auth token: ${error}`,
+              text: errorMessage,
             },
           ],
           isError: true,
@@ -155,13 +210,76 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
-      } catch (error) {
+      } catch (error: any) {
         console.error('[MCP] Error getting venues:', error);
+        let errorMessage = `Error getting Ruckus venues: ${error}`;
+        
+        // If it's an axios error, provide more detailed information
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
         return {
           content: [
             {
               type: 'text',
-              text: `Error getting Ruckus venues: ${error}`,
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_ruckus_activity_details': {
+      try {
+        const { activityId } = request.params.arguments as {
+          activityId: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const activityDetails = await getRuckusActivityDetails(
+          token,
+          activityId,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] Activity details response:', activityDetails);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(activityDetails, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting activity details:', error);
+        let errorMessage = `Error getting activity details: ${error}`;
+        
+        // If it's an axios error, provide more detailed information
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
             },
           ],
           isError: true,
@@ -170,7 +288,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     case 'create_ruckus_venue': {
       try {
-        const { name, addressLine, city, country, latitude, longitude, timezone } = request.params.arguments as {
+        const { 
+          name, 
+          addressLine, 
+          city, 
+          country, 
+          latitude, 
+          longitude, 
+          timezone,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
           name: string;
           addressLine: string;
           city: string;
@@ -178,50 +306,190 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           latitude?: number;
           longitude?: number;
           timezone?: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
         };
+        
         const token = await getRuckusJwtToken(
           process.env.RUCKUS_TENANT_ID!,
           process.env.RUCKUS_CLIENT_ID!,
           process.env.RUCKUS_CLIENT_SECRET!,
           process.env.RUCKUS_REGION
         );
-        const region = process.env.RUCKUS_REGION;
-        const apiUrl = region && region.trim() !== ''
-          ? `https://api.${region}.ruckus.cloud/venues`
-          : 'https://api.ruckus.cloud/venues';
-        const payload = {
-          name,
-          address: {
+        
+        const result = await createVenueWithRetry(
+          token,
+          {
+            name,
             addressLine,
             city,
             country,
-            ...(latitude !== undefined && { latitude }),
-            ...(longitude !== undefined && { longitude }),
-            ...(timezone && { timezone }),
+            latitude,
+            longitude,
+            timezone,
           },
-        };
-        const response = await axios.post(apiUrl, payload, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        console.log('[MCP] Create venue response:', response.data);
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        console.log('[MCP] Create venue response:', result);
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(response.data, null, 2),
+              text: JSON.stringify(result, null, 2),
             },
           ],
         };
-      } catch (error) {
+      } catch (error: any) {
         console.error('[MCP] Error creating venue:', error);
+        
+        // Create a structured error response
+        const errorResponse: any = {
+          operation: 'create_venue',
+          success: false,
+          error: {
+            message: error.message || 'Unknown error',
+            type: error.name || 'Error'
+          }
+        };
+        
+        // If it's an axios error, provide detailed API response information
+        if (error.response) {
+          errorResponse.httpStatus = error.response.status;
+          errorResponse.httpStatusText = error.response.statusText;
+          errorResponse.apiResponse = error.response.data;
+          
+          // Extract specific error details from RUCKUS API response
+          if (error.response.data) {
+            if (error.response.data.error) {
+              errorResponse.error.apiError = error.response.data.error;
+            }
+            if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
+              errorResponse.error.apiErrors = error.response.data.errors;
+              const firstError = error.response.data.errors[0];
+              if (firstError) {
+                errorResponse.error.primaryErrorCode = firstError.code;
+                errorResponse.error.primaryErrorMessage = firstError.message;
+                errorResponse.error.primaryErrorReason = firstError.reason;
+              }
+            }
+            if (error.response.data.message) {
+              errorResponse.error.apiMessage = error.response.data.message;
+            }
+            if (error.response.data.code) {
+              errorResponse.error.apiCode = error.response.data.code;
+            }
+            if (error.response.data.details) {
+              errorResponse.error.details = error.response.data.details;
+            }
+          }
+        } else if (error.request) {
+          errorResponse.error.networkError = 'No response received from server';
+          errorResponse.error.request = error.request;
+        }
+        
         return {
           content: [
             {
               type: 'text',
-              text: `Error creating venue: ${error}`,
+              text: JSON.stringify(errorResponse, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'delete_ruckus_venue': {
+      try {
+        const { 
+          venueId, 
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          venueId: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await deleteVenueWithRetry(
+          token,
+          venueId,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        console.log('[MCP] Delete venue response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error deleting venue:', error);
+        
+        // Create a structured error response
+        const errorResponse: any = {
+          operation: 'delete_venue',
+          success: false,
+          error: {
+            message: error.message || 'Unknown error',
+            type: error.name || 'Error'
+          }
+        };
+        
+        // If it's an axios error, provide detailed API response information
+        if (error.response) {
+          errorResponse.httpStatus = error.response.status;
+          errorResponse.httpStatusText = error.response.statusText;
+          errorResponse.apiResponse = error.response.data;
+          
+          // Extract specific error details from RUCKUS API response
+          if (error.response.data) {
+            if (error.response.data.error) {
+              errorResponse.error.apiError = error.response.data.error;
+            }
+            if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
+              errorResponse.error.apiErrors = error.response.data.errors;
+              const firstError = error.response.data.errors[0];
+              if (firstError) {
+                errorResponse.error.primaryErrorCode = firstError.code;
+                errorResponse.error.primaryErrorMessage = firstError.message;
+                errorResponse.error.primaryErrorReason = firstError.reason;
+              }
+            }
+            if (error.response.data.message) {
+              errorResponse.error.apiMessage = error.response.data.message;
+            }
+            if (error.response.data.code) {
+              errorResponse.error.apiCode = error.response.data.code;
+            }
+            if (error.response.data.details) {
+              errorResponse.error.details = error.response.data.details;
+            }
+          }
+        } else if (error.request) {
+          errorResponse.error.networkError = 'No response received from server';
+          errorResponse.error.request = error.request;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(errorResponse, null, 2),
             },
           ],
           isError: true,
