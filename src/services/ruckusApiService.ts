@@ -467,3 +467,39 @@ export async function createApGroupWithRetry(
     activityId
   };
 }
+
+export async function queryApGroups(
+  token: string,
+  region: string = '',
+  filters: any = {},
+  fields: string[] = ['id', 'name'],
+  page: number = 1,
+  pageSize: number = 10000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/venues/apGroups/query`
+    : 'https://api.ruckus.cloud/venues/apGroups/query';
+
+  const payload = {
+    fields,
+    filters,
+    page,
+    pageSize,
+    defaultPageSize: 10,
+    total: 0,
+    sortField: 'name',
+    sortOrder: 'ASC'
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Query AP groups');
+
+  return response.data;
+}

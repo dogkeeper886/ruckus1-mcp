@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -165,6 +165,33 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['venueId', 'name'],
+        },
+      },
+      {
+        name: 'get_ruckus_ap_groups',
+        description: 'Query AP groups from RUCKUS One with filtering and pagination support',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            filters: {
+              type: 'object',
+              description: 'Optional filters to apply (e.g., {"isDefault": [false]})',
+            },
+            fields: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Fields to return (default: ["id", "name"])',
+            },
+            page: {
+              type: 'number',
+              description: 'Page number (default: 1)',
+            },
+            pageSize: {
+              type: 'number',
+              description: 'Number of results per page (default: 10000)',
+            },
+          },
+          required: [],
         },
       },
     ],
@@ -640,6 +667,69 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: JSON.stringify(errorResponse, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_ruckus_ap_groups': {
+      try {
+        const { 
+          filters = {},
+          fields = ['id', 'name'],
+          page = 1,
+          pageSize = 10000
+        } = request.params.arguments as {
+          filters?: any;
+          fields?: string[];
+          page?: number;
+          pageSize?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await queryApGroups(
+          token,
+          process.env.RUCKUS_REGION,
+          filters,
+          fields,
+          page,
+          pageSize
+        );
+        
+        console.log('[MCP] Query AP groups response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error querying AP groups:', error);
+        
+        let errorMessage = `Error querying AP groups: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
             },
           ],
           isError: true,
