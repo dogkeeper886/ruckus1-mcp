@@ -67,15 +67,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             addressLine: {
               type: 'string',
-              description: 'Street address of the venue',
+              description: 'Street address of the venue. IMPORTANT: Use city name for reliability (e.g., "Paris" instead of "123 Rue de la Paix") to avoid RUCKUS API validation failures.',
             },
             city: {
               type: 'string',
-              description: 'City where the venue is located',
+              description: 'City where the venue is located. Must match the country location to pass RUCKUS validation.',
             },
             country: {
               type: 'string',
-              description: 'Country where the venue is located',
+              description: 'Country where the venue is located. Must match the actual country where the city is located (e.g., city: "Paris", country: "France").',
             },
             latitude: {
               type: 'number',
