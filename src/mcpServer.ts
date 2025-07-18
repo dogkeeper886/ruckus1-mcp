@@ -414,17 +414,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
+        const venueData: any = {
+          name,
+          addressLine,
+          city,
+          country,
+        };
+        if (latitude !== undefined) venueData.latitude = latitude;
+        if (longitude !== undefined) venueData.longitude = longitude;
+        if (timezone !== undefined) venueData.timezone = timezone;
+
         const result = await createVenueWithRetry(
           token,
-          {
-            name,
-            addressLine,
-            city,
-            country,
-            latitude,
-            longitude,
-            timezone,
-          },
+          venueData,
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs
@@ -618,14 +620,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
+        const apGroupData: any = { name };
+        if (description !== undefined) apGroupData.description = description;
+        if (apSerialNumbers !== undefined) apGroupData.apSerialNumbers = apSerialNumbers;
+
         const result = await createApGroupWithRetry(
           token,
           venueId,
-          {
-            name,
-            description,
-            apSerialNumbers,
-          },
+          apGroupData,
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs
