@@ -43,6 +43,18 @@ This server is designed to be used with MCP clients (like Claude Desktop). Confi
 - Async operations (venue create/delete) use polling with configurable retry logic
 - Activity tracking system monitors long-running operations via requestId
 
+### MCP Tool Development Rules
+**IMPORTANT**: When adding new MCP tools for operations that create, edit/update, or delete resources:
+- **ALWAYS implement activity detail checking** for async operations
+- **Use polling mechanism** with configurable retry logic (see existing `create_ruckus_venue` and `delete_ruckus_venue` implementations)
+- **Include `get_ruckus_activity_details` functionality** to track operation status
+- **Follow the established pattern** of returning requestId and monitoring completion status
+- **Implement proper error handling** for failed operations during polling
+- **UPDATE DOCUMENTATION**: When adding new tools, ensure all MCP server-related documentation is updated:
+  - Update tool list in `src/mcpServer.ts` comments
+  - Update this CLAUDE.md file's Core Components section
+  - Announce new tools in relevant documentation files
+
 ### Additional Documentation
 - **`docs/ruckus-api-behavior.md`**: Detailed RUCKUS API behavior documentation
 - **`docs/venue-creation-flow.md`**: Step-by-step venue creation process flow
