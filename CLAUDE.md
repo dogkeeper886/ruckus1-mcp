@@ -55,9 +55,55 @@ This server is designed to be used with MCP clients (like Claude Desktop). Confi
   - Update this CLAUDE.md file's Core Components section
   - Announce new tools in relevant documentation files
 
+### API Integration Plan
+
+**Current Status**: 8 MCP tools implemented (auth, venues, activities, AP groups)
+**API Scope**: 1,267 endpoints across 112 categories available for integration
+
+#### Phase 1: Core Infrastructure & High-Priority APIs (Immediate)
+**Priority Categories**:
+1. **APS** (4 endpoints) - Access Point management
+2. **CLIENTS** (2 endpoints) - Client device management  
+3. **WIFINETWORKS** (43 endpoints) - WiFi network configuration
+4. **ALARMS** (3 endpoints) - System monitoring
+5. **EVENTS** (6 endpoints) - Event management
+
+**Rationale**: Core network management functions used most frequently.
+
+#### Phase 2: Network Operations & Security (Short-term)
+**Priority Categories**:
+1. **SWITCHES** (68 endpoints) - Network switch management
+2. **NETWORKS** (8 endpoints) - Network configuration
+3. **RADIUSPROFILES** (2 endpoints) - Authentication
+4. **ACCESSCONTROLPROFILES** (15 endpoints) - Security policies
+5. **DEVICEPOLICIES** (7 endpoints) - Device security
+
+#### Phase 3: Advanced Features & Management (Medium-term)
+**Priority Categories**:
+1. **TEMPLATES** (35 endpoints) - Configuration templates
+2. **ADMINS** (6 endpoints) - Admin management
+3. **IDENTITIES** (3 endpoints) - User identity management
+4. **CERTIFICATES** (7 endpoints) - Certificate management
+5. **WORKFLOWS** (23 endpoints) - Automation workflows
+
+#### Phase 4: Specialized & MSP Features (Long-term)
+**Lower Priority Categories**:
+- MSP-related APIs (MSPS, MSPCUSTOMERS, etc.)
+- Specialized profiles (HOTSPOT20, WIFICALLINGSERVICEPROFILES)
+- Advanced configuration profiles
+
+#### Implementation Strategy
+1. **Start with read-only operations** (GET endpoints) for each category
+2. **Add create/update/delete operations** with proper async handling
+3. **Implement in small batches** (5-10 endpoints at a time)
+4. **Test thoroughly** before moving to next batch
+
+**Recommended Starting Point**: Begin with **APS** category (4 endpoints) as it's essential and manageable.
+
 ### Additional Documentation
 - **`docs/ruckus-api-behavior.md`**: Detailed RUCKUS API behavior documentation
 - **`docs/venue-creation-flow.md`**: Step-by-step venue creation process flow
+- **`scripts/api-reference/`**: Complete API reference documentation (1,267 endpoints)
 
 ### Venue Creation Validation Rules
 **IMPORTANT**: Country and address are validated by the RUCKUS One API. Invalid combinations will cause venue creation to fail.

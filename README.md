@@ -6,7 +6,7 @@ A Model Context Protocol (MCP) server for RUCKUS One, enabling AI assistants and
 
 ## Features
 - **MCP-only**: No REST API, no Express, no HTTP endpoints
-- **Tools**: Fetch RUCKUS One venues, get authentication tokens, create venues
+- **Tools**: Fetch RUCKUS One venues, get authentication tokens, create venues, manage AP groups
 - **Resources**: Expose venues and tokens as MCP resources
 - **Simple configuration**: All credentials and settings in `mcp.json`
 
@@ -82,7 +82,19 @@ npx @modelcontextprotocol/inspector npx ts-node src/mcpServer.ts
 src/
   mcpServer.ts         # Main MCP server implementation
   services/
-    ruckusAuthService.ts # RUCKUS One authentication logic
+    ruckusApiService.ts # RUCKUS One API service layer
+    tokenService.ts     # Token management service
+  types/
+    ruckusApi.ts        # TypeScript type definitions
+  utils/
+    config.ts           # Configuration utilities
+    errorHandler.ts     # Error handling utilities
+    tokenCache.ts       # Token caching utilities
+    validation.ts       # Input validation utilities
+
+scripts/
+  chunk-api-docs.js     # Script to chunk large API documentation files
+  scrape-ruckus-api-docs.js # Script to scrape RUCKUS API documentation
 ```
 
 ---
