@@ -15,13 +15,13 @@ This is a **Model Context Protocol (MCP) server** for RUCKUS One network managem
 
 ### Core Components
 - **`src/mcpServer.ts`**: Main MCP server implementation using `@modelcontextprotocol/sdk`
-  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `get_ruckus_activity_details`, `create_ruckus_venue`, `delete_ruckus_venue` (with status checking and retry logic)
+  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `get_ruckus_activity_details`, `create_ruckus_venue`, `delete_ruckus_venue`, `create_ruckus_ap_group` (with status checking and retry logic)
   - Implements MCP resources: `ruckus://auth/token`, `ruckus://venues/list`
   - Uses stdio transport for MCP communication
 - **`src/services/ruckusApiService.ts`**: Comprehensive RUCKUS One API service layer
   - Handles OAuth2 authentication with client credentials grant flow
   - Supports multi-region RUCKUS cloud endpoints
-  - Provides venue CRUD operations with retry mechanisms and polling
+  - Provides venue CRUD operations and AP group creation with retry mechanisms and polling
   - Manages async operation tracking via activity details
   - Implements structured error handling and timeout management
 
@@ -40,13 +40,13 @@ This server is designed to be used with MCP clients (like Claude Desktop). Confi
 - Venues API supports pagination and filtering (configured for 10,000 max results)
 - Error handling returns structured MCP error responses
 - Regional API endpoints are dynamically constructed based on configuration
-- Async operations (venue create/delete) use polling with configurable retry logic
+- Async operations (venue create/delete, AP group creation) use polling with configurable retry logic
 - Activity tracking system monitors long-running operations via requestId
 
 ### MCP Tool Development Rules
 **IMPORTANT**: When adding new MCP tools for operations that create, edit/update, or delete resources:
 - **ALWAYS implement activity detail checking** for async operations
-- **Use polling mechanism** with configurable retry logic (see existing `create_ruckus_venue` and `delete_ruckus_venue` implementations)
+- **Use polling mechanism** with configurable retry logic (see existing `create_ruckus_venue`, `delete_ruckus_venue`, and `create_ruckus_ap_group` implementations)
 - **Include `get_ruckus_activity_details` functionality** to track operation status
 - **Follow the established pattern** of returning requestId and monitoring completion status
 - **Implement proper error handling** for failed operations during polling

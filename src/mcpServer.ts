@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -121,6 +121,50 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['venueId'],
+        },
+      },
+      {
+        name: 'create_ruckus_ap_group',
+        description: 'Create a new AP group in a RUCKUS One venue with automatic status checking for async operations',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue where the AP group will be created',
+            },
+            name: {
+              type: 'string',
+              description: 'Name of the AP group (2-64 characters, no special characters like backticks or dollar signs)',
+            },
+            description: {
+              type: 'string',
+              description: 'Optional description of the AP group (2-180 characters)',
+            },
+            apSerialNumbers: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  serialNumber: {
+                    type: 'string',
+                    description: 'Serial number of the access point',
+                  },
+                },
+                required: ['serialNumber'],
+              },
+              description: 'Optional array of AP serial numbers to include in the group',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['venueId', 'name'],
         },
       },
     ],
@@ -443,6 +487,112 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // Create a structured error response
         const errorResponse: any = {
           operation: 'delete_venue',
+          success: false,
+          error: {
+            message: error.message || 'Unknown error',
+            type: error.name || 'Error'
+          }
+        };
+        
+        // If it's an axios error, provide detailed API response information
+        if (error.response) {
+          errorResponse.httpStatus = error.response.status;
+          errorResponse.httpStatusText = error.response.statusText;
+          errorResponse.apiResponse = error.response.data;
+          
+          // Extract specific error details from RUCKUS API response
+          if (error.response.data) {
+            if (error.response.data.error) {
+              errorResponse.error.apiError = error.response.data.error;
+            }
+            if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
+              errorResponse.error.apiErrors = error.response.data.errors;
+              const firstError = error.response.data.errors[0];
+              if (firstError) {
+                errorResponse.error.primaryErrorCode = firstError.code;
+                errorResponse.error.primaryErrorMessage = firstError.message;
+                errorResponse.error.primaryErrorReason = firstError.reason;
+              }
+            }
+            if (error.response.data.message) {
+              errorResponse.error.apiMessage = error.response.data.message;
+            }
+            if (error.response.data.code) {
+              errorResponse.error.apiCode = error.response.data.code;
+            }
+            if (error.response.data.details) {
+              errorResponse.error.details = error.response.data.details;
+            }
+          }
+        } else if (error.request) {
+          errorResponse.error.networkError = 'No response received from server';
+          errorResponse.error.request = error.request;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(errorResponse, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'create_ruckus_ap_group': {
+      try {
+        const { 
+          venueId, 
+          name, 
+          description,
+          apSerialNumbers,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          venueId: string;
+          name: string;
+          description?: string;
+          apSerialNumbers?: Array<{ serialNumber: string }>;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await createApGroupWithRetry(
+          token,
+          venueId,
+          {
+            name,
+            description,
+            apSerialNumbers,
+          },
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        console.log('[MCP] Create AP group response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error creating AP group:', error);
+        
+        // Create a structured error response
+        const errorResponse: any = {
+          operation: 'create_ap_group',
           success: false,
           error: {
             message: error.message || 'Unknown error',
