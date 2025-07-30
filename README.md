@@ -15,11 +15,11 @@ A Model Context Protocol (MCP) server for RUCKUS One, enabling AI assistants and
 ## Installation
 
 ### Prerequisites
-- Node.js 18+
-- npm or yarn
+- Node.js 18+ or Docker
+- npm or yarn (if running from source)
 - RUCKUS One API credentials
 
-### Quick Start
+### Quick Start (Source)
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/your-username/ruckus1-mcp.git
@@ -50,6 +50,58 @@ A Model Context Protocol (MCP) server for RUCKUS One, enabling AI assistants and
    }
    ```
    - Replace the values with your actual RUCKUS One credentials and adjust the path if needed.
+
+### Quick Start (Docker)
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-username/ruckus1-mcp.git
+   cd ruckus1-mcp
+   ```
+2. **Build the Docker image:**
+   ```bash
+   docker build -t ruckus1-mcp .
+   ```
+3. **Run the Docker container:**
+   ```bash
+   docker run -e RUCKUS_TENANT_ID=your-tenant-id \
+              -e RUCKUS_CLIENT_ID=your-client-id \
+              -e RUCKUS_CLIENT_SECRET=your-client-secret \
+              -e RUCKUS_REGION=your-region \
+              ruckus1-mcp
+   ```
+4. **Or use docker-compose:**
+   Create a `.env` file:
+   ```
+   RUCKUS_TENANT_ID=your-tenant-id
+   RUCKUS_CLIENT_ID=your-client-id
+   RUCKUS_CLIENT_SECRET=your-client-secret
+   RUCKUS_REGION=your-region
+   ```
+   Build and test the container:
+   ```bash
+   docker-compose build
+   docker-compose run --rm ruckus1-mcp
+   ```
+
+5. **Configure your MCP client to use Docker:**
+   Add this to your `mcp.json`:
+   ```json
+   {
+     "mcpServers": {
+       "ruckus1": {
+         "command": "docker",
+         "args": [
+           "run", "--rm", "-i",
+           "--env-file", "/path/to/your/.env",
+           "ruckus1-mcp"
+         ]
+       }
+     }
+   }
+   ```
+   - Replace `/path/to/your/.env` with the actual path to your environment file
+   - The `--rm` flag automatically removes the container when it exits
+   - The `-i` flag keeps stdin open for MCP communication
 
 ---
 
