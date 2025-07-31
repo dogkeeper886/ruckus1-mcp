@@ -69,21 +69,7 @@ A Model Context Protocol (MCP) server for RUCKUS One, enabling AI assistants and
               -e RUCKUS_REGION=your-region \
               ruckus1-mcp
    ```
-4. **Or use docker-compose:**
-   Create a `.env` file:
-   ```
-   RUCKUS_TENANT_ID=your-tenant-id
-   RUCKUS_CLIENT_ID=your-client-id
-   RUCKUS_CLIENT_SECRET=your-client-secret
-   RUCKUS_REGION=your-region
-   ```
-   Build and test the container:
-   ```bash
-   docker-compose build
-   docker-compose run --rm ruckus1-mcp
-   ```
-
-5. **Configure your MCP client to use Docker:**
+4. **Configure your MCP client to use Docker:**
    Add this to your `mcp.json`:
    ```json
    {
