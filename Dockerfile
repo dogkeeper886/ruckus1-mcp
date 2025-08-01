@@ -7,14 +7,17 @@ WORKDIR /app
 # Copy package files first for better caching
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including dev dependencies for building)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
 # Build the TypeScript code
 RUN npm run build
+
+# Remove dev dependencies to reduce image size
+RUN npm prune --production
 
 # Copy and make the entrypoint script executable
 COPY docker-entrypoint.sh /usr/local/bin/
