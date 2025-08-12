@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getApModelAntennaSettings } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getApModelAntennaSettings, queryAPs } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -232,6 +232,46 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['venueId'],
+        },
+      },
+      {
+        name: 'get_ruckus_aps',
+        description: 'Get parameters and operational data for a list of APs or mesh APs',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue to filter APs (optional)',
+            },
+            searchString: {
+              type: 'string',
+              description: 'Search string to filter APs (optional)',
+            },
+            searchTargetFields: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Fields to search in (default: name, model, networkStatus.ipAddress, macAddress, tags, serialNumber)',
+            },
+            fields: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Fields to return in the response (default: comprehensive set of AP data)',
+            },
+            page: {
+              type: 'number',
+              description: 'Page number (default: 1)',
+            },
+            pageSize: {
+              type: 'number',
+              description: 'Number of results per page (default: 10)',
+            },
+            mesh: {
+              type: 'boolean',
+              description: 'Get mesh APs (default: false)',
+            },
+          },
+          required: [],
         },
       },
     ],
@@ -922,6 +962,118 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_ruckus_aps': {
+      try {
+        const { 
+          venueId,
+          searchString = '',
+          searchTargetFields,
+          fields,
+          page = 1,
+          pageSize = 10,
+          mesh = false
+        } = request.params.arguments as {
+          venueId?: string;
+          searchString?: string;
+          searchTargetFields?: string[];
+          fields?: string[];
+          page?: number;
+          pageSize?: number;
+          mesh?: boolean;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        // Build filters object
+        const filters: any = {};
+        if (venueId) {
+          filters.venueId = [venueId];
+        }
+        
+        const apsData = await queryAPs(
+          token,
+          process.env.RUCKUS_REGION,
+          filters,
+          fields,
+          searchString,
+          searchTargetFields,
+          page,
+          pageSize,
+          mesh
+        );
+        
+        console.log('[MCP] Query APs response:', apsData);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(apsData, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error querying APs:', error);
+        
+        // Build structured error response
+        const errorResponse: any = {
+          message: 'Failed to query APs',
+          error: {
+            message: error.message || 'Unknown error',
+            type: error.name || 'Error'
+          }
+        };
+        
+        // If it's an axios error, provide detailed API response information
+        if (error.response) {
+          errorResponse.httpStatus = error.response.status;
+          errorResponse.httpStatusText = error.response.statusText;
+          errorResponse.apiResponse = error.response.data;
+          
+          // Extract specific error details from RUCKUS API response
+          if (error.response.data) {
+            if (error.response.data.error) {
+              errorResponse.error.apiError = error.response.data.error;
+            }
+            if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
+              errorResponse.error.apiErrors = error.response.data.errors;
+              const firstError = error.response.data.errors[0];
+              if (firstError) {
+                errorResponse.error.primaryErrorCode = firstError.code;
+                errorResponse.error.primaryErrorMessage = firstError.message;
+                errorResponse.error.primaryErrorReason = firstError.reason;
+              }
+            }
+            if (error.response.data.message) {
+              errorResponse.error.apiMessage = error.response.data.message;
+            }
+            if (error.response.data.code) {
+              errorResponse.error.apiCode = error.response.data.code;
+            }
+            if (error.response.data.details) {
+              errorResponse.error.details = error.response.data.details;
+            }
+          }
+        } else if (error.request) {
+          errorResponse.error.networkError = 'No response received from server';
+          errorResponse.error.request = error.request;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(errorResponse, null, 2),
             },
           ],
           isError: true,

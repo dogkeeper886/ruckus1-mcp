@@ -523,6 +523,54 @@ export async function queryApGroups(
   return response.data;
 }
 
+export async function queryAPs(
+  token: string,
+  region: string = '',
+  filters: any = {},
+  fields: string[] = [
+    'name', 'status', 'model', 'networkStatus', 'macAddress', 
+    'venueName', 'switchName', 'meshRole', 'clientCount', 
+    'apWiredClientCount', 'apGroupId', 'apGroupName', 
+    'lanPortStatuses', 'tags', 'serialNumber', 'radioStatuses', 
+    'venueId', 'poePort', 'firmwareVersion', 'uptime', 
+    'afcStatus', 'powerSavingStatus', 'supportSecureBoot', 'poeUnderPowered'
+  ],
+  searchString: string = '',
+  searchTargetFields: string[] = ['name', 'model', 'networkStatus.ipAddress', 'macAddress', 'tags', 'serialNumber'],
+  page: number = 1,
+  pageSize: number = 10,
+  mesh: boolean = false
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/venues/aps/query${mesh ? '?mesh=true' : ''}`
+    : `https://api.ruckus.cloud/venues/aps/query${mesh ? '?mesh=true' : ''}`;
+
+  const payload = {
+    searchString,
+    searchTargetFields,
+    fields,
+    filters,
+    page,
+    pageSize,
+    defaultPageSize: 10,
+    total: 0,
+    sortField: 'name',
+    sortOrder: 'ASC'
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Query APs');
+
+  return response.data;
+}
+
 export async function deleteApGroupWithRetry(
   token: string,
   venueId: string,
