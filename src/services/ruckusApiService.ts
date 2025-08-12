@@ -93,6 +93,25 @@ export async function getRuckusActivityDetails(
   return response.data;
 }
 
+export async function getApModelAntennaSettings(
+  token: string,
+  venueId: string,
+  region: string = ''
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/venues/${venueId}/apModelExternalAntennaSettings`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get AP model antenna settings');
+
+  return response.data;
+}
+
 export async function deleteVenueWithRetry(
   token: string,
   venueId: string,
