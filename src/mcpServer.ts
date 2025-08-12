@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getApModelAntennaSettings, queryAPs } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getApModelAntennaSettings, queryAPs, moveApToGroup, getApExternalAntennaSettings } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -272,6 +272,54 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: [],
+        },
+      },
+      {
+        name: 'move_ap_to_group',
+        description: 'Move an AP to an AP group with automatic status checking for async operations',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue containing the AP and AP group',
+            },
+            apGroupId: {
+              type: 'string',
+              description: 'ID of the AP group to move the AP into',
+            },
+            serialNumber: {
+              type: 'string',
+              description: 'Serial number of the AP to move',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+          },
+          required: ['venueId', 'apGroupId', 'serialNumber'],
+        },
+      },
+      {
+        name: 'get_ap_external_antenna_settings',
+        description: 'Get external antenna settings for a specific AP by serial number',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue containing the AP',
+            },
+            serialNumber: {
+              type: 'string',
+              description: 'Serial number of the AP to get antenna settings for',
+            },
+          },
+          required: ['venueId', 'serialNumber'],
         },
       },
     ],
@@ -1028,6 +1076,186 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // Build structured error response
         const errorResponse: any = {
           message: 'Failed to query APs',
+          error: {
+            message: error.message || 'Unknown error',
+            type: error.name || 'Error'
+          }
+        };
+        
+        // If it's an axios error, provide detailed API response information
+        if (error.response) {
+          errorResponse.httpStatus = error.response.status;
+          errorResponse.httpStatusText = error.response.statusText;
+          errorResponse.apiResponse = error.response.data;
+          
+          // Extract specific error details from RUCKUS API response
+          if (error.response.data) {
+            if (error.response.data.error) {
+              errorResponse.error.apiError = error.response.data.error;
+            }
+            if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
+              errorResponse.error.apiErrors = error.response.data.errors;
+              const firstError = error.response.data.errors[0];
+              if (firstError) {
+                errorResponse.error.primaryErrorCode = firstError.code;
+                errorResponse.error.primaryErrorMessage = firstError.message;
+                errorResponse.error.primaryErrorReason = firstError.reason;
+              }
+            }
+            if (error.response.data.message) {
+              errorResponse.error.apiMessage = error.response.data.message;
+            }
+            if (error.response.data.code) {
+              errorResponse.error.apiCode = error.response.data.code;
+            }
+            if (error.response.data.details) {
+              errorResponse.error.details = error.response.data.details;
+            }
+          }
+        } else if (error.request) {
+          errorResponse.error.networkError = 'No response received from server';
+          errorResponse.error.request = error.request;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(errorResponse, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'move_ap_to_group': {
+      try {
+        const { 
+          venueId,
+          apGroupId,
+          serialNumber,
+          pollIntervalMs = 2000,
+          maxRetries = 5
+        } = request.params.arguments as {
+          venueId: string;
+          apGroupId: string;
+          serialNumber: string;
+          pollIntervalMs?: number;
+          maxRetries?: number;
+        };
+        
+        const result = await moveApToGroup(
+          venueId,
+          apGroupId,
+          serialNumber,
+          pollIntervalMs,
+          maxRetries,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] Move AP to group response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error moving AP to group:', error);
+        
+        // Build structured error response
+        const errorResponse: any = {
+          message: 'Failed to move AP to group',
+          error: {
+            message: error.message || 'Unknown error',
+            type: error.name || 'Error'
+          }
+        };
+        
+        // If it's an axios error, provide detailed API response information
+        if (error.response) {
+          errorResponse.httpStatus = error.response.status;
+          errorResponse.httpStatusText = error.response.statusText;
+          errorResponse.apiResponse = error.response.data;
+          
+          // Extract specific error details from RUCKUS API response
+          if (error.response.data) {
+            if (error.response.data.error) {
+              errorResponse.error.apiError = error.response.data.error;
+            }
+            if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
+              errorResponse.error.apiErrors = error.response.data.errors;
+              const firstError = error.response.data.errors[0];
+              if (firstError) {
+                errorResponse.error.primaryErrorCode = firstError.code;
+                errorResponse.error.primaryErrorMessage = firstError.message;
+                errorResponse.error.primaryErrorReason = firstError.reason;
+              }
+            }
+            if (error.response.data.message) {
+              errorResponse.error.apiMessage = error.response.data.message;
+            }
+            if (error.response.data.code) {
+              errorResponse.error.apiCode = error.response.data.code;
+            }
+            if (error.response.data.details) {
+              errorResponse.error.details = error.response.data.details;
+            }
+          }
+        } else if (error.request) {
+          errorResponse.error.networkError = 'No response received from server';
+          errorResponse.error.request = error.request;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(errorResponse, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_ap_external_antenna_settings': {
+      try {
+        const { venueId, serialNumber } = request.params.arguments as {
+          venueId: string;
+          serialNumber: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const antennaSettings = await getApExternalAntennaSettings(
+          token,
+          venueId,
+          serialNumber,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] AP external antenna settings response:', antennaSettings);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(antennaSettings, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting AP external antenna settings:', error);
+        
+        // Build structured error response
+        const errorResponse: any = {
+          message: 'Failed to get AP external antenna settings',
           error: {
             message: error.message || 'Unknown error',
             type: error.name || 'Error'

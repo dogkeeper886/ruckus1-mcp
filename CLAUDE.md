@@ -15,13 +15,13 @@ This is a **Model Context Protocol (MCP) server** for RUCKUS One network managem
 
 ### Core Components
 - **`src/mcpServer.ts`**: Main MCP server implementation using `@modelcontextprotocol/sdk`
-  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `get_ruckus_activity_details`, `create_ruckus_venue`, `delete_ruckus_venue`, `create_ruckus_ap_group`, `get_ruckus_ap_groups`, `delete_ruckus_ap_group`, `get_ap_model_antenna_settings`, `get_ruckus_aps` (with status checking and retry logic for async operations)
+  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `get_ruckus_activity_details`, `create_ruckus_venue`, `delete_ruckus_venue`, `create_ruckus_ap_group`, `get_ruckus_ap_groups`, `delete_ruckus_ap_group`, `get_ap_model_antenna_settings`, `get_ruckus_aps`, `move_ap_to_group`, `get_ap_external_antenna_settings` (with status checking and retry logic for async operations)
   - Implements MCP resources: `ruckus://auth/token`, `ruckus://venues/list`
   - Uses stdio transport for MCP communication
 - **`src/services/ruckusApiService.ts`**: Comprehensive RUCKUS One API service layer
   - Handles OAuth2 authentication with client credentials grant flow
   - Supports multi-region RUCKUS cloud endpoints
-  - Provides venue CRUD operations and AP group creation/deletion/querying with retry mechanisms and polling
+  - Provides venue CRUD operations, AP group creation/deletion/querying, and AP management (move to group) with retry mechanisms and polling
   - Manages async operation tracking via activity details
   - Implements structured error handling and timeout management
 
@@ -57,7 +57,7 @@ This server is designed to be used with MCP clients (like Claude Desktop). Confi
 
 ### API Integration Plan
 
-**Current Status**: 10 MCP tools implemented (auth, venues, activities, AP groups, AP antenna settings, APs query)
+**Current Status**: 12 MCP tools implemented (auth, venues, activities, AP groups, AP antenna settings, APs query, move AP to group, AP external antenna settings)
 **API Scope**: 1,267 endpoints across 112 categories available for integration
 
 #### Phase 1: Core Infrastructure & High-Priority APIs (Immediate)
