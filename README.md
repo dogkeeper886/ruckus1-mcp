@@ -12,68 +12,59 @@ A Model Context Protocol (MCP) server for RUCKUS One, enabling AI assistants and
 
 ---
 
-## Installation
+## Quick Start
 
 ### Prerequisites
+- RUCKUS One API credentials (tenant ID, client ID, client secret)
+- An MCP client (e.g., Claude Desktop, Cline, or other MCP-compatible client)
 - Docker (recommended) or Node.js 18+
-- RUCKUS One API credentials
 
-### Quick Start (Docker - Recommended)
-**Configure your MCP client to use the pre-built Docker image:**
-**Option A: Using environment file**
-Create a `.env` file:
-```bash
-# RUCKUS One API credentials
-RUCKUS_TENANT_ID=your-tenant-id
-RUCKUS_CLIENT_ID=your-client-id
-RUCKUS_CLIENT_SECRET=your-client-secret
-# e.g. us, eu, ap; leave blank if not needed
-RUCKUS_REGION=your-region
-```
+### Option 1: Using Docker (Recommended)
 
-Add this to your `mcp.json`:
-```json
-{
-  "mcpServers": {
-    "ruckus1": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "--env-file", "/path/to/your/.env",
-        "dogkeeper886/ruckus1-mcp"
-      ]
-    }
-  }
-}
-```
+1. **Pull or build the Docker image:**
+   ```bash
+   # Clone and build locally
+   git clone https://github.com/your-username/ruckus1-mcp.git
+   cd ruckus1-mcp
+   docker build -t ruckus1-mcp .
+   ```
 
-**Option B: Using inline environment variables**
-Add this to your `mcp.json`:
-```json
-{
-  "mcpServers": {
-    "ruckus1": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "-e", "RUCKUS_TENANT_ID=your-tenant-id",
-        "-e", "RUCKUS_CLIENT_ID=your-client-id", 
-        "-e", "RUCKUS_CLIENT_SECRET=your-client-secret",
-        "-e", "RUCKUS_REGION=your-region",
-        "dogkeeper886/ruckus1-mcp"
-      ]
-    }
-  }
-}
-```
+2. **Configure your MCP client:**
 
-- Replace `/path/to/your/.env` with the actual path to your environment file (Option A)
-- Replace the credential values with your actual RUCKUS One credentials
-- The `--rm` flag automatically removes the container when it exits
-- The `-i` flag keeps stdin open for MCP communication
+   **For Claude Code CLI:**
+   ```bash
+   claude mcp add ruckus1 -- docker run --rm -i \
+     -e RUCKUS_TENANT_ID=your-tenant-id \
+     -e RUCKUS_CLIENT_ID=your-client-id \
+     -e RUCKUS_CLIENT_SECRET=your-client-secret \
+     -e RUCKUS_REGION=your-region \
+     dogkeeper886/ruckus1-mcp
+   ```
 
-### Alternative: From Source
-If you prefer to run from source code:
+   **For other MCP clients (mcp.json):**
+   ```json
+   {
+     "mcpServers": {
+       "ruckus1": {
+         "command": "docker",
+         "args": [
+           "run", "--rm", "-i",
+           "-e", "RUCKUS_TENANT_ID=your-tenant-id",
+           "-e", "RUCKUS_CLIENT_ID=your-client-id",
+           "-e", "RUCKUS_CLIENT_SECRET=your-client-secret",
+           "-e", "RUCKUS_REGION=your-region",
+           "dogkeeper886/ruckus1-mcp"
+         ]
+       }
+     }
+   }
+   ```
+
+   - Replace the credential values with your actual RUCKUS One credentials
+   - The `--rm` flag automatically removes the container when it exits
+   - The `-i` flag keeps stdin open for MCP communication
+
+### Option 2: Running from Source
 
 1. **Clone and install:**
    ```bash
@@ -82,7 +73,8 @@ If you prefer to run from source code:
    npm install
    ```
 
-2. **Configure your MCP server in `mcp.json`:**
+2. **Configure your MCP client:**
+   Add this to your MCP client's `mcp.json`:
    ```json
    {
      "mcpServers": {
@@ -90,7 +82,7 @@ If you prefer to run from source code:
          "command": "npx",
          "args": [
            "ts-node",
-           "YOUR_PATH_TO/ruckus1-mcp/src/mcpServer.ts"
+           "/absolute/path/to/ruckus1-mcp/src/mcpServer.ts"
          ],
          "env": {
            "RUCKUS_TENANT_ID": "your-tenant-id",
@@ -105,31 +97,40 @@ If you prefer to run from source code:
 
 ---
 
-## Using with MCP Inspector
+## Available MCP Tools
 
-### 1. Launch Inspector
-Run this command in your project directory:
-```bash
-npx @modelcontextprotocol/inspector npx ts-node src/mcpServer.ts
-```
+Once configured, your MCP client will have access to these tools:
 
-### 2. Configure Inspector (after browser opens)
-- **Command:** `npx`
-- **Arguments:** `ts-node src/mcpServer.ts`
-- **Environment variables:**
-  - `RUCKUS_TENANT_ID`
-  - `RUCKUS_CLIENT_ID`
-  - `RUCKUS_CLIENT_SECRET`
-  - `RUCKUS_REGION`
-- Click **Connect**
+- `get_ruckus_auth_token` - Get JWT authentication token
+- `get_ruckus_venues` - List all venues
+- `get_ruckus_activity_details` - Check status of async operations
+- `create_ruckus_venue` - Create a new venue with automatic status checking
+- `delete_ruckus_venue` - Delete a venue with automatic status checking
+- `create_ruckus_ap_group` - Create AP groups in venues
+- `get_ruckus_ap_groups` - Query AP groups with filtering
+- `delete_ruckus_ap_group` - Delete AP groups from venues
 
-### 3. Use Inspector
-1. Use the **Tools** tab to run `get_ruckus_venues`, `get_ruckus_auth_token`, or `create_ruckus_venue`.
-2. Use the **Resources** tab to view `ruckus://venues/list` or `ruckus://auth/token`.
+## Available MCP Resources
+
+- `ruckus://venues/list` - Access venue list as a resource
+- `ruckus://auth/token` - Access current authentication token
 
 ---
 
-## Project Structure
+## Development
+
+### Testing with MCP Inspector
+
+For development and testing, you can use the MCP Inspector:
+
+```bash
+# From the project directory
+npx @modelcontextprotocol/inspector npx ts-node src/mcpServer.ts
+```
+
+Then configure the Inspector with your RUCKUS credentials and test the tools.
+
+### Project Structure
 ```
 src/
   mcpServer.ts         # Main MCP server implementation
