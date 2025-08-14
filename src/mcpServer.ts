@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getApModelAntennaSettings, queryAPs } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getApModelAntennaSettings, getApModelAntennaTypeSettings, queryAPs } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -229,6 +229,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             venueId: {
               type: 'string',
               description: 'ID of the venue to get antenna settings for',
+            },
+          },
+          required: ['venueId'],
+        },
+      },
+      {
+        name: 'get_ap_model_antenna_type_settings',
+        description: 'Get AP model antenna type settings for a venue',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue to get antenna type settings for',
             },
           },
           required: ['venueId'],
@@ -947,6 +961,55 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       } catch (error: any) {
         console.error('[MCP] Error getting AP model antenna settings:', error);
         let errorMessage = `Error getting AP model antenna settings: ${error}`;
+        
+        // If it's an axios error, provide more detailed information
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_ap_model_antenna_type_settings': {
+      try {
+        const { venueId } = request.params.arguments as {
+          venueId: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const antennaTypeSettings = await getApModelAntennaTypeSettings(
+          token,
+          venueId,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] AP model antenna type settings response:', antennaTypeSettings);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(antennaTypeSettings, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting AP model antenna type settings:', error);
+        let errorMessage = `Error getting AP model antenna type settings: ${error}`;
         
         // If it's an axios error, provide more detailed information
         if (error.response) {

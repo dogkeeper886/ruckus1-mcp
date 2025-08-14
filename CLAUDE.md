@@ -15,7 +15,7 @@ This is a **Model Context Protocol (MCP) server** for RUCKUS One network managem
 
 ### Core Components
 - **`src/mcpServer.ts`**: Main MCP server implementation using `@modelcontextprotocol/sdk`
-  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `get_ruckus_activity_details`, `create_ruckus_venue`, `delete_ruckus_venue`, `create_ruckus_ap_group`, `get_ruckus_ap_groups`, `delete_ruckus_ap_group`, `get_ap_model_antenna_settings`, `get_ruckus_aps` (with status checking and retry logic for async operations)
+  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `get_ruckus_activity_details`, `create_ruckus_venue`, `delete_ruckus_venue`, `create_ruckus_ap_group`, `get_ruckus_ap_groups`, `delete_ruckus_ap_group`, `get_ap_model_antenna_settings`, `get_ap_model_antenna_type_settings`, `get_ruckus_aps` (with status checking and retry logic for async operations)
   - Implements MCP resources: `ruckus://auth/token`, `ruckus://venues/list`
   - Uses stdio transport for MCP communication
 - **`src/services/ruckusApiService.ts`**: Comprehensive RUCKUS One API service layer
@@ -57,7 +57,7 @@ This server is designed to be used with MCP clients (like Claude Desktop). Confi
 
 ### API Integration Plan
 
-**Current Status**: 10 MCP tools implemented (auth, venues, activities, AP groups, AP antenna settings, APs query)
+**Current Status**: 11 MCP tools implemented (auth, venues, activities, AP groups, AP antenna settings, AP antenna type settings, APs query)
 **API Scope**: 1,267 endpoints across 112 categories available for integration
 
 #### Phase 1: Core Infrastructure & High-Priority APIs (Immediate)

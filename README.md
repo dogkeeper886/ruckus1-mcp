@@ -110,6 +110,7 @@ Once configured, your MCP client will have access to these tools:
 - `get_ruckus_ap_groups` - Query AP groups with filtering
 - `delete_ruckus_ap_group` - Delete AP groups from venues
 - `get_ap_model_antenna_settings` - Get AP model external antenna settings for a venue
+- `get_ap_model_antenna_type_settings` - Get AP model antenna type settings for a venue
 - `get_ruckus_aps` - Query access points with filtering, search, and pagination
 
 ## Available MCP Resources
