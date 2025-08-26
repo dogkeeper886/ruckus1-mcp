@@ -15,13 +15,13 @@ This is a **Model Context Protocol (MCP) server** for RUCKUS One network managem
 
 ### Core Components
 - **`src/mcpServer.ts`**: Main MCP server implementation using `@modelcontextprotocol/sdk`
-  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `get_ruckus_activity_details`, `create_ruckus_venue`, `delete_ruckus_venue`, `create_ruckus_ap_group`, `get_ruckus_ap_groups`, `delete_ruckus_ap_group`, `get_ap_model_antenna_settings`, `get_ap_model_antenna_type_settings`, `get_ruckus_aps`, `move_ruckus_ap` (with status checking and retry logic for async operations)
+  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `get_ruckus_activity_details`, `create_ruckus_venue`, `delete_ruckus_venue`, `create_ruckus_ap_group`, `get_ruckus_ap_groups`, `delete_ruckus_ap_group`, `get_ap_model_antenna_settings`, `get_ap_model_antenna_type_settings`, `get_ruckus_aps`, `move_ruckus_ap`, `update_ruckus_ap`, `move_ap_to_group`, `move_ap_to_venue`, `rename_ap` (with status checking and retry logic for async operations)
   - Implements MCP resources: `ruckus://auth/token`, `ruckus://venues/list`
   - Uses stdio transport for MCP communication
 - **`src/services/ruckusApiService.ts`**: Comprehensive RUCKUS One API service layer
   - Handles OAuth2 authentication with client credentials grant flow
   - Supports multi-region RUCKUS cloud endpoints
-  - Provides venue CRUD operations, AP group creation/deletion/querying, AP querying, and AP movement with retry mechanisms and polling
+  - Provides venue CRUD operations, AP group creation/deletion/querying, AP querying, AP movement with retry mechanisms and polling, and comprehensive AP management with retrieve-then-update pattern
   - Manages async operation tracking via activity details
   - Implements structured error handling and timeout management
 
@@ -42,6 +42,7 @@ This server is designed to be used with MCP clients (like Claude Desktop). Confi
 - Regional API endpoints are dynamically constructed based on configuration
 - Async operations (venue create/delete, AP group creation/deletion, AP movement) use polling with configurable retry logic
 - Activity tracking system monitors long-running operations via requestId
+- **Retrieve-Then-Update Pattern**: All AP update operations first retrieve current state to preserve existing properties, preventing data loss during property changes
 
 ## Better Process for Adding New MCP Tools
 

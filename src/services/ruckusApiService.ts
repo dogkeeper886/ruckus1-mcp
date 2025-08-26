@@ -708,6 +708,127 @@ export async function deleteApGroupWithRetry(
   };
 }
 
+export async function getApDetailsBySerial(
+  token: string,
+  serialNumber: string,
+  region: string = ''
+): Promise<any> {
+  const response = await queryAPs(
+    token,
+    region,
+    {},
+    [
+      'name', 'status', 'model', 'networkStatus', 'macAddress', 
+      'venueName', 'switchName', 'meshRole', 'clientCount', 
+      'apWiredClientCount', 'apGroupId', 'apGroupName', 
+      'lanPortStatuses', 'tags', 'serialNumber', 'radioStatuses', 
+      'venueId', 'poePort', 'firmwareVersion', 'uptime', 
+      'afcStatus', 'powerSavingStatus', 'supportSecureBoot', 'poeUnderPowered'
+    ],
+    serialNumber,
+    ['serialNumber'],
+    1,
+    10
+  );
+  
+  if (response.totalCount === 0) {
+    throw new Error(`AP with serial number ${serialNumber} not found`);
+  }
+  
+  return response.data[0];
+}
+
+export async function updateApWithRetrieval(
+  token: string,
+  serialNumber: string,
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000,
+  changes?: {
+    name?: string;
+    venueId?: string;
+    apGroupId?: string;
+    description?: string;
+  }
+): Promise<any> {
+  // Step 1: Get current AP state
+  const currentAp = await getApDetailsBySerial(token, serialNumber, region);
+  
+  // Step 2: Determine target venue (either new venue or current venue)
+  const targetVenueId = changes?.venueId ?? currentAp.venueId;
+  const targetApGroupId = changes?.apGroupId ?? currentAp.apGroupId;
+  const targetName = changes?.name ?? currentAp.name;
+  
+  // Step 3: Perform update with complete payload
+  return await moveApWithRetry(
+    token,
+    targetVenueId,
+    serialNumber,
+    targetApGroupId,
+    targetName,
+    changes?.description,
+    changes?.venueId ? 'direct' : 'update', // Use direct for cross-venue, update for same-venue
+    region,
+    maxRetries,
+    pollIntervalMs
+  );
+}
+
+export async function moveApToVenue(
+  token: string,
+  serialNumber: string,
+  targetVenueId: string,
+  targetApGroupId: string,
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  return updateApWithRetrieval(
+    token,
+    serialNumber,
+    region,
+    maxRetries,
+    pollIntervalMs,
+    { venueId: targetVenueId, apGroupId: targetApGroupId }
+  );
+}
+
+export async function moveApToGroup(
+  token: string,
+  serialNumber: string,
+  targetApGroupId: string,
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  return updateApWithRetrieval(
+    token,
+    serialNumber,
+    region,
+    maxRetries,
+    pollIntervalMs,
+    { apGroupId: targetApGroupId }
+  );
+}
+
+export async function renameAp(
+  token: string,
+  serialNumber: string,
+  newName: string,
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  return updateApWithRetrieval(
+    token,
+    serialNumber,
+    region,
+    maxRetries,
+    pollIntervalMs,
+    { name: newName }
+  );
+}
+
 export async function moveApWithRetry(
   token: string,
   venueId: string,

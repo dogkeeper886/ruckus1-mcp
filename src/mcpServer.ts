@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getApModelAntennaSettings, getApModelAntennaTypeSettings, queryAPs, moveApWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getApModelAntennaSettings, getApModelAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -329,6 +329,126 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['venueId', 'apSerialNumber', 'apGroupId'],
+        },
+      },
+      {
+        name: 'update_ruckus_ap',
+        description: 'Update AP properties (name, venue, group, etc.) with automatic property preservation using retrieve-then-update pattern',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            apSerialNumber: {
+              type: 'string',
+              description: 'Serial number of the AP to update',
+            },
+            apName: {
+              type: 'string',
+              description: 'New AP display name (optional)',
+            },
+            venueId: {
+              type: 'string',
+              description: 'Target venue ID (optional - for moving AP to different venue)',
+            },
+            apGroupId: {
+              type: 'string',
+              description: 'Target AP group ID (optional - for moving AP to different group)',
+            },
+            description: {
+              type: 'string',
+              description: 'Description for the update operation (optional)',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of polling retries (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['apSerialNumber'],
+        },
+      },
+      {
+        name: 'move_ap_to_group',
+        description: 'Move AP to different group in same venue (preserves name and other properties)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            apSerialNumber: {
+              type: 'string',
+              description: 'Serial number of the AP to move',
+            },
+            targetApGroupId: {
+              type: 'string',
+              description: 'Target AP group ID in the same venue',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of polling retries (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['apSerialNumber', 'targetApGroupId'],
+        },
+      },
+      {
+        name: 'move_ap_to_venue',
+        description: 'Move AP to different venue with specified AP group (preserves name and other properties)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            apSerialNumber: {
+              type: 'string',
+              description: 'Serial number of the AP to move',
+            },
+            targetVenueId: {
+              type: 'string',
+              description: 'Target venue ID where the AP will be moved',
+            },
+            targetApGroupId: {
+              type: 'string',
+              description: 'Target AP group ID in the destination venue',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of polling retries (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['apSerialNumber', 'targetVenueId', 'targetApGroupId'],
+        },
+      },
+      {
+        name: 'rename_ap',
+        description: 'Change AP display name (preserves venue, group, and other properties)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            apSerialNumber: {
+              type: 'string',
+              description: 'Serial number of the AP to rename',
+            },
+            newName: {
+              type: 'string',
+              description: 'New display name for the AP',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of polling retries (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['apSerialNumber', 'newName'],
         },
       },
     ],
@@ -1284,6 +1404,332 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         } else if (error.request) {
           errorResponse.error.networkError = 'No response received from server';
           errorResponse.error.request = error.request;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(errorResponse, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'update_ruckus_ap': {
+      try {
+        const { 
+          apSerialNumber,
+          apName,
+          venueId,
+          apGroupId,
+          description,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          apSerialNumber: string;
+          apName?: string;
+          venueId?: string;
+          apGroupId?: string;
+          description?: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        console.log('[MCP] Updating AP:', {
+          apSerialNumber,
+          apName,
+          venueId,
+          apGroupId
+        });
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        // Build changes object with only provided values
+        const changes: any = {};
+        if (apName !== undefined) changes.name = apName;
+        if (venueId !== undefined) changes.venueId = venueId;
+        if (apGroupId !== undefined) changes.apGroupId = apGroupId;
+        if (description !== undefined) changes.description = description;
+        
+        const result = await updateApWithRetrieval(
+          token,
+          apSerialNumber,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+          changes
+        );
+        
+        console.log('[MCP] Update AP response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error updating AP:', error);
+        
+        const errorResponse: any = {
+          message: 'Failed to update AP',
+          error: {
+            message: error.message || 'Unknown error',
+            type: error.name || 'Error'
+          }
+        };
+        
+        if (error.response) {
+          errorResponse.httpStatus = error.response.status;
+          errorResponse.httpStatusText = error.response.statusText;
+          
+          if (error.response.data) {
+            if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
+              const firstError = error.response.data.errors[0];
+              if (firstError) {
+                errorResponse.error.primaryErrorCode = firstError.code;
+                errorResponse.error.primaryErrorMessage = firstError.message || firstError.value;
+                errorResponse.error.primaryErrorReason = firstError.reason;
+              }
+            }
+            if (error.response.data.message) {
+              errorResponse.error.apiMessage = error.response.data.message;
+            }
+            if (error.response.data.code) {
+              errorResponse.error.apiCode = error.response.data.code;
+            }
+            if (error.response.data.details) {
+              errorResponse.error.details = error.response.data.details;
+            }
+          }
+        } else if (error.request) {
+          errorResponse.error.networkError = 'No response received from server';
+          errorResponse.error.request = error.request;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(errorResponse, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'move_ap_to_group': {
+      try {
+        const { 
+          apSerialNumber,
+          targetApGroupId,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          apSerialNumber: string;
+          targetApGroupId: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        console.log('[MCP] Moving AP to group:', {
+          apSerialNumber,
+          targetApGroupId
+        });
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await moveApToGroup(
+          token,
+          apSerialNumber,
+          targetApGroupId,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        console.log('[MCP] Move AP to group response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error moving AP to group:', error);
+        
+        const errorResponse: any = {
+          message: 'Failed to move AP to group',
+          error: {
+            message: error.message || 'Unknown error',
+            type: error.name || 'Error'
+          }
+        };
+        
+        if (error.response) {
+          errorResponse.httpStatus = error.response.status;
+          errorResponse.httpStatusText = error.response.statusText;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(errorResponse, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'move_ap_to_venue': {
+      try {
+        const { 
+          apSerialNumber,
+          targetVenueId,
+          targetApGroupId,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          apSerialNumber: string;
+          targetVenueId: string;
+          targetApGroupId: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        console.log('[MCP] Moving AP to venue:', {
+          apSerialNumber,
+          targetVenueId,
+          targetApGroupId
+        });
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await moveApToVenue(
+          token,
+          apSerialNumber,
+          targetVenueId,
+          targetApGroupId,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        console.log('[MCP] Move AP to venue response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error moving AP to venue:', error);
+        
+        const errorResponse: any = {
+          message: 'Failed to move AP to venue',
+          error: {
+            message: error.message || 'Unknown error',
+            type: error.name || 'Error'
+          }
+        };
+        
+        if (error.response) {
+          errorResponse.httpStatus = error.response.status;
+          errorResponse.httpStatusText = error.response.statusText;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(errorResponse, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'rename_ap': {
+      try {
+        const { 
+          apSerialNumber,
+          newName,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          apSerialNumber: string;
+          newName: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        console.log('[MCP] Renaming AP:', {
+          apSerialNumber,
+          newName
+        });
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await renameAp(
+          token,
+          apSerialNumber,
+          newName,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        console.log('[MCP] Rename AP response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error renaming AP:', error);
+        
+        const errorResponse: any = {
+          message: 'Failed to rename AP',
+          error: {
+            message: error.message || 'Unknown error',
+            type: error.name || 'Error'
+          }
+        };
+        
+        if (error.response) {
+          errorResponse.httpStatus = error.response.status;
+          errorResponse.httpStatusText = error.response.statusText;
         }
         
         return {
