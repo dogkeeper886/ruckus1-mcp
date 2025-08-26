@@ -760,6 +760,7 @@ export async function updateApWithRetrieval(
   const targetName = changes?.name ?? currentAp.name;
   
   // Step 3: Perform update with complete payload
+  // Always use 'direct' method as it's the only reliable way to move APs between groups
   return await moveApWithRetry(
     token,
     targetVenueId,
@@ -767,7 +768,7 @@ export async function updateApWithRetrieval(
     targetApGroupId,
     targetName,
     changes?.description,
-    changes?.venueId ? 'direct' : 'update', // Use direct for cross-venue, update for same-venue
+    'direct', // Always use direct method - it's the only one that actually works for group moves
     region,
     maxRetries,
     pollIntervalMs
@@ -851,16 +852,21 @@ export async function moveApWithRetry(
       : `https://api.ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}/aps/${apSerialNumber}`;
     // Empty payload for direct method
   } else {
-    // Method 2: AP update with group assignment
+    // Method 2: AP update with group assignment - get current AP details first
+    const currentAp = await getApDetailsBySerial(token, apSerialNumber, region);
+    
     apiUrl = region && region.trim() !== ''
       ? `https://api.${region}.ruckus.cloud/venues/${venueId}/aps/${apSerialNumber}`
       : `https://api.ruckus.cloud/venues/${venueId}/aps/${apSerialNumber}`;
     
+    // Use complete payload with all current properties preserved
     payload = {
       apGroupId: apGroupId,
-      name: apName || apSerialNumber,
+      name: apName || currentAp.name,
       serialNumber: apSerialNumber,
-      ...(description && { description })
+      // Preserve other important properties
+      ...(currentAp.description && { description: currentAp.description }),
+      ...(description && { description }) // Override with new description if provided
     };
   }
 
