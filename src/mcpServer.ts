@@ -290,7 +290,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'move_ruckus_ap',
-        description: 'Move an Access Point to a different venue and/or AP group',
+        description: 'Move an Access Point to a different venue and/or AP group. Two scenarios: 1) Move AP to different VENUE (cross-venue): Always use method="direct" - moves AP from one venue to another venue\'s AP group. 2) Move AP to different AP GROUP in same venue: Use method="update" - changes AP\'s group within current venue. Examples: "move AP to NYC Office" = cross-venue (method="direct"), "move AP to TestGroup" in same venue = same-venue group change (method="update").',
         inputSchema: {
           type: 'object',
           properties: {
@@ -317,7 +317,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             method: {
               type: 'string',
               enum: ['direct', 'update'],
-              description: 'API method to use: "direct" for direct group assignment, "update" for AP update method (default: update)',
+              description: 'API method: "update" for same-venue AP group changes (works within current venue context), "direct" for cross-venue moves or universal moves (works for both same and cross-venue). Recommendation: Use "update" for confirmed same-venue moves, "direct" for cross-venue moves or when unsure.',
             },
             maxRetries: {
               type: 'number',
