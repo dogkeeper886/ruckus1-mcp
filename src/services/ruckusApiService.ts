@@ -708,3 +708,145 @@ export async function deleteApGroupWithRetry(
   };
 }
 
+export async function moveApWithRetry(
+  token: string,
+  venueId: string,
+  apSerialNumber: string,
+  apGroupId: string,
+  apName?: string,
+  description?: string,
+  method: 'direct' | 'update' = 'update',
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  let apiUrl: string;
+  let payload: any = {};
+  
+  if (method === 'direct') {
+    // Method 1: Direct group assignment
+    apiUrl = region && region.trim() !== ''
+      ? `https://api.${region}.ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}/aps/${apSerialNumber}`
+      : `https://api.ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}/aps/${apSerialNumber}`;
+    // Empty payload for direct method
+  } else {
+    // Method 2: AP update with group assignment
+    apiUrl = region && region.trim() !== ''
+      ? `https://api.${region}.ruckus.cloud/venues/${venueId}/aps/${apSerialNumber}`
+      : `https://api.ruckus.cloud/venues/${venueId}/aps/${apSerialNumber}`;
+    
+    payload = {
+      apGroupId: apGroupId,
+      name: apName || apSerialNumber,
+      serialNumber: apSerialNumber,
+      ...(description && { description })
+    };
+  }
+
+  const response = await makeRuckusApiCall({
+    method: 'put',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Move AP');
+
+  const moveResponse = response.data;
+  
+  // Check if this is an async operation (has requestId)
+  const activityId = moveResponse.requestId;
+  
+  if (!activityId) {
+    // If no requestId, it's a synchronous operation, return immediately
+    return {
+      ...moveResponse,
+      status: 'completed',
+      message: 'AP moved successfully (synchronous operation)'
+    };
+  }
+
+  // Poll for completion status (async operation)
+  let retryCount = 0;
+  while (retryCount < maxRetries) {
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      
+      // Check if operation is completed (has endDatetime populated)
+      const isCompleted = activityDetails.endDatetime !== undefined;
+      
+      // Check if operation failed (status is not SUCCESS or INPROGRESS)
+      const isFailed = 
+        activityDetails.status !== 'SUCCESS' && 
+        activityDetails.status !== 'INPROGRESS';
+
+      if (isCompleted) {
+        // Check if it completed successfully
+        if (activityDetails.status === 'SUCCESS') {
+          return {
+            ...moveResponse,
+            activityDetails,
+            status: 'completed',
+            message: 'AP moved successfully'
+          };
+        } else {
+          return {
+            ...moveResponse,
+            activityDetails,
+            status: 'failed',
+            message: 'AP move failed',
+            error: activityDetails.error || activityDetails.message || 'Operation completed with non-SUCCESS status'
+          };
+        }
+      }
+
+      if (isFailed) {
+        return {
+          ...moveResponse,
+          activityDetails,
+          status: 'failed',
+          message: 'AP move failed',
+          error: activityDetails.error || activityDetails.message || 'Unknown error'
+        };
+      }
+
+      // If still in progress, increment retry count and continue
+      retryCount++;
+      console.log(`[RUCKUS] AP move in progress, attempt ${retryCount}/${maxRetries}`);
+      
+      // If we've reached max retries, exit loop
+      if (retryCount >= maxRetries) {
+        break;
+      }
+      
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+      
+    } catch (error) {
+      retryCount++;
+      console.error(`[RUCKUS] Error polling activity details (attempt ${retryCount}/${maxRetries}):`, error);
+      
+      // If we've reached max retries, return error
+      if (retryCount >= maxRetries) {
+        return {
+          ...moveResponse,
+          status: 'timeout',
+          message: 'AP move status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      // Wait before next retry
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...moveResponse,
+    status: 'timeout',
+    message: 'AP move status unknown - polling timeout',
+    activityId
+  };
+}
+

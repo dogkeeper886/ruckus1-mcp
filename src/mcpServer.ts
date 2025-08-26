@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getApModelAntennaSettings, getApModelAntennaTypeSettings, queryAPs } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getApModelAntennaSettings, getApModelAntennaTypeSettings, queryAPs, moveApWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -286,6 +286,49 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: [],
+        },
+      },
+      {
+        name: 'move_ruckus_ap',
+        description: 'Move an Access Point to a different venue and/or AP group',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'Target venue ID where the AP will be moved to',
+            },
+            apSerialNumber: {
+              type: 'string',
+              description: 'Serial number of the AP to move',
+            },
+            apGroupId: {
+              type: 'string',
+              description: 'Target AP group ID in the destination venue',
+            },
+            apName: {
+              type: 'string',
+              description: 'Display name for the AP (optional)',
+            },
+            description: {
+              type: 'string',
+              description: 'Description for the move operation (optional)',
+            },
+            method: {
+              type: 'string',
+              enum: ['direct', 'update'],
+              description: 'API method to use: "direct" for direct group assignment, "update" for AP update method (default: update)',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of polling retries (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['venueId', 'apSerialNumber', 'apGroupId'],
         },
       },
     ],
@@ -1114,6 +1157,117 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               if (firstError) {
                 errorResponse.error.primaryErrorCode = firstError.code;
                 errorResponse.error.primaryErrorMessage = firstError.message;
+                errorResponse.error.primaryErrorReason = firstError.reason;
+              }
+            }
+            if (error.response.data.message) {
+              errorResponse.error.apiMessage = error.response.data.message;
+            }
+            if (error.response.data.code) {
+              errorResponse.error.apiCode = error.response.data.code;
+            }
+            if (error.response.data.details) {
+              errorResponse.error.details = error.response.data.details;
+            }
+          }
+        } else if (error.request) {
+          errorResponse.error.networkError = 'No response received from server';
+          errorResponse.error.request = error.request;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(errorResponse, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'move_ruckus_ap': {
+      try {
+        const { 
+          venueId, 
+          apSerialNumber, 
+          apGroupId,
+          apName,
+          description,
+          method = 'update',
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          venueId: string;
+          apSerialNumber: string;
+          apGroupId: string;
+          apName?: string;
+          description?: string;
+          method?: 'direct' | 'update';
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        console.log('[MCP] Moving AP:', {
+          venueId,
+          apSerialNumber,
+          apGroupId,
+          method
+        });
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await moveApWithRetry(
+          token,
+          venueId,
+          apSerialNumber,
+          apGroupId,
+          apName,
+          description,
+          method,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        console.log('[MCP] Move AP response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error moving AP:', error);
+        
+        // Build structured error response
+        const errorResponse: any = {
+          message: 'Failed to move AP',
+          error: {
+            message: error.message || 'Unknown error',
+            type: error.name || 'Error'
+          }
+        };
+        
+        // If it's an axios error, provide more detailed information
+        if (error.response) {
+          errorResponse.httpStatus = error.response.status;
+          errorResponse.httpStatusText = error.response.statusText;
+          
+          // Add response data details for debugging
+          if (error.response.data) {
+            if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
+              const firstError = error.response.data.errors[0];
+              if (firstError) {
+                errorResponse.error.primaryErrorCode = firstError.code;
+                errorResponse.error.primaryErrorMessage = firstError.message || firstError.value;
                 errorResponse.error.primaryErrorReason = firstError.reason;
               }
             }
