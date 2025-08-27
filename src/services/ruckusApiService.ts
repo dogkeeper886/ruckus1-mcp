@@ -93,7 +93,7 @@ export async function getRuckusActivityDetails(
   return response.data;
 }
 
-export async function getApModelAntennaSettings(
+export async function getVenueExternalAntennaSettings(
   token: string,
   venueId: string,
   region: string = ''
@@ -107,12 +107,12 @@ export async function getApModelAntennaSettings(
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     }
-  }, 'Get AP model antenna settings');
+  }, 'Get venue external antenna settings');
 
   return response.data;
 }
 
-export async function getApModelAntennaTypeSettings(
+export async function getVenueAntennaTypeSettings(
   token: string,
   venueId: string,
   region: string = ''
@@ -126,7 +126,47 @@ export async function getApModelAntennaTypeSettings(
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     }
-  }, 'Get AP model antenna type settings');
+  }, 'Get venue antenna type settings');
+
+  return response.data;
+}
+
+export async function getApGroupExternalAntennaSettings(
+  token: string,
+  venueId: string,
+  apGroupId: string,
+  region: string = ''
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}/apModelExternalAntennaSettings`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get AP group external antenna settings');
+
+  return response.data;
+}
+
+export async function getApGroupAntennaTypeSettings(
+  token: string,
+  venueId: string,
+  apGroupId: string,
+  region: string = ''
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}/apModelAntennaTypeSettings`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get AP group antenna type settings');
 
   return response.data;
 }

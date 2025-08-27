@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getApModelAntennaSettings, getApModelAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -221,22 +221,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: 'get_ap_model_antenna_settings',
-        description: 'Get AP model external antenna settings for a venue',
+        name: 'get_venue_external_antenna_settings',
+        description: 'Get external antenna settings for a venue',
         inputSchema: {
           type: 'object',
           properties: {
             venueId: {
               type: 'string',
-              description: 'ID of the venue to get antenna settings for',
+              description: 'ID of the venue to get external antenna settings for',
             },
           },
           required: ['venueId'],
         },
       },
       {
-        name: 'get_ap_model_antenna_type_settings',
-        description: 'Get AP model antenna type settings for a venue',
+        name: 'get_venue_antenna_type_settings',
+        description: 'Get antenna type settings for a venue',
         inputSchema: {
           type: 'object',
           properties: {
@@ -246,6 +246,42 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['venueId'],
+        },
+      },
+      {
+        name: 'get_ap_group_external_antenna_settings',
+        description: 'Get external antenna settings for a specific AP group in a venue',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue containing the AP group',
+            },
+            apGroupId: {
+              type: 'string',
+              description: 'ID of the AP group to get external antenna settings for',
+            },
+          },
+          required: ['venueId', 'apGroupId'],
+        },
+      },
+      {
+        name: 'get_ap_group_antenna_type_settings',
+        description: 'Get antenna type settings for a specific AP group in a venue',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue containing the AP group',
+            },
+            apGroupId: {
+              type: 'string',
+              description: 'ID of the AP group to get antenna type settings for',
+            },
+          },
+          required: ['venueId', 'apGroupId'],
         },
       },
       {
@@ -1093,7 +1129,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
     }
-    case 'get_ap_model_antenna_settings': {
+    case 'get_venue_external_antenna_settings': {
       try {
         const { venueId } = request.params.arguments as {
           venueId: string;
@@ -1106,13 +1142,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        const antennaSettings = await getApModelAntennaSettings(
+        const antennaSettings = await getVenueExternalAntennaSettings(
           token,
           venueId,
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] AP model antenna settings response:', antennaSettings);
+        console.log('[MCP] Venue external antenna settings response:', antennaSettings);
         return {
           content: [
             {
@@ -1122,8 +1158,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       } catch (error: any) {
-        console.error('[MCP] Error getting AP model antenna settings:', error);
-        let errorMessage = `Error getting AP model antenna settings: ${error}`;
+        console.error('[MCP] Error getting venue external antenna settings:', error);
+        let errorMessage = `Error getting venue external antenna settings: ${error}`;
         
         // If it's an axios error, provide more detailed information
         if (error.response) {
@@ -1142,7 +1178,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
     }
-    case 'get_ap_model_antenna_type_settings': {
+    case 'get_venue_antenna_type_settings': {
       try {
         const { venueId } = request.params.arguments as {
           venueId: string;
@@ -1155,13 +1191,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        const antennaTypeSettings = await getApModelAntennaTypeSettings(
+        const antennaTypeSettings = await getVenueAntennaTypeSettings(
           token,
           venueId,
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] AP model antenna type settings response:', antennaTypeSettings);
+        console.log('[MCP] Venue antenna type settings response:', antennaTypeSettings);
         return {
           content: [
             {
@@ -1171,8 +1207,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       } catch (error: any) {
-        console.error('[MCP] Error getting AP model antenna type settings:', error);
-        let errorMessage = `Error getting AP model antenna type settings: ${error}`;
+        console.error('[MCP] Error getting venue antenna type settings:', error);
+        let errorMessage = `Error getting venue antenna type settings: ${error}`;
         
         // If it's an axios error, provide more detailed information
         if (error.response) {
@@ -1181,6 +1217,108 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
         } else if (error.request) {
           errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_ap_group_external_antenna_settings': {
+      try {
+        const { venueId, apGroupId } = request.params.arguments as {
+          venueId: string;
+          apGroupId: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const apGroupAntennaSettings = await getApGroupExternalAntennaSettings(
+          token,
+          venueId,
+          apGroupId,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] AP group external antenna settings response:', apGroupAntennaSettings);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(apGroupAntennaSettings, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting AP group external antenna settings:', error);
+        let errorMessage = `Error getting AP group external antenna settings: ${error}`;
+        
+        // If it's an axios error, provide more detailed information
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_ap_group_antenna_type_settings': {
+      try {
+        const { venueId, apGroupId } = request.params.arguments as {
+          venueId: string;
+          apGroupId: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const apGroupAntennaTypeSettings = await getApGroupAntennaTypeSettings(
+          token,
+          venueId,
+          apGroupId,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] AP group antenna type settings response:', apGroupAntennaTypeSettings);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(apGroupAntennaTypeSettings, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting AP group antenna type settings:', error);
+        let errorMessage = `Error getting AP group antenna type settings: ${error}`;
+        
+        // If it's an axios error, provide more detailed information
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
         }
         
         return {
