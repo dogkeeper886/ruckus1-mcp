@@ -1080,3 +1080,66 @@ export async function getDirectoryServerProfile(
   return response.data;
 }
 
+export async function queryPortalServiceProfiles(
+  token: string,
+  region: string = '',
+  filters: any = {},
+  fields: string[] = ['id', 'name', 'displayLangCode', 'wifiNetworkIds'],
+  searchString: string = '',
+  searchTargetFields: string[] = ['name'],
+  page: number = 1,
+  pageSize: number = 10,
+  sortField: string = 'name',
+  sortOrder: string = 'ASC'
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/portalServiceProfiles/query`
+    : 'https://api.ruckus.cloud/portalServiceProfiles/query';
+
+  const payload = {
+    fields,
+    searchString,
+    filters,
+    page,
+    pageSize,
+    defaultPageSize: 10,
+    total: 0,
+    sortField,
+    sortOrder,
+    searchTargetFields
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Query portal service profiles');
+
+  return response.data;
+}
+
+export async function getPortalServiceProfile(
+  token: string,
+  profileId: string,
+  region: string = ''
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/portalServiceProfiles/${profileId}`
+    : `https://api.ruckus.cloud/portalServiceProfiles/${profileId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url: apiUrl,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get portal service profile');
+
+  return response.data;
+}
+
