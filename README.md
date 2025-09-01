@@ -74,6 +74,18 @@ A Model Context Protocol (MCP) server for RUCKUS One, enabling AI assistants and
    ```
 
 2. **Configure your MCP client:**
+
+   **For Claude Code CLI:**
+   ```bash
+   claude mcp add ruckus1 \
+     -e RUCKUS_TENANT_ID=your-tenant-id \
+     -e RUCKUS_CLIENT_ID=your-client-id \
+     -e RUCKUS_CLIENT_SECRET=your-client-secret \
+     -e RUCKUS_REGION=your-region \
+     -- npx ts-node /absolute/path/to/ruckus1-mcp/src/mcpServer.ts
+   ```
+
+   **For other MCP clients:**
    Add this to your MCP client's `mcp.json`:
    ```json
    {
