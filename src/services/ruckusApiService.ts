@@ -1084,7 +1084,6 @@ export async function queryPortalServiceProfiles(
   token: string,
   region: string = '',
   filters: any = {},
-  fields: string[] = ['id', 'name', 'displayLangCode', 'wifiNetworkIds'],
   searchString: string = '',
   searchTargetFields: string[] = ['name'],
   page: number = 1,
@@ -1097,16 +1096,13 @@ export async function queryPortalServiceProfiles(
     : 'https://api.ruckus.cloud/portalServiceProfiles/query';
 
   const payload = {
-    fields,
-    searchString,
     filters,
     page,
     pageSize,
-    defaultPageSize: 10,
-    total: 0,
     sortField,
     sortOrder,
-    searchTargetFields
+    searchTargetFields,
+    searchString
   };
 
   const response = await makeRuckusApiCall({

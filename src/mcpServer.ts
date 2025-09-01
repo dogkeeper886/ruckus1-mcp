@@ -2128,7 +2128,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const { 
           filters = {},
-          fields = ['id', 'name', 'displayLangCode', 'wifiNetworkIds'],
           searchString = '',
           searchTargetFields = ['name'],
           page = 1,
@@ -2137,7 +2136,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortOrder = 'ASC'
         } = request.params.arguments as {
           filters?: any;
-          fields?: string[];
           searchString?: string;
           searchTargetFields?: string[];
           page?: number;
@@ -2157,7 +2155,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           token,
           process.env.RUCKUS_REGION,
           filters,
-          fields,
           searchString,
           searchTargetFields,
           page,
