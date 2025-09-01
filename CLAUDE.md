@@ -54,7 +54,84 @@ Before writing ANY code:
 2. **Copy its exact structure** (parameter order, defaults, error handling)
 3. **Check existing tool in `src/mcpServer.ts`** for registration and handler patterns
 
-### Step 2: Service Function Template (MANDATORY)
+### Step 2: Determine Operation Type (CRITICAL)
+
+**READ-ONLY Operations** (GET, Query): Use existing read-only patterns
+**ASYNC Operations** (Create, Delete, Update): Use retry pattern with polling
+
+### Step 2A: Read-Only Operations Template (Query/GET operations)
+For operations like directory server profiles, AP queries, activity details:
+
+```typescript
+// src/services/ruckusApiService.ts - Query Pattern
+export async function queryYourResource(
+  token: string,               // ALWAYS first parameter
+  region: string = '',         // ALWAYS this default
+  filters: any = {},          // Query-specific parameters
+  fields: string[] = ['id', 'name'], // Default fields
+  searchString: string = '',
+  searchTargetFields: string[] = ['name'],
+  page: number = 1,
+  pageSize: number = 10,      // Or 10000 for internal tools
+  sortField: string = 'name',
+  sortOrder: string = 'ASC'
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/your/query/endpoint`
+    : 'https://api.ruckus.cloud/your/query/endpoint';
+
+  const payload = {
+    fields,
+    searchString,
+    filters,
+    page,
+    pageSize,
+    defaultPageSize: 10,
+    total: 0,
+    sortField,
+    sortOrder,
+    searchTargetFields
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Query operation name');
+
+  return response.data;
+}
+
+// src/services/ruckusApiService.ts - Simple GET Pattern
+export async function getYourResource(
+  token: string,               // ALWAYS first parameter
+  resourceId: string,          // Resource identifier
+  region: string = ''          // ALWAYS this default
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/your/resource/${resourceId}`
+    : `https://api.ruckus.cloud/your/resource/${resourceId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url: apiUrl,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get operation name');
+
+  return response.data;
+}
+```
+
+### Step 2B: Async Operations Template (Create/Delete/Update operations)
+For operations that return `requestId` and need polling:
+
 ```typescript
 // src/services/ruckusApiService.ts
 export async function yourNewToolWithRetry(
@@ -97,9 +174,45 @@ export async function yourNewToolWithRetry(
 }
 ```
 
-### Step 3: MCP Registration Template (MANDATORY)
+### Step 3A: MCP Registration Template - Read-Only Operations
 ```typescript
-// src/mcpServer.ts - Add to tools array
+// src/mcpServer.ts - Query operations (like query_directory_server_profiles)
+{
+  name: 'query_your_resource',
+  description: 'Query your resource from RUCKUS One with filtering and pagination support',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      filters: { type: 'object', description: 'Optional filters to apply' },
+      fields: { type: 'array', items: { type: 'string' }, description: 'Fields to return (default: ["id", "name"])' },
+      searchString: { type: 'string', description: 'Search string to filter resources' },
+      searchTargetFields: { type: 'array', items: { type: 'string' }, description: 'Fields to search in (default: ["name"])' },
+      page: { type: 'number', description: 'Page number (default: 1)' },
+      pageSize: { type: 'number', description: 'Number of results per page (default: 10)' },
+      sortField: { type: 'string', description: 'Field to sort by (default: "name")' },
+      sortOrder: { type: 'string', description: 'Sort order - ASC or DESC (default: "ASC")' }
+    },
+    required: []
+  }
+}
+
+// src/mcpServer.ts - Simple GET operations (like get_directory_server_profile)
+{
+  name: 'get_your_resource',
+  description: 'Get detailed information for a specific resource',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      resourceId: { type: 'string', description: 'ID of the resource to get' }
+    },
+    required: ['resourceId']
+  }
+}
+```
+
+### Step 3B: MCP Registration Template - Async Operations
+```typescript
+// src/mcpServer.ts - Add to tools array (async operations only)
 {
   name: 'your_new_tool',
   description: 'Clear description of what this tool does',
@@ -116,7 +229,121 @@ export async function yourNewToolWithRetry(
 }
 ```
 
-### Step 4: MCP Handler Template (MANDATORY)
+### Step 4A: MCP Handler Template - Read-Only Operations
+```typescript
+// src/mcpServer.ts - Query operations handler
+case 'query_your_resource': {
+  try {
+    const { 
+      filters = {},
+      fields = ['id', 'name'],
+      searchString = '',
+      searchTargetFields = ['name'],
+      page = 1,
+      pageSize = 10,
+      sortField = 'name',
+      sortOrder = 'ASC'
+    } = request.params.arguments as {
+      filters?: any;
+      fields?: string[];
+      searchString?: string;
+      searchTargetFields?: string[];
+      page?: number;
+      pageSize?: number;
+      sortField?: string;
+      sortOrder?: string;
+    };
+    
+    const token = await getRuckusJwtToken(
+      process.env.RUCKUS_TENANT_ID!,
+      process.env.RUCKUS_CLIENT_ID!,
+      process.env.RUCKUS_CLIENT_SECRET!,
+      process.env.RUCKUS_REGION
+    );
+    
+    const result = await queryYourResource(
+      token,
+      process.env.RUCKUS_REGION,
+      filters,
+      fields,
+      searchString,
+      searchTargetFields,
+      page,
+      pageSize,
+      sortField,
+      sortOrder
+    );
+    
+    console.log('[MCP] Query response:', result);
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  } catch (error: any) {
+    console.error('[MCP] Error querying resource:', error);
+    
+    let errorMessage = `Error querying resource: ${error}`;
+    
+    if (error.response) {
+      errorMessage += `\nHTTP Status: ${error.response.status}`;
+      errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+      errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+    } else if (error.request) {
+      errorMessage += `\nNo response received: ${error.request}`;
+    }
+    
+    return {
+      content: [{ type: 'text', text: errorMessage }],
+      isError: true
+    };
+  }
+}
+
+// src/mcpServer.ts - Simple GET operations handler
+case 'get_your_resource': {
+  try {
+    const { resourceId } = request.params.arguments as {
+      resourceId: string;
+    };
+    
+    const token = await getRuckusJwtToken(
+      process.env.RUCKUS_TENANT_ID!,
+      process.env.RUCKUS_CLIENT_ID!,
+      process.env.RUCKUS_CLIENT_SECRET!,
+      process.env.RUCKUS_REGION
+    );
+    
+    const result = await getYourResource(
+      token,
+      resourceId,
+      process.env.RUCKUS_REGION
+    );
+    
+    console.log('[MCP] Get response:', result);
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  } catch (error: any) {
+    console.error('[MCP] Error getting resource:', error);
+    
+    let errorMessage = `Error getting resource: ${error}`;
+    
+    if (error.response) {
+      errorMessage += `\nHTTP Status: ${error.response.status}`;
+      errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+      errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+    } else if (error.request) {
+      errorMessage += `\nNo response received: ${error.request}`;
+    }
+    
+    return {
+      content: [{ type: 'text', text: errorMessage }],
+      isError: true
+    };
+  }
+}
+```
+
+### Step 4B: MCP Handler Template - Async Operations
 ```typescript
 // src/mcpServer.ts - Add case handler
 case 'your_new_tool': {
@@ -162,16 +389,26 @@ case 'your_new_tool': {
 ```
 
 ### Enforcement Rules
+
+**For Read-Only Operations (Query/GET):**
+- **COPY existing read-only patterns**: Use `queryApGroups`, `getRuckusActivityDetails`, `queryAPs` patterns exactly
+- **NO retry parameters**: Do not add `maxRetries` or `pollIntervalMs` to read-only operations
+- **NO polling logic**: Read-only operations are synchronous and return immediately
+- **COPY error handling exactly**: Use existing error handling from similar read-only tools
+- **NO additional response fields**: Don't add extra metadata to responses
+
+**For Async Operations (Create/Delete/Update):**
 - **NO custom defaults**: Always use `maxRetries = 5`, `pollIntervalMs = 2000`
 - **NO custom error handling**: Copy existing error handling exactly
 - **NO custom polling logic**: Copy polling loop from existing tool exactly
 - **NO additional response fields**: Don't add extra metadata to responses
 
 ### Pre-Implementation Checklist
-- [ ] Identified similar existing tool to copy from
+- [ ] **CRITICAL**: Determined operation type (read-only vs async)
+- [ ] Identified similar existing tool to copy from (read-only: `queryApGroups`/`getRuckusActivityDetails`, async: `createVenueWithRetry`)
 - [ ] Confirmed parameter order matches pattern
-- [ ] Confirmed defaults match (5, 2000)
+- [ ] Confirmed defaults match pattern (read-only: no retry params, async: 5, 2000)
 - [ ] Confirmed error handling structure matches
-- [ ] Ready to implement following exact template
+- [ ] Ready to implement following exact template for operation type
 
 **VIOLATION OF THIS PROCESS WILL REQUIRE COMPLETE REWRITE**

@@ -1017,3 +1017,66 @@ export async function moveApWithRetry(
   };
 }
 
+export async function queryDirectoryServerProfiles(
+  token: string,
+  region: string = '',
+  filters: any = {},
+  fields: string[] = ['id', 'name', 'domainName', 'host', 'port', 'type', 'wifiNetworkIds'],
+  searchString: string = '',
+  searchTargetFields: string[] = ['name'],
+  page: number = 1,
+  pageSize: number = 10,
+  sortField: string = 'name',
+  sortOrder: string = 'ASC'
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/directoryServerProfiles/query`
+    : 'https://api.ruckus.cloud/directoryServerProfiles/query';
+
+  const payload = {
+    fields,
+    searchString,
+    filters,
+    page,
+    pageSize,
+    defaultPageSize: 10,
+    total: 0,
+    sortField,
+    sortOrder,
+    searchTargetFields
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Query directory server profiles');
+
+  return response.data;
+}
+
+export async function getDirectoryServerProfile(
+  token: string,
+  profileId: string,
+  region: string = ''
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/directoryServerProfiles/${profileId}`
+    : `https://api.ruckus.cloud/directoryServerProfiles/${profileId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url: apiUrl,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get directory server profile');
+
+  return response.data;
+}
+

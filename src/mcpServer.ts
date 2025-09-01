@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -485,6 +485,64 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['apSerialNumber', 'newName'],
+        },
+      },
+      {
+        name: 'query_directory_server_profiles',
+        description: 'Query directory server profiles from RUCKUS One with filtering and pagination support',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            filters: {
+              type: 'object',
+              description: 'Optional filters to apply',
+            },
+            fields: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Fields to return (default: ["id", "name", "domainName", "host", "port", "type", "wifiNetworkIds"])',
+            },
+            searchString: {
+              type: 'string',
+              description: 'Search string to filter profiles',
+            },
+            searchTargetFields: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Fields to search in (default: ["name"])',
+            },
+            page: {
+              type: 'number',
+              description: 'Page number (default: 1)',
+            },
+            pageSize: {
+              type: 'number',
+              description: 'Number of results per page (default: 10)',
+            },
+            sortField: {
+              type: 'string',
+              description: 'Field to sort by (default: "name")',
+            },
+            sortOrder: {
+              type: 'string',
+              description: 'Sort order - ASC or DESC (default: "ASC")',
+            },
+          },
+          required: [],
+        },
+      },
+      {
+        name: 'get_directory_server_profile',
+        description: 'Get detailed information for a specific directory server profile',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            profileId: {
+              type: 'string',
+              description: 'ID of the directory server profile to get',
+            },
+          },
+          required: ['profileId'],
         },
       },
     ],
@@ -1875,6 +1933,133 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: JSON.stringify(errorResponse, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'query_directory_server_profiles': {
+      try {
+        const { 
+          filters = {},
+          fields = ['id', 'name', 'domainName', 'host', 'port', 'type', 'wifiNetworkIds'],
+          searchString = '',
+          searchTargetFields = ['name'],
+          page = 1,
+          pageSize = 10,
+          sortField = 'name',
+          sortOrder = 'ASC'
+        } = request.params.arguments as {
+          filters?: any;
+          fields?: string[];
+          searchString?: string;
+          searchTargetFields?: string[];
+          page?: number;
+          pageSize?: number;
+          sortField?: string;
+          sortOrder?: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await queryDirectoryServerProfiles(
+          token,
+          process.env.RUCKUS_REGION,
+          filters,
+          fields,
+          searchString,
+          searchTargetFields,
+          page,
+          pageSize,
+          sortField,
+          sortOrder
+        );
+        
+        console.log('[MCP] Query directory server profiles response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error querying directory server profiles:', error);
+        
+        let errorMessage = `Error querying directory server profiles: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_directory_server_profile': {
+      try {
+        const { profileId } = request.params.arguments as {
+          profileId: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await getDirectoryServerProfile(
+          token,
+          profileId,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] Get directory server profile response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting directory server profile:', error);
+        
+        let errorMessage = `Error getting directory server profile: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
             },
           ],
           isError: true,
