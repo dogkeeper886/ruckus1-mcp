@@ -604,8 +604,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: 'query_privilege_groups',
-        description: 'Query all privilege groups from RUCKUS One',
+        name: 'get_ruckus_user_groups',
+        description: 'Get user group assignments showing which roles are assigned to users with venue and customer scope information',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -613,8 +613,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: 'query_custom_roles',
-        description: 'Query all custom roles from RUCKUS One',
+        name: 'get_ruckus_roles',
+        description: 'Get all roles from RUCKUS One including both system roles (ADMIN, READ_ONLY, etc.) and custom roles with their feature permissions',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -2315,7 +2315,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
     }
-    case 'query_privilege_groups': {
+    case 'get_ruckus_user_groups': {
       try {
         const token = await getRuckusJwtToken(
           process.env.RUCKUS_TENANT_ID!,
@@ -2329,7 +2329,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] Query privilege groups response:', result);
+        console.log('[MCP] Get user groups response:', result);
         return {
           content: [
             {
@@ -2339,9 +2339,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       } catch (error: any) {
-        console.error('[MCP] Error querying privilege groups:', error);
+        console.error('[MCP] Error getting user groups:', error);
         
-        let errorMessage = `Error querying privilege groups: ${error}`;
+        let errorMessage = `Error getting user groups: ${error}`;
         
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
@@ -2362,7 +2362,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
     }
-    case 'query_custom_roles': {
+    case 'get_ruckus_roles': {
       try {
         const token = await getRuckusJwtToken(
           process.env.RUCKUS_TENANT_ID!,
@@ -2376,7 +2376,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] Query custom roles response:', result);
+        console.log('[MCP] Get roles response:', result);
         return {
           content: [
             {
@@ -2386,9 +2386,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       } catch (error: any) {
-        console.error('[MCP] Error querying custom roles:', error);
+        console.error('[MCP] Error getting roles:', error);
         
-        let errorMessage = `Error querying custom roles: ${error}`;
+        let errorMessage = `Error getting roles: ${error}`;
         
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
