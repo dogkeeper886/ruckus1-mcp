@@ -658,10 +658,26 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'query_role_features',
-        description: 'Query all available role features and permissions from RUCKUS One - use this to discover what features can be assigned to custom roles',
+        description: 'Search and filter role features for custom roles. Returns feature names to use in update_custom_role tool. Available categories: wifi, Wired, Gateways, AI, Admin. Search examples: "dhcp" for DHCP permissions, "access_points" for AP management, "venue" for venue features. Permission suffixes: -r (read), -c (create), -u (update), -d (delete)',
         inputSchema: {
           type: 'object',
           properties: {
+            category: {
+              type: 'string',
+              description: 'Filter by category: wifi, Wired, Gateways, AI, or Admin',
+            },
+            searchString: {
+              type: 'string',
+              description: 'Search in feature names and descriptions (e.g., "dhcp", "access_points", "venue")',
+            },
+            page: {
+              type: 'number',
+              description: 'Page number for pagination (default: 1)',
+            },
+            pageSize: {
+              type: 'number',
+              description: 'Number of results per page (default: 100, max: 500)',
+            },
             showScopes: {
               type: 'boolean',
               description: 'Whether to show scopes (default: false)',
@@ -2483,9 +2499,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case 'query_role_features': {
       try {
         const { 
-          showScopes = false
+          showScopes = false,
+          category = '',
+          searchString = '',
+          page = 1,
+          pageSize = 100
         } = request.params.arguments as {
           showScopes?: boolean;
+          category?: string;
+          searchString?: string;
+          page?: number;
+          pageSize?: number;
         };
         
         const token = await getRuckusJwtToken(
@@ -2498,7 +2522,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const result = await queryRoleFeatures(
           token,
           process.env.RUCKUS_REGION,
-          showScopes
+          showScopes,
+          category,
+          searchString,
+          page,
+          pageSize
         );
         
         console.log('[MCP] Query role features response:', result);

@@ -1257,7 +1257,11 @@ export async function updateCustomRoleWithRetry(
 export async function queryRoleFeatures(
   token: string,
   region: string = '',
-  showScopes: boolean = false
+  showScopes: boolean = false,
+  category: string = '',
+  searchString: string = '',
+  page: number = 1,
+  pageSize: number = 100
 ): Promise<any> {
   const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/roleAuthentications/features?showScopes=${showScopes}`;
 
@@ -1270,6 +1274,54 @@ export async function queryRoleFeatures(
     }
   }, 'Query role features');
 
-  return response.data;
+  let features = response.data;
+
+  // Flatten nested features for easier searching
+  const flattenFeatures = (items: any[], result: any[] = []): any[] => {
+    for (const item of items) {
+      result.push({
+        name: item.name,
+        description: item.description,
+        category: item.category
+      });
+      if (item.subFeatures) {
+        flattenFeatures(item.subFeatures, result);
+      }
+    }
+    return result;
+  };
+
+  features = flattenFeatures(features);
+
+  // Apply category filtering
+  if (category && category.trim() !== '') {
+    features = features.filter((feature: any) => 
+      feature.category && feature.category.toLowerCase() === category.toLowerCase()
+    );
+  }
+
+  // Apply search filtering
+  if (searchString && searchString.trim() !== '') {
+    const search = searchString.toLowerCase();
+    features = features.filter((feature: any) => 
+      (feature.name && feature.name.toLowerCase().includes(search)) ||
+      (feature.description && feature.description.toLowerCase().includes(search))
+    );
+  }
+
+  // Apply pagination
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedFeatures = features.slice(startIndex, endIndex);
+
+  return {
+    data: paginatedFeatures,
+    pagination: {
+      page,
+      pageSize,
+      total: features.length,
+      totalPages: Math.ceil(features.length / pageSize)
+    }
+  };
 }
 

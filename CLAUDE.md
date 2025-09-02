@@ -62,6 +62,60 @@ Before writing ANY code:
 ### Step 2A: Read-Only Operations Template (Query/GET operations)
 For operations like directory server profiles, AP queries, activity details:
 
+**Special Case - Client-Side Filtering (ONLY for token limit issues):**
+When API responses exceed MCP's 25,000 token limit AND the API doesn't support filtering:
+```typescript
+// ONLY use when: 1) Response > 25k tokens, 2) No server-side filtering available
+export async function queryLargeResource(
+  token: string,
+  region: string = '',
+  // API parameters first
+  apiParam1: boolean = false,   
+  // Client-side filters last
+  filterField: string = '',     // Client-side filter
+  searchString: string = '',    // Client-side search
+  page: number = 1,             // Client-side pagination
+  pageSize: number = 100        // Default 100 to limit response
+): Promise<any> {
+  // Get all data from API (no server-side filtering available)
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/your/endpoint`;
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+  }, 'Query operation');
+
+  let data = response.data;
+
+  // Apply simple client-side filtering
+  if (filterField && filterField.trim() !== '') {
+    data = data.filter((item: any) => 
+      item.fieldName?.toLowerCase() === filterField.toLowerCase()
+    );
+  }
+  
+  if (searchString && searchString.trim() !== '') {
+    const search = searchString.toLowerCase();
+    data = data.filter((item: any) => 
+      item.name?.toLowerCase().includes(search) || 
+      item.description?.toLowerCase().includes(search)
+    );
+  }
+
+  // Paginate to control response size
+  const startIndex = (page - 1) * pageSize;
+  const paginatedData = data.slice(startIndex, startIndex + pageSize);
+
+  return {
+    data: paginatedData,
+    pagination: { page, pageSize, total: data.length, totalPages: Math.ceil(data.length / pageSize) }
+  };
+}
+```
+**Warning:** This is an exception pattern. Always prefer server-side filtering when available.
+
+**Standard Query Pattern:**
+
 ```typescript
 // src/services/ruckusApiService.ts - Query Pattern
 export async function queryYourResource(
