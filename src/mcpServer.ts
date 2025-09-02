@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updateCustomRoleWithRetry, queryRoleFeatures } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -606,6 +606,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'query_privilege_groups',
         description: 'Query all privilege groups from RUCKUS One',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+      {
+        name: 'query_custom_roles',
+        description: 'Query all custom roles from RUCKUS One',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -2333,6 +2342,53 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error('[MCP] Error querying privilege groups:', error);
         
         let errorMessage = `Error querying privilege groups: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'query_custom_roles': {
+      try {
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await queryCustomRoles(
+          token,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] Query custom roles response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error querying custom roles:', error);
+        
+        let errorMessage = `Error querying custom roles: ${error}`;
         
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;

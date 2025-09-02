@@ -1157,6 +1157,24 @@ export async function queryPrivilegeGroups(
   return response.data;
 }
 
+export async function queryCustomRoles(
+  token: string,
+  region: string = ''
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/roleAuthentications/customRoles`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Query custom roles');
+
+  return response.data;
+}
+
 export async function updateCustomRoleWithRetry(
   token: string,
   roleId: string,
