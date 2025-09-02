@@ -1139,3 +1139,119 @@ export async function getPortalServiceProfile(
   return response.data;
 }
 
+export async function queryPrivilegeGroups(
+  token: string,
+  region: string = ''
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/roleAuthentications/privilegeGroups`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Query privilege groups');
+
+  return response.data;
+}
+
+export async function updateCustomRoleWithRetry(
+  token: string,
+  roleId: string,
+  roleData: {
+    name: string;
+    features: string[];
+    preDefinedRole?: string;
+  },
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/roleAuthentications/customRoles/${roleId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'put',
+    url,
+    data: roleData,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Update custom role');
+
+  const operationResponse = response.data;
+  
+  const activityId = operationResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...operationResponse,
+      status: 'completed',
+      message: 'Operation completed successfully (synchronous operation)'
+    };
+  }
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    console.log(`[${attempt + 1}/${maxRetries}] Polling activity status for requestId: ${activityId}`);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+      
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...operationResponse,
+          ...activityDetails,
+          status: 'completed',
+          message: 'Custom role updated successfully'
+        };
+      }
+      
+      if (activityDetails.status === 'FAILED') {
+        throw new Error(`Update custom role failed: ${activityDetails.errorMessage || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error(`Polling attempt ${attempt + 1} failed:`, error);
+      
+      if (attempt === maxRetries - 1) {
+        return {
+          ...operationResponse,
+          status: 'timeout',
+          message: `Update custom role status polling timed out after ${maxRetries} attempts. The operation may still be in progress.`,
+          activityId
+        };
+      }
+    }
+  }
+
+  return {
+    ...operationResponse,
+    status: 'timeout',
+    message: `Update custom role status polling timed out after ${maxRetries} attempts. The operation may still be in progress.`,
+    activityId
+  };
+}
+
+export async function queryRoleFeatures(
+  token: string,
+  region: string = '',
+  showScopes: boolean = false
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/roleAuthentications/features?showScopes=${showScopes}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Query role features');
+
+  return response.data;
+}
+

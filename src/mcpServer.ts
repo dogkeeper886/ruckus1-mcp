@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, queryPortalServiceProfiles, getPortalServiceProfile } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updateCustomRoleWithRetry, queryRoleFeatures } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -601,6 +601,64 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['profileId'],
+        },
+      },
+      {
+        name: 'query_privilege_groups',
+        description: 'Query all privilege groups from RUCKUS One',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+      {
+        name: 'update_custom_role',
+        description: 'Update a custom role in RUCKUS One with specific features and permissions',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            roleId: {
+              type: 'string',
+              description: 'ID of the custom role to update',
+            },
+            name: {
+              type: 'string',
+              description: 'Name of the custom role',
+            },
+            features: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Array of feature permissions (use query_role_features to see available options)',
+            },
+            preDefinedRole: {
+              type: 'string',
+              description: 'Base predefined role to inherit from (optional)',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of polling retries (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['roleId', 'name', 'features'],
+        },
+      },
+      {
+        name: 'query_role_features',
+        description: 'Query all available role features and permissions from RUCKUS One - use this to discover what features can be assigned to custom roles',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            showScopes: {
+              type: 'boolean',
+              description: 'Whether to show scopes (default: false)',
+            },
+          },
+          required: [],
         },
       },
     ],
@@ -2228,6 +2286,178 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error('[MCP] Error getting portal service profile:', error);
         
         let errorMessage = `Error getting portal service profile: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'query_privilege_groups': {
+      try {
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await queryPrivilegeGroups(
+          token,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] Query privilege groups response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error querying privilege groups:', error);
+        
+        let errorMessage = `Error querying privilege groups: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'update_custom_role': {
+      try {
+        const { 
+          roleId,
+          name,
+          features,
+          preDefinedRole,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          roleId: string;
+          name: string;
+          features: string[];
+          preDefinedRole?: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const roleData = { name, features } as any;
+        if (preDefinedRole !== undefined) {
+          roleData.preDefinedRole = preDefinedRole;
+        }
+        
+        const result = await updateCustomRoleWithRetry(
+          token,
+          roleId,
+          roleData,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error updating custom role:', error);
+        
+        let errorMessage = `Error updating custom role: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'query_role_features': {
+      try {
+        const { 
+          showScopes = false
+        } = request.params.arguments as {
+          showScopes?: boolean;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await queryRoleFeatures(
+          token,
+          process.env.RUCKUS_REGION,
+          showScopes
+        );
+        
+        console.log('[MCP] Query role features response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error querying role features:', error);
+        
+        let errorMessage = `Error querying role features: ${error}`;
         
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
