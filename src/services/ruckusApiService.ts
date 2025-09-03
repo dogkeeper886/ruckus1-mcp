@@ -1325,3 +1325,169 @@ export async function queryRoleFeatures(
   };
 }
 
+export async function createCustomRole(
+  token: string,
+  name: string,
+  features: string[],
+  region: string = '',
+  preDefinedRole: string = 'READ_ONLY'
+): Promise<any> {
+  const originalFeatures = [...features];
+  const enhancedFeatures = [...features];
+  const addedPermissions: string[] = [];
+  
+  // Map of permission prefixes to their required parent read permission
+  const parentMap: Record<string, string> = {
+    'wifi.': 'wifi-r',
+    'switch.': 'switch-r', 
+    'edge.': 'edge-r',
+    'ai.': 'ai-r',
+    'admin.': 'admin-r'
+  };
+  
+  // Check each feature for advanced permissions and add parent if missing
+  for (const feature of features) {
+    // Check for advanced permissions (e.g., wifi.venue-c)
+    for (const [prefix, parent] of Object.entries(parentMap)) {
+      if (feature.startsWith(prefix) && !enhancedFeatures.includes(parent)) {
+        enhancedFeatures.push(parent);
+        addedPermissions.push(parent);
+        console.log(`[MCP] Auto-adding ${parent} as parent permission for ${feature}`);
+      }
+    }
+    
+    // Check for category-wide permissions (e.g., wifi-c, wifi-u, wifi-d)
+    const categoryMatch = feature.match(/^(wifi|switch|edge|ai|admin)-[cud]$/);
+    if (categoryMatch) {
+      const readPerm = `${categoryMatch[1]}-r`;
+      if (!enhancedFeatures.includes(readPerm)) {
+        enhancedFeatures.push(readPerm);
+        addedPermissions.push(readPerm);
+        console.log(`[MCP] Auto-adding ${readPerm} as base permission for ${feature}`);
+      }
+    }
+  }
+  
+  const finalRoleData = {
+    name,
+    features: [...new Set(enhancedFeatures)], // Remove duplicates
+    preDefinedRole
+  };
+  
+  const url = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/roleAuthentications/customRoles`
+    : 'https://api.ruckus.cloud/roleAuthentications/customRoles';
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url,
+    data: finalRoleData,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Create custom role');
+
+  // Enhance response with metadata about auto-added permissions
+  return {
+    ...response.data,
+    _mcp_metadata: {
+      originalFeatures,
+      autoAddedPermissions: addedPermissions,
+      finalFeatures: finalRoleData.features,
+      message: addedPermissions.length > 0 
+        ? `Auto-added parent permissions: ${addedPermissions.join(', ')}` 
+        : 'No additional permissions needed'
+    }
+  };
+}
+
+export async function deleteCustomRoleWithRetry(
+  token: string,
+  roleId: string,
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const url = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/roleAuthentications/customRoles/${roleId}`
+    : `https://api.ruckus.cloud/roleAuthentications/customRoles/${roleId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'delete',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Delete custom role');
+
+  const deleteResponse = response.data;
+  
+  const activityId = deleteResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...deleteResponse,
+      status: 'completed',
+      message: 'Custom role deleted successfully (synchronous operation)'
+    };
+  }
+
+  let retryCount = 0;
+  while (retryCount < maxRetries) {
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      
+      const isCompleted = activityDetails.endDatetime !== undefined;
+      
+      const isFailed = 
+        activityDetails.status !== 'SUCCESS' && 
+        activityDetails.status !== 'INPROGRESS';
+
+      if (isCompleted) {
+        if (activityDetails.status === 'SUCCESS') {
+          return {
+            ...deleteResponse,
+            activityDetails,
+            status: 'completed',
+            message: 'Custom role deleted successfully'
+          };
+        } else {
+          return {
+            ...deleteResponse,
+            activityDetails,
+            status: 'failed',
+            message: 'Custom role deletion failed',
+            error: activityDetails.error || activityDetails.message || 'Operation completed with non-SUCCESS status'
+          };
+        }
+      }
+
+      if (isFailed) {
+        return {
+          ...deleteResponse,
+          activityDetails,
+          status: 'failed',
+          message: 'Custom role deletion failed',
+          error: activityDetails.error || activityDetails.message || 'Operation failed with non-SUCCESS status'
+        };
+      }
+
+      console.log(`[${retryCount + 1}/${maxRetries}] Activity in progress, polling again after ${pollIntervalMs}ms...`);
+    } catch (pollError) {
+      console.error(`Polling error: ${pollError}`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    retryCount++;
+  }
+
+  return {
+    ...deleteResponse,
+    status: 'timeout',
+    message: `Custom role deletion status polling timed out after ${maxRetries} attempts. The operation may still be in progress.`,
+    activityId
+  };
+}
+

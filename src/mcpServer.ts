@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -684,6 +684,51 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: [],
+        },
+      },
+      {
+        name: 'create_custom_role',
+        description: 'Create a new custom role in RUCKUS One with automatic parent permission injection. When you specify advanced permissions (e.g., wifi.venue-c), the tool automatically adds required parent permissions (e.g., wifi-r) for proper functionality. Use preDefinedRole="READ_ONLY" to include all base read permissions.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            name: {
+              type: 'string',
+              description: 'Name of the custom role to create',
+            },
+            features: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Array of permission features. Use query_role_features to find valid feature names. Parent permissions are automatically added when needed.',
+            },
+            preDefinedRole: {
+              type: 'string',
+              description: 'Optional base role template (e.g., "READ_ONLY", "ADMIN"). Defaults to "READ_ONLY" for base read permissions.',
+            },
+          },
+          required: ['name', 'features'],
+        },
+      },
+      {
+        name: 'delete_custom_role',
+        description: 'Delete a custom role from RUCKUS One with automatic status checking for async operations',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            roleId: {
+              type: 'string',
+              description: 'ID of the custom role to delete',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['roleId'],
         },
       },
     ],
@@ -2542,6 +2587,156 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error('[MCP] Error querying role features:', error);
         
         let errorMessage = `Error querying role features: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'create_custom_role': {
+      try {
+        const { 
+          name,
+          features,
+          preDefinedRole = 'READ_ONLY'
+        } = request.params.arguments as {
+          name: string;
+          features: string[];
+          preDefinedRole?: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await createCustomRole(
+          token,
+          name,
+          features,
+          process.env.RUCKUS_REGION,
+          preDefinedRole
+        );
+        
+        console.log('[MCP] Create custom role response:', result);
+        
+        // Build user-friendly response with auto-added permissions info
+        let responseText: string;
+        
+        if (result._mcp_metadata?.autoAddedPermissions?.length > 0) {
+          responseText = `Custom role created successfully!\n\n` +
+            `Auto-added parent permissions for proper functionality:\n` +
+            `${result._mcp_metadata.autoAddedPermissions.map((p: string) => `  - ${p}`).join('\n')}\n\n` +
+            `Role Details:\n` +
+            JSON.stringify({
+              id: result.id,
+              name: result.name,
+              features: result.features,
+              type: result.type,
+              preDefinedRole: result.preDefinedRole
+            }, null, 2);
+        } else {
+          responseText = `Custom role created successfully!\n\n` +
+            `No additional permissions were needed.\n\n` +
+            `Role Details:\n` +
+            JSON.stringify({
+              id: result.id,
+              name: result.name,
+              features: result.features,
+              type: result.type,
+              preDefinedRole: result.preDefinedRole
+            }, null, 2);
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: responseText,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error creating custom role:', error);
+        
+        let errorMessage = `Error creating custom role: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'delete_custom_role': {
+      try {
+        const { 
+          roleId,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          roleId: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await deleteCustomRoleWithRetry(
+          token,
+          roleId,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        console.log('[MCP] Delete custom role response:', result);
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error deleting custom role:', error);
+        
+        let errorMessage = `Error deleting custom role: ${error}`;
         
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
