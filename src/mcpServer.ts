@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -124,6 +124,64 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'update_ruckus_venue',
+        description: 'Update a venue in RUCKUS One with automatic status checking for async operations',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue to update',
+            },
+            name: {
+              type: 'string',
+              description: 'Name of the venue',
+            },
+            description: {
+              type: 'string',
+              description: 'Optional description of the venue',
+            },
+            addressLine: {
+              type: 'string',
+              description: 'Street address of the venue',
+            },
+            city: {
+              type: 'string',
+              description: 'City where the venue is located',
+            },
+            country: {
+              type: 'string',
+              description: 'Country where the venue is located',
+            },
+            countryCode: {
+              type: 'string',
+              description: 'Country code (optional, e.g., "US")',
+            },
+            latitude: {
+              type: 'number',
+              description: 'Latitude coordinate (optional)',
+            },
+            longitude: {
+              type: 'number',
+              description: 'Longitude coordinate (optional)',
+            },
+            timezone: {
+              type: 'string',
+              description: 'Timezone for the venue (optional)',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['venueId', 'name', 'addressLine', 'city', 'country'],
+        },
+      },
+      {
         name: 'create_ruckus_ap_group',
         description: 'Create a new AP group in a RUCKUS One venue with automatic status checking for async operations',
         inputSchema: {
@@ -218,6 +276,54 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['venueId', 'apGroupId'],
+        },
+      },
+      {
+        name: 'update_ruckus_ap_group',
+        description: 'Update an AP group in a RUCKUS One venue with automatic status checking for async operations',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue containing the AP group',
+            },
+            apGroupId: {
+              type: 'string',
+              description: 'ID of the AP group to update',
+            },
+            name: {
+              type: 'string',
+              description: 'Name of the AP group',
+            },
+            description: {
+              type: 'string',
+              description: 'Optional description of the AP group',
+            },
+            apSerialNumbers: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  serialNumber: {
+                    type: 'string',
+                    description: 'Serial number of the access point',
+                  },
+                },
+                required: ['serialNumber'],
+              },
+              description: 'Optional array of AP serial numbers to include in the group',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['venueId', 'apGroupId', 'name'],
         },
       },
       {
@@ -540,6 +646,208 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             profileId: {
               type: 'string',
               description: 'ID of the directory server profile to get',
+            },
+          },
+          required: ['profileId'],
+        },
+      },
+      {
+        name: 'create_directory_server_profile',
+        description: 'Create a new directory server profile in RUCKUS One with automatic status checking for async operations',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            name: {
+              type: 'string',
+              description: 'Name of the directory server profile',
+            },
+            type: {
+              type: 'string',
+              description: 'Type of directory server (e.g., "LDAP")',
+            },
+            tlsEnabled: {
+              type: 'boolean',
+              description: 'Whether TLS is enabled',
+            },
+            host: {
+              type: 'string',
+              description: 'Directory server hostname',
+            },
+            port: {
+              type: 'number',
+              description: 'Directory server port number',
+            },
+            domainName: {
+              type: 'string',
+              description: 'Domain name (e.g., "dc=example,dc=com")',
+            },
+            adminDomainName: {
+              type: 'string',
+              description: 'Admin domain name (e.g., "cn=admin,dc=example,dc=com")',
+            },
+            adminPassword: {
+              type: 'string',
+              description: 'Admin password',
+            },
+            identityName: {
+              type: 'string',
+              description: 'Identity name field',
+            },
+            identityEmail: {
+              type: 'string',
+              description: 'Identity email field',
+            },
+            identityPhone: {
+              type: 'string',
+              description: 'Identity phone field',
+            },
+            keyAttribute: {
+              type: 'string',
+              description: 'Key attribute (e.g., "uid")',
+            },
+            searchFilter: {
+              type: 'string',
+              description: 'Optional search filter',
+            },
+            attributeMappings: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: {
+                    type: 'string',
+                    description: 'Attribute name',
+                  },
+                  mappedByName: {
+                    type: 'string',
+                    description: 'Mapped attribute name',
+                  },
+                },
+                required: ['name', 'mappedByName'],
+              },
+              description: 'Array of attribute mappings',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['name', 'type', 'tlsEnabled', 'host', 'port', 'domainName', 'adminDomainName', 'adminPassword', 'identityName', 'identityEmail', 'identityPhone', 'keyAttribute', 'attributeMappings'],
+        },
+      },
+      {
+        name: 'update_directory_server_profile',
+        description: 'Update a directory server profile in RUCKUS One with automatic status checking for async operations',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            profileId: {
+              type: 'string',
+              description: 'ID of the directory server profile to update',
+            },
+            name: {
+              type: 'string',
+              description: 'Name of the directory server profile',
+            },
+            type: {
+              type: 'string',
+              description: 'Type of directory server (e.g., "LDAP")',
+            },
+            tlsEnabled: {
+              type: 'boolean',
+              description: 'Whether TLS is enabled',
+            },
+            host: {
+              type: 'string',
+              description: 'Directory server hostname',
+            },
+            port: {
+              type: 'number',
+              description: 'Directory server port number',
+            },
+            domainName: {
+              type: 'string',
+              description: 'Domain name (e.g., "dc=example,dc=com")',
+            },
+            adminDomainName: {
+              type: 'string',
+              description: 'Admin domain name (e.g., "cn=admin,dc=example,dc=com")',
+            },
+            adminPassword: {
+              type: 'string',
+              description: 'Admin password',
+            },
+            identityName: {
+              type: 'string',
+              description: 'Identity name field',
+            },
+            identityEmail: {
+              type: 'string',
+              description: 'Identity email field',
+            },
+            identityPhone: {
+              type: 'string',
+              description: 'Identity phone field',
+            },
+            keyAttribute: {
+              type: 'string',
+              description: 'Key attribute (e.g., "uid")',
+            },
+            searchFilter: {
+              type: 'string',
+              description: 'Optional search filter',
+            },
+            attributeMappings: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: {
+                    type: 'string',
+                    description: 'Attribute name',
+                  },
+                  mappedByName: {
+                    type: 'string',
+                    description: 'Mapped attribute name',
+                  },
+                },
+                required: ['name', 'mappedByName'],
+              },
+              description: 'Array of attribute mappings',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['profileId', 'name', 'type', 'tlsEnabled', 'host', 'port', 'domainName', 'adminDomainName', 'adminPassword', 'identityName', 'identityEmail', 'identityPhone', 'keyAttribute', 'attributeMappings'],
+        },
+      },
+      {
+        name: 'delete_directory_server_profile',
+        description: 'Delete a directory server profile from RUCKUS One with automatic status checking for async operations',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            profileId: {
+              type: 'string',
+              description: 'ID of the directory server profile to delete',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
             },
           },
           required: ['profileId'],
@@ -1106,6 +1414,87 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
     }
+    case 'update_ruckus_venue': {
+      try {
+        const { 
+          venueId,
+          name,
+          description,
+          addressLine,
+          city,
+          country,
+          countryCode,
+          latitude,
+          longitude,
+          timezone,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          venueId: string;
+          name: string;
+          description?: string;
+          addressLine: string;
+          city: string;
+          country: string;
+          countryCode?: string;
+          latitude?: number;
+          longitude?: number;
+          timezone?: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await updateVenueWithRetry(
+          token,
+          venueId,
+          {
+            name,
+            ...(description !== undefined && { description }),
+            addressLine,
+            city,
+            country,
+            ...(countryCode !== undefined && { countryCode }),
+            ...(latitude !== undefined && { latitude }),
+            ...(longitude !== undefined && { longitude }),
+            ...(timezone !== undefined && { timezone })
+          },
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error updating venue:', error);
+        
+        let errorMessage = `Error updating venue: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [{ type: 'text', text: errorMessage }],
+          isError: true
+        };
+      }
+    }
     case 'create_ruckus_ap_group': {
       try {
         const { 
@@ -1370,6 +1759,72 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
           isError: true,
+        };
+      }
+    }
+    case 'update_ruckus_ap_group': {
+      try {
+        const { 
+          venueId,
+          apGroupId,
+          name,
+          description,
+          apSerialNumbers,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          venueId: string;
+          apGroupId: string;
+          name: string;
+          description?: string;
+          apSerialNumbers?: Array<{ serialNumber: string }>;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await updateApGroupWithRetry(
+          token,
+          venueId,
+          apGroupId,
+          {
+            name,
+            ...(description !== undefined && { description }),
+            ...(apSerialNumbers !== undefined && { apSerialNumbers })
+          },
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error updating AP group:', error);
+        
+        let errorMessage = `Error updating AP group: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [{ type: 'text', text: errorMessage }],
+          isError: true
         };
       }
     }
@@ -2249,6 +2704,253 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
           isError: true,
+        };
+      }
+    }
+    case 'create_directory_server_profile': {
+      try {
+        const { 
+          name,
+          type,
+          tlsEnabled,
+          host,
+          port,
+          domainName,
+          adminDomainName,
+          adminPassword,
+          identityName,
+          identityEmail,
+          identityPhone,
+          keyAttribute,
+          searchFilter,
+          attributeMappings,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          name: string;
+          type: string;
+          tlsEnabled: boolean;
+          host: string;
+          port: number;
+          domainName: string;
+          adminDomainName: string;
+          adminPassword: string;
+          identityName: string;
+          identityEmail: string;
+          identityPhone: string;
+          keyAttribute: string;
+          searchFilter?: string;
+          attributeMappings: Array<{
+            name: string;
+            mappedByName: string;
+          }>;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await createDirectoryServerProfileWithRetry(
+          token,
+          {
+            name,
+            type,
+            tlsEnabled,
+            host,
+            port,
+            domainName,
+            adminDomainName,
+            adminPassword,
+            identityName,
+            identityEmail,
+            identityPhone,
+            keyAttribute,
+            ...(searchFilter !== undefined && { searchFilter }),
+            attributeMappings
+          },
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error creating directory server profile:', error);
+        
+        let errorMessage = `Error creating directory server profile: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [{ type: 'text', text: errorMessage }],
+          isError: true
+        };
+      }
+    }
+    case 'update_directory_server_profile': {
+      try {
+        const { 
+          profileId,
+          name,
+          type,
+          tlsEnabled,
+          host,
+          port,
+          domainName,
+          adminDomainName,
+          adminPassword,
+          identityName,
+          identityEmail,
+          identityPhone,
+          keyAttribute,
+          searchFilter,
+          attributeMappings,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          profileId: string;
+          name: string;
+          type: string;
+          tlsEnabled: boolean;
+          host: string;
+          port: number;
+          domainName: string;
+          adminDomainName: string;
+          adminPassword: string;
+          identityName: string;
+          identityEmail: string;
+          identityPhone: string;
+          keyAttribute: string;
+          searchFilter?: string;
+          attributeMappings: Array<{
+            name: string;
+            mappedByName: string;
+          }>;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await updateDirectoryServerProfileWithRetry(
+          token,
+          profileId,
+          {
+            name,
+            type,
+            tlsEnabled,
+            host,
+            port,
+            domainName,
+            adminDomainName,
+            adminPassword,
+            identityName,
+            identityEmail,
+            identityPhone,
+            keyAttribute,
+            ...(searchFilter !== undefined && { searchFilter }),
+            attributeMappings
+          },
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error updating directory server profile:', error);
+        
+        let errorMessage = `Error updating directory server profile: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [{ type: 'text', text: errorMessage }],
+          isError: true
+        };
+      }
+    }
+    case 'delete_directory_server_profile': {
+      try {
+        const { 
+          profileId,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          profileId: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await deleteDirectoryServerProfileWithRetry(
+          token,
+          profileId,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error deleting directory server profile:', error);
+        
+        let errorMessage = `Error deleting directory server profile: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [{ type: 'text', text: errorMessage }],
+          isError: true
         };
       }
     }

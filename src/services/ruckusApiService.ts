@@ -416,6 +416,124 @@ export async function createVenueWithRetry(
   };
 }
 
+export async function updateVenueWithRetry(
+  token: string,
+  venueId: string,
+  venueData: {
+    name: string;
+    description?: string;
+    addressLine: string;
+    city: string;
+    country: string;
+    countryCode?: string;
+    latitude?: number;
+    longitude?: number;
+    timezone?: string;
+  },
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/venues/${venueId}`
+    : `https://api.ruckus.cloud/venues/${venueId}`;
+
+  const payload = {
+    name: venueData.name,
+    ...(venueData.description !== undefined && { description: venueData.description }),
+    address: {
+      addressLine: venueData.addressLine,
+      city: venueData.city,
+      country: venueData.country,
+      ...(venueData.countryCode && { countryCode: venueData.countryCode }),
+      ...(venueData.latitude !== undefined && { latitude: venueData.latitude }),
+      ...(venueData.longitude !== undefined && { longitude: venueData.longitude }),
+      ...(venueData.timezone && { timezone: venueData.timezone }),
+    },
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'put',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Update venue');
+
+  const updateResponse = response.data;
+  
+  const activityId = updateResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...updateResponse,
+      status: 'completed',
+      message: 'Venue updated successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting venue update status polling for activity ${activityId}`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxRetries} for venue update activity ${activityId}`);
+    
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...updateResponse,
+          status: 'completed',
+          message: 'Venue updated successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAILED') {
+        return {
+          ...updateResponse,
+          status: 'failed',
+          message: 'Venue update failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+      
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'Venue update status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    } catch (error: any) {
+      console.error(`Error polling venue update activity (attempt ${attempt}):`, error.message);
+      
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'Venue update status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...updateResponse,
+    status: 'timeout',
+    message: 'Venue update status unknown - polling timeout',
+    activityId
+  };
+}
+
 export async function createApGroupWithRetry(
   token: string,
   venueId: string,
@@ -542,6 +660,113 @@ export async function createApGroupWithRetry(
     ...createResponse,
     status: 'timeout',
     message: 'AP group creation status unknown - polling timeout',
+    activityId
+  };
+}
+
+export async function updateApGroupWithRetry(
+  token: string,
+  venueId: string,
+  apGroupId: string,
+  apGroupData: {
+    name: string;
+    description?: string;
+    apSerialNumbers?: Array<{ serialNumber: string }>;
+  },
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}`
+    : `https://api.ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}`;
+
+  const payload = {
+    name: apGroupData.name,
+    venueId: venueId,
+    ...(apGroupData.description !== undefined && { description: apGroupData.description }),
+    apSerialNumbers: apGroupData.apSerialNumbers || []
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'put',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Update AP group');
+
+  const updateResponse = response.data;
+  
+  const activityId = updateResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...updateResponse,
+      status: 'completed',
+      message: 'AP group updated successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting AP group update status polling for activity ${activityId}`);
+  let retryCount = 0;
+  
+  while (retryCount < maxRetries) {
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`[RUCKUS] AP group update activity ${activityId} status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        console.log(`[RUCKUS] AP group updated successfully after ${retryCount + 1} attempts`);
+        return {
+          ...updateResponse,
+          status: 'completed',
+          message: 'AP group updated successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAILED') {
+        console.error(`[RUCKUS] AP group update failed:`, activityDetails);
+        return {
+          ...updateResponse,
+          status: 'failed',
+          message: 'AP group update failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+      
+      retryCount++;
+      console.log(`[RUCKUS] AP group update in progress, attempt ${retryCount}/${maxRetries}`);
+      
+      if (retryCount >= maxRetries) {
+        break;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+      
+    } catch (error) {
+      retryCount++;
+      console.error(`[RUCKUS] Error polling activity details (attempt ${retryCount}/${maxRetries}):`, error);
+      
+      if (retryCount >= maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'AP group update status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...updateResponse,
+    status: 'timeout',
+    message: 'AP group update status unknown - polling timeout',
     activityId
   };
 }
@@ -1078,6 +1303,356 @@ export async function getDirectoryServerProfile(
   }, 'Get directory server profile');
 
   return response.data;
+}
+
+export async function createDirectoryServerProfileWithRetry(
+  token: string,
+  profileData: {
+    name: string;
+    type: string;
+    tlsEnabled: boolean;
+    host: string;
+    port: number;
+    domainName: string;
+    adminDomainName: string;
+    adminPassword: string;
+    identityName: string;
+    identityEmail: string;
+    identityPhone: string;
+    keyAttribute: string;
+    searchFilter?: string;
+    attributeMappings: Array<{
+      name: string;
+      mappedByName: string;
+    }>;
+  },
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/directoryServerProfiles`
+    : 'https://api.ruckus.cloud/directoryServerProfiles';
+
+  const payload = {
+    name: profileData.name,
+    type: profileData.type,
+    tlsEnabled: profileData.tlsEnabled,
+    host: profileData.host,
+    port: profileData.port,
+    domainName: profileData.domainName,
+    adminDomainName: profileData.adminDomainName,
+    adminPassword: profileData.adminPassword,
+    identityName: profileData.identityName,
+    identityEmail: profileData.identityEmail,
+    identityPhone: profileData.identityPhone,
+    keyAttribute: profileData.keyAttribute,
+    searchFilter: profileData.searchFilter || '',
+    attributeMappings: profileData.attributeMappings
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Create directory server profile');
+
+  const createResponse = response.data;
+  
+  const activityId = createResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...createResponse,
+      status: 'completed',
+      message: 'Directory server profile created successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting directory server profile creation status polling for activity ${activityId}`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxRetries} for directory server profile creation activity ${activityId}`);
+    
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...createResponse,
+          status: 'completed',
+          message: 'Directory server profile created successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAILED') {
+        return {
+          ...createResponse,
+          status: 'failed',
+          message: 'Directory server profile creation failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+      
+      if (attempt === maxRetries) {
+        return {
+          ...createResponse,
+          status: 'timeout',
+          message: 'Directory server profile creation status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    } catch (error: any) {
+      console.error(`Error polling directory server profile creation activity (attempt ${attempt}):`, error.message);
+      
+      if (attempt === maxRetries) {
+        return {
+          ...createResponse,
+          status: 'timeout',
+          message: 'Directory server profile creation status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...createResponse,
+    status: 'timeout',
+    message: 'Directory server profile creation status unknown - polling timeout',
+    activityId
+  };
+}
+
+export async function updateDirectoryServerProfileWithRetry(
+  token: string,
+  profileId: string,
+  profileData: {
+    name: string;
+    type: string;
+    tlsEnabled: boolean;
+    host: string;
+    port: number;
+    domainName: string;
+    adminDomainName: string;
+    adminPassword: string;
+    identityName: string;
+    identityEmail: string;
+    identityPhone: string;
+    keyAttribute: string;
+    searchFilter?: string;
+    attributeMappings: Array<{
+      name: string;
+      mappedByName: string;
+    }>;
+  },
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/directoryServerProfiles/${profileId}`
+    : `https://api.ruckus.cloud/directoryServerProfiles/${profileId}`;
+
+  const payload = {
+    name: profileData.name,
+    type: profileData.type,
+    tlsEnabled: profileData.tlsEnabled,
+    host: profileData.host,
+    port: profileData.port,
+    domainName: profileData.domainName,
+    adminDomainName: profileData.adminDomainName,
+    adminPassword: profileData.adminPassword,
+    identityName: profileData.identityName,
+    identityEmail: profileData.identityEmail,
+    identityPhone: profileData.identityPhone,
+    id: profileId,
+    keyAttribute: profileData.keyAttribute,
+    searchFilter: profileData.searchFilter || '',
+    attributeMappings: profileData.attributeMappings
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'put',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Update directory server profile');
+
+  const updateResponse = response.data;
+  
+  const activityId = updateResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...updateResponse,
+      status: 'completed',
+      message: 'Directory server profile updated successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting directory server profile update status polling for activity ${activityId}`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxRetries} for directory server profile update activity ${activityId}`);
+    
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...updateResponse,
+          status: 'completed',
+          message: 'Directory server profile updated successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAILED') {
+        return {
+          ...updateResponse,
+          status: 'failed',
+          message: 'Directory server profile update failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+      
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'Directory server profile update status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    } catch (error: any) {
+      console.error(`Error polling directory server profile update activity (attempt ${attempt}):`, error.message);
+      
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'Directory server profile update status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...updateResponse,
+    status: 'timeout',
+    message: 'Directory server profile update status unknown - polling timeout',
+    activityId
+  };
+}
+
+export async function deleteDirectoryServerProfileWithRetry(
+  token: string,
+  profileId: string,
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/directoryServerProfiles/${profileId}`
+    : `https://api.ruckus.cloud/directoryServerProfiles/${profileId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'delete',
+    url: apiUrl,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Delete directory server profile');
+
+  const deleteResponse = response.data;
+  
+  const activityId = deleteResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...deleteResponse,
+      status: 'completed',
+      message: 'Directory server profile deleted successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting directory server profile deletion status polling for activity ${activityId}`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxRetries} for directory server profile deletion activity ${activityId}`);
+    
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...deleteResponse,
+          status: 'completed',
+          message: 'Directory server profile deleted successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAILED') {
+        return {
+          ...deleteResponse,
+          status: 'failed',
+          message: 'Directory server profile deletion failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+      
+      if (attempt === maxRetries) {
+        return {
+          ...deleteResponse,
+          status: 'timeout',
+          message: 'Directory server profile deletion status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    } catch (error: any) {
+      console.error(`Error polling directory server profile deletion activity (attempt ${attempt}):`, error.message);
+      
+      if (attempt === maxRetries) {
+        return {
+          ...deleteResponse,
+          status: 'timeout',
+          message: 'Directory server profile deletion status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...deleteResponse,
+    status: 'timeout',
+    message: 'Directory server profile deletion status unknown - polling timeout',
+    activityId
+  };
 }
 
 export async function queryPortalServiceProfiles(
