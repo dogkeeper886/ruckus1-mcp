@@ -1732,6 +1732,203 @@ export async function queryPrivilegeGroups(
   return response.data;
 }
 
+// Helper function to resolve privilege group name to ID
+async function resolvePrivilegeGroupId(token: string, nameOrId: string, region: string = ''): Promise<string> {
+  // If it looks like a UUID, assume it's already an ID
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(nameOrId)) {
+    return nameOrId;
+  }
+  
+  // Otherwise, resolve name to ID
+  const groups = await queryPrivilegeGroups(token, region);
+  const group = groups.find((g: any) => g.name === nameOrId);
+  
+  if (!group) {
+    throw new Error(`Privilege group '${nameOrId}' not found. Available groups: ${groups.map((g: any) => g.name).join(', ')}`);
+  }
+  
+  return group.id;
+}
+
+// Helper function to get venues
+async function getRuckusVenues(token: string, region: string = ''): Promise<any[]> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/venues/query`
+    : 'https://api.ruckus.cloud/venues/query';
+    
+  const payload = {
+    fields: ["id", "name"],
+    searchTargetFields: ["name", "addressLine", "description", "tagList"],
+    filters: {},
+    sortField: "name",
+    sortOrder: "ASC",
+    page: 1,
+    pageSize: 10000,
+    defaultPageSize: 10,
+    total: 0
+  };
+  
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get venues');
+  
+  return response.data.data || [];
+}
+
+// Helper function to resolve venue names to IDs
+async function resolveVenueIds(token: string, venueNames: string[], region: string = ''): Promise<string[]> {
+  const venues = await getRuckusVenues(token, region);
+  const venueIds: string[] = [];
+  
+  for (const nameOrId of venueNames) {
+    // If it looks like a UUID, assume it's already an ID
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(nameOrId)) {
+      venueIds.push(nameOrId);
+      continue;
+    }
+    
+    // Otherwise, resolve name to ID
+    const venue = venues.find((v: any) => v.name === nameOrId);
+    if (!venue) {
+      throw new Error(`Venue '${nameOrId}' not found. Available venues: ${venues.map((v: any) => v.name).join(', ')}`);
+    }
+    venueIds.push(venue.id);
+  }
+  
+  return venueIds;
+}
+
+export async function updatePrivilegeGroupWithRetry(
+  token: string,
+  privilegeGroupId: string,
+  privilegeGroupData: {
+    name: string;
+    roleName: string;
+    delegation: boolean;
+    policies?: Array<{
+      entityInstanceId: string;
+      objectType: string;
+    }>;
+  },
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/roleAuthentications/privilegeGroups/${privilegeGroupId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'put',
+    url,
+    data: privilegeGroupData,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Update privilege group');
+
+  const operationResponse = response.data;
+  
+  const activityId = operationResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...operationResponse,
+      status: 'completed',
+      message: 'Operation completed successfully (synchronous operation)'
+    };
+  }
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    console.log(`[${attempt + 1}/${maxRetries}] Polling activity status for requestId: ${activityId}`);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+      
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...operationResponse,
+          ...activityDetails,
+          status: 'completed',
+          message: 'Privilege group updated successfully'
+        };
+      }
+      
+      if (activityDetails.status === 'FAILED') {
+        throw new Error(`Update privilege group failed: ${activityDetails.errorMessage || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error(`Polling attempt ${attempt + 1} failed:`, error);
+      
+      if (attempt === maxRetries - 1) {
+        return {
+          ...operationResponse,
+          status: 'timeout',
+          message: `Update privilege group status polling timed out after ${maxRetries} attempts. The operation may still be in progress.`,
+          activityId
+        };
+      }
+    }
+  }
+
+  return {
+    ...operationResponse,
+    status: 'timeout',
+    message: `Update privilege group status polling timed out after ${maxRetries} attempts. The operation may still be in progress.`,
+    activityId
+  };
+}
+
+export async function updatePrivilegeGroupSimple(
+  token: string,
+  privilegeGroupName: string,
+  name: string,
+  roleName: string,
+  delegation: boolean,
+  allVenues: boolean = true,
+  venueNames: string[] = [],
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  // Resolve group name to ID
+  const privilegeGroupId = await resolvePrivilegeGroupId(token, privilegeGroupName, region);
+  
+  // Build the privilege group data
+  const privilegeGroupData: any = {
+    name,
+    roleName,
+    delegation
+  };
+  
+  // If not all venues, build policies from venue names
+  if (!allVenues && venueNames.length > 0) {
+    const venueIds = await resolveVenueIds(token, venueNames, region);
+    privilegeGroupData.policies = venueIds.map(venueId => ({
+      entityInstanceId: venueId,
+      objectType: 'com.ruckus.cloud.venue.model.venue'
+    }));
+  }
+  
+  // Call the existing function
+  return await updatePrivilegeGroupWithRetry(
+    token,
+    privilegeGroupId,
+    privilegeGroupData,
+    region,
+    maxRetries,
+    pollIntervalMs
+  );
+}
+
 export async function queryCustomRoles(
   token: string,
   region: string = ''

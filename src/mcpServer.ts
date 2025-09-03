@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -927,6 +927,49 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           type: 'object',
           properties: {},
           required: [],
+        },
+      },
+      {
+        name: 'update_privilege_group',
+        description: 'Update a privilege group in RUCKUS One using simple parameters. Accepts group and venue names (auto-resolves to IDs) or IDs directly. Examples: {"privilegeGroupName": "jack-group-1", "name": "jack-group-1", "roleName": "jack-role-1", "delegation": false, "allVenues": true} or {"privilegeGroupName": "jack-group-1", "name": "jack-group-1", "roleName": "jack-role-1", "delegation": false, "allVenues": false, "venueNames": ["NYC Office", "SF Lab"]}',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            privilegeGroupName: {
+              type: 'string',
+              description: 'Name or ID of the privilege group to update (use query_privilege_groups to see available groups)',
+            },
+            name: {
+              type: 'string',
+              description: 'Display name of the privilege group',
+            },
+            roleName: {
+              type: 'string',
+              description: 'Name of the role to assign to the group (use get_ruckus_roles to find available roles)',
+            },
+            delegation: {
+              type: 'boolean',
+              description: 'Whether delegation is enabled for this group',
+            },
+            allVenues: {
+              type: 'boolean',
+              description: 'Grant access to all venues (true) or specific venues only (false). Default: true',
+            },
+            venueNames: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Array of venue names or IDs (only used when allVenues is false). Use get_ruckus_venues to see available venues',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of polling retries (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['privilegeGroupName', 'name', 'roleName', 'delegation'],
         },
       },
       {
@@ -3152,6 +3195,78 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error('[MCP] Error getting roles:', error);
         
         let errorMessage = `Error getting roles: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'update_privilege_group': {
+      try {
+        const { 
+          privilegeGroupName,
+          name,
+          roleName,
+          delegation,
+          allVenues = true,
+          venueNames = [],
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          privilegeGroupName: string;
+          name: string;
+          roleName: string;
+          delegation: boolean;
+          allVenues?: boolean;
+          venueNames?: string[];
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await updatePrivilegeGroupSimple(
+          token,
+          privilegeGroupName,
+          name,
+          roleName,
+          delegation,
+          allVenues,
+          venueNames,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error updating privilege group:', error);
+        
+        let errorMessage = `Error updating privilege group: ${error}`;
         
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
