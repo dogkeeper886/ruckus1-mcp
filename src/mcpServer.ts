@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -469,6 +469,42 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['venueId', 'apSerialNumber'],
+        },
+      },
+      {
+        name: 'get_ap_client_admission_control_settings',
+        description: 'Get client admission control settings for a specific AP',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue containing the AP',
+            },
+            apSerialNumber: {
+              type: 'string',
+              description: 'Serial number of the AP to get client admission control settings for',
+            },
+          },
+          required: ['venueId', 'apSerialNumber'],
+        },
+      },
+      {
+        name: 'get_ap_group_client_admission_control_settings',
+        description: 'Get client admission control settings for a specific AP group',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue containing the AP group',
+            },
+            apGroupId: {
+              type: 'string',
+              description: 'ID of the AP group to get client admission control settings for',
+            },
+          },
+          required: ['venueId', 'apGroupId'],
         },
       },
       {
@@ -2384,6 +2420,106 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       } catch (error: any) {
         console.error('[MCP] Error getting AP radio settings:', error);
         let errorMessage = `Error getting AP radio settings: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_ap_client_admission_control_settings': {
+      try {
+        const { venueId, apSerialNumber } = request.params.arguments as {
+          venueId: string;
+          apSerialNumber: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const apClientAdmissionControlSettings = await getApClientAdmissionControlSettings(
+          token,
+          venueId,
+          apSerialNumber,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] AP client admission control settings response:', apClientAdmissionControlSettings);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(apClientAdmissionControlSettings, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting AP client admission control settings:', error);
+        let errorMessage = `Error getting AP client admission control settings: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_ap_group_client_admission_control_settings': {
+      try {
+        const { venueId, apGroupId } = request.params.arguments as {
+          venueId: string;
+          apGroupId: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const apGroupClientAdmissionControlSettings = await getApGroupClientAdmissionControlSettings(
+          token,
+          venueId,
+          apGroupId,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] AP group client admission control settings response:', apGroupClientAdmissionControlSettings);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(apGroupClientAdmissionControlSettings, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting AP group client admission control settings:', error);
+        let errorMessage = `Error getting AP group client admission control settings: ${error}`;
         
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;

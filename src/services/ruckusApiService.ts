@@ -269,6 +269,46 @@ export async function getApRadioSettings(
   return response.data;
 }
 
+export async function getApClientAdmissionControlSettings(
+  token: string,
+  venueId: string,
+  apSerialNumber: string,
+  region: string = ''
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/venues/${venueId}/aps/${apSerialNumber}/clientAdmissionControlSettings`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get AP client admission control settings');
+
+  return response.data;
+}
+
+export async function getApGroupClientAdmissionControlSettings(
+  token: string,
+  venueId: string,
+  apGroupId: string,
+  region: string = ''
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}/apClientAdmissionControlSettings`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get AP group client admission control settings');
+
+  return response.data;
+}
+
 export async function deleteVenueWithRetry(
   token: string,
   venueId: string,
