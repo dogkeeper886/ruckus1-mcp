@@ -171,6 +171,104 @@ export async function getApGroupAntennaTypeSettings(
   return response.data;
 }
 
+export async function getVenueApModelBandModeSettings(
+  token: string,
+  venueId: string,
+  region: string = ''
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/venues/${venueId}/apModelBandModeSettings`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get venue AP model band mode settings');
+
+  return response.data;
+}
+
+export async function getVenueRadioSettings(
+  token: string,
+  venueId: string,
+  region: string = ''
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/venues/${venueId}/apRadioSettings`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get venue radio settings');
+
+  return response.data;
+}
+
+export async function getApGroupApModelBandModeSettings(
+  token: string,
+  venueId: string,
+  apGroupId: string,
+  region: string = ''
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}/apModelBandModeSettings`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get AP group AP model band mode settings');
+
+  return response.data;
+}
+
+export async function getApGroupRadioSettings(
+  token: string,
+  venueId: string,
+  apGroupId: string,
+  region: string = ''
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}/radioSettings`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get AP group radio settings');
+
+  return response.data;
+}
+
+export async function getApRadioSettings(
+  token: string,
+  venueId: string,
+  apSerialNumber: string,
+  region: string = ''
+): Promise<any> {
+  const url = `https://api.${region ? region + '.' : ''}ruckus.cloud/venues/${venueId}/aps/${apSerialNumber}/radioSettings`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get AP radio settings');
+
+  return response.data;
+}
+
 export async function deleteVenueWithRetry(
   token: string,
   venueId: string,

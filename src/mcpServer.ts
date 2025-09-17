@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -387,6 +387,88 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['venueId', 'apGroupId'],
+        },
+      },
+      {
+        name: 'get_venue_ap_model_band_mode_settings',
+        description: 'Get AP model band mode settings for a venue',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue to get AP model band mode settings for',
+            },
+          },
+          required: ['venueId'],
+        },
+      },
+      {
+        name: 'get_venue_radio_settings',
+        description: 'Get radio settings for a venue',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue to get radio settings for',
+            },
+          },
+          required: ['venueId'],
+        },
+      },
+      {
+        name: 'get_ap_group_ap_model_band_mode_settings',
+        description: 'Get AP model band mode settings for a specific AP group in a venue',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue containing the AP group',
+            },
+            apGroupId: {
+              type: 'string',
+              description: 'ID of the AP group to get AP model band mode settings for',
+            },
+          },
+          required: ['venueId', 'apGroupId'],
+        },
+      },
+      {
+        name: 'get_ap_group_radio_settings',
+        description: 'Get radio settings for a specific AP group in a venue',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue containing the AP group',
+            },
+            apGroupId: {
+              type: 'string',
+              description: 'ID of the AP group to get radio settings for',
+            },
+          },
+          required: ['venueId', 'apGroupId'],
+        },
+      },
+      {
+        name: 'get_ap_radio_settings',
+        description: 'Get radio settings for a specific AP',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue containing the AP',
+            },
+            apSerialNumber: {
+              type: 'string',
+              description: 'Serial number of the AP to get radio settings for',
+            },
+          },
+          required: ['venueId', 'apSerialNumber'],
         },
       },
       {
@@ -2057,6 +2139,252 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         let errorMessage = `Error getting AP group antenna type settings: ${error}`;
         
         // If it's an axios error, provide more detailed information
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_venue_ap_model_band_mode_settings': {
+      try {
+        const { venueId } = request.params.arguments as {
+          venueId: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const venueApModelBandModeSettings = await getVenueApModelBandModeSettings(
+          token,
+          venueId,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] Venue AP model band mode settings response:', venueApModelBandModeSettings);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(venueApModelBandModeSettings, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting venue AP model band mode settings:', error);
+        let errorMessage = `Error getting venue AP model band mode settings: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_venue_radio_settings': {
+      try {
+        const { venueId } = request.params.arguments as {
+          venueId: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const venueRadioSettings = await getVenueRadioSettings(
+          token,
+          venueId,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] Venue radio settings response:', venueRadioSettings);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(venueRadioSettings, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting venue radio settings:', error);
+        let errorMessage = `Error getting venue radio settings: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_ap_group_ap_model_band_mode_settings': {
+      try {
+        const { venueId, apGroupId } = request.params.arguments as {
+          venueId: string;
+          apGroupId: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const apGroupApModelBandModeSettings = await getApGroupApModelBandModeSettings(
+          token,
+          venueId,
+          apGroupId,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] AP group AP model band mode settings response:', apGroupApModelBandModeSettings);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(apGroupApModelBandModeSettings, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting AP group AP model band mode settings:', error);
+        let errorMessage = `Error getting AP group AP model band mode settings: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_ap_group_radio_settings': {
+      try {
+        const { venueId, apGroupId } = request.params.arguments as {
+          venueId: string;
+          apGroupId: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const apGroupRadioSettings = await getApGroupRadioSettings(
+          token,
+          venueId,
+          apGroupId,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] AP group radio settings response:', apGroupRadioSettings);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(apGroupRadioSettings, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting AP group radio settings:', error);
+        let errorMessage = `Error getting AP group radio settings: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_ap_radio_settings': {
+      try {
+        const { venueId, apSerialNumber } = request.params.arguments as {
+          venueId: string;
+          apSerialNumber: string;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const apRadioSettings = await getApRadioSettings(
+          token,
+          venueId,
+          apSerialNumber,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] AP radio settings response:', apRadioSettings);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(apRadioSettings, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting AP radio settings:', error);
+        let errorMessage = `Error getting AP radio settings: ${error}`;
+        
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
           errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
