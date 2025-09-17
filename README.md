@@ -7,7 +7,6 @@ A Model Context Protocol (MCP) server for RUCKUS One, enabling AI assistants and
 ## Features
 - **MCP-only**: No REST API, no Express, no HTTP endpoints
 - **Tools**: Fetch RUCKUS One venues, get authentication tokens, create venues, manage AP groups
-- **Resources**: Expose venues and tokens as MCP resources
 - **Simple configuration**: All credentials and settings in `mcp.json`
 
 ---
@@ -124,11 +123,6 @@ Once configured, your MCP client will have access to these tools:
 - `get_ap_model_antenna_settings` - Get AP model external antenna settings for a venue
 - `get_ap_model_antenna_type_settings` - Get AP model antenna type settings for a venue
 - `get_ruckus_aps` - Query access points with filtering, search, and pagination
-
-## Available MCP Resources
-
-- `ruckus://venues/list` - Access venue list as a resource
-- `ruckus://auth/token` - Access current authentication token
 
 ---
 

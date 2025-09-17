@@ -1,6 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry } from './services/ruckusApiService';
@@ -15,7 +15,6 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
-      resources: {},
     },
   }
 );
@@ -3587,104 +3586,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-server.setRequestHandler(ListResourcesRequestSchema, async () => {
-  return {
-    resources: [
-      {
-        uri: 'ruckus://auth/token',
-        name: 'Ruckus Auth Token',
-        description: 'Current RUCKUS One JWT token',
-        mimeType: 'text/plain',
-      },
-      {
-        uri: 'ruckus://venues/list',
-        name: 'Ruckus Venues',
-        description: 'List of venues from RUCKUS One',
-        mimeType: 'application/json',
-      },
-    ],
-  };
-});
 
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  const { uri } = request.params;
-  try {
-    if (uri === 'ruckus://auth/token') {
-      const token = await getRuckusJwtToken(
-        process.env.RUCKUS_TENANT_ID!,
-        process.env.RUCKUS_CLIENT_ID!,
-        process.env.RUCKUS_CLIENT_SECRET!,
-        process.env.RUCKUS_REGION
-      );
-      return {
-        contents: [
-          {
-            uri,
-            mimeType: 'text/plain',
-            text: token,
-          },
-        ],
-      };
-    } else if (uri === 'ruckus://venues/list') {
-      const token = await getRuckusJwtToken(
-        process.env.RUCKUS_TENANT_ID!,
-        process.env.RUCKUS_CLIENT_ID!,
-        process.env.RUCKUS_CLIENT_SECRET!,
-        process.env.RUCKUS_REGION
-      );
-      const region = process.env.RUCKUS_REGION;
-      const apiUrl = region && region.trim() !== ''
-        ? `https://api.${region}.ruckus.cloud/venues/query`
-        : 'https://api.ruckus.cloud/venues/query';
-      const payload = {
-        fields: ["id", "name"],
-        searchTargetFields: ["name", "addressLine", "description", "tagList"],
-        filters: {},
-        sortField: "name",
-        sortOrder: "ASC",
-        page: 1,
-        pageSize: 10000,
-        defaultPageSize: 10,
-        total: 0
-      };
-      const response = await axios.post(apiUrl, payload, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      return {
-        contents: [
-          {
-            uri,
-            mimeType: 'application/json',
-            text: JSON.stringify(response.data, null, 2),
-          },
-        ],
-      };
-    } else {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Unknown resource: ${uri}`,
-          },
-        ],
-        isError: true,
-      };
-    }
-  } catch (error) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Error reading resource ${uri}: ${error}`,
-        },
-      ],
-      isError: true,
-    };
-  }
-});
 
 const transport = new StdioServerTransport();
 console.log('RUCKUS1 MCP server is running and ready for connections.');
