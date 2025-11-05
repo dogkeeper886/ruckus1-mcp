@@ -802,6 +802,136 @@ export async function createApGroupWithRetry(
   };
 }
 
+export async function addApToGroupWithRetry(
+  token: string,
+  venueId: string,
+  apGroupId: string,
+  apData: {
+    name: string;
+    serialNumber: string;
+    description?: string;
+  },
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}/aps`
+    : `https://api.ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}/aps`;
+
+  const payload = {
+    name: apData.name,
+    serialNumber: apData.serialNumber,
+    ...(apData.description !== undefined && { description: apData.description || '' }),
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Add AP to group');
+
+  const addResponse = response.data;
+  
+  // Check if this is an async operation (has requestId)
+  const activityId = addResponse.requestId;
+  
+  if (!activityId) {
+    // If no requestId, it's a synchronous operation, return immediately
+    return {
+      ...addResponse,
+      status: 'completed',
+      message: 'AP added to group successfully (synchronous operation)'
+    };
+  }
+
+  // Poll for completion status (async operation)
+  let retryCount = 0;
+  while (retryCount < maxRetries) {
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      
+      // Check if operation is completed (has endDatetime populated)
+      const isCompleted = activityDetails.endDatetime !== undefined;
+      
+      // Check if operation failed (status is not SUCCESS or INPROGRESS)
+      const isFailed = 
+        activityDetails.status !== 'SUCCESS' && 
+        activityDetails.status !== 'INPROGRESS';
+
+      if (isCompleted) {
+        // Check if it completed successfully
+        if (activityDetails.status === 'SUCCESS') {
+          return {
+            ...addResponse,
+            activityDetails,
+            status: 'completed',
+            message: 'AP added to group successfully'
+          };
+        } else {
+          return {
+            ...addResponse,
+            activityDetails,
+            status: 'failed',
+            message: 'AP addition to group failed',
+            error: activityDetails.error || activityDetails.message || 'Operation completed with non-SUCCESS status'
+          };
+        }
+      }
+
+      if (isFailed) {
+        return {
+          ...addResponse,
+          activityDetails,
+          status: 'failed',
+          message: 'AP addition to group failed',
+          error: activityDetails.error || activityDetails.message || 'Unknown error'
+        };
+      }
+
+      // If still in progress, increment retry count and continue
+      retryCount++;
+      console.log(`[RUCKUS] AP addition to group in progress, attempt ${retryCount}/${maxRetries}`);
+      
+      // If we've reached max retries, exit loop
+      if (retryCount >= maxRetries) {
+        break;
+      }
+      
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+      
+    } catch (error) {
+      retryCount++;
+      console.error(`[RUCKUS] Error polling activity details (attempt ${retryCount}/${maxRetries}):`, error);
+      
+      // If we've reached max retries, return error
+      if (retryCount >= maxRetries) {
+        return {
+          ...addResponse,
+          status: 'timeout',
+          message: 'AP addition to group status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      // Wait before next retry
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...addResponse,
+    status: 'timeout',
+    message: 'AP addition to group status unknown - polling timeout',
+    activityId
+  };
+}
+
 export async function updateApGroupWithRetry(
   token: string,
   venueId: string,
