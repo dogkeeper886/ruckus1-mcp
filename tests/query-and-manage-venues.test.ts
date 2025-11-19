@@ -101,6 +101,9 @@ async function testVenueOperations() {
     console.log('✅ Venue created successfully');
     console.log(`   Name: ${testVenueName}`);
     console.log(`   Status: ${createResult.status}`);
+    console.log('⏳ Waiting 5 seconds for backend propagation...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    console.log('✅ Wait completed');
 
     // Extract venue ID from response
     if (createResult.response && createResult.response.id) {
@@ -140,6 +143,9 @@ async function testVenueOperations() {
     console.log(`   New Name: ${updatedVenueName}`);
     console.log(`   New City: Lyon`);
     console.log(`   Status: ${updateResult.status}`);
+    console.log('⏳ Waiting 5 seconds for backend propagation...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    console.log('✅ Wait completed');
 
     // Step 5: Query venues again to verify
     console.log('\nStep 5: Verifying venue exists in query results...');
@@ -173,6 +179,9 @@ async function testVenueOperations() {
 
     console.log('✅ Venue deleted successfully');
     console.log(`   Status: ${deleteResult.status}`);
+    console.log('⏳ Waiting 5 seconds for backend propagation...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    console.log('✅ Wait completed');
     testVenueId = null; // Clear so we don't try to delete again in catch block
 
     console.log('\n\n=== ✅ All Venue Tests Passed! ===');

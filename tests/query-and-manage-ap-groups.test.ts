@@ -122,6 +122,9 @@ async function testApGroupOperations() {
     console.log(`   Name: ${testGroupName}`);
     console.log(`   Venue ID: ${testVenueId}`);
     console.log(`   Status: ${createResult.status}`);
+    console.log('⏳ Waiting 5 seconds for backend propagation...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    console.log('✅ Wait completed');
 
     // Extract AP group ID from response (check multiple possible locations)
     if (createResult.response && createResult.response.id) {
@@ -176,6 +179,9 @@ async function testApGroupOperations() {
     console.log(`   New Name: ${updatedGroupName}`);
     console.log(`   New Description: ${updatedDescription}`);
     console.log(`   Status: ${updateResult.status}`);
+    console.log('⏳ Waiting 5 seconds for backend propagation...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    console.log('✅ Wait completed');
 
     // Step 6: Query to verify the updated AP group
     console.log('\nStep 6: Verifying AP group exists in query results...');
@@ -210,6 +216,9 @@ async function testApGroupOperations() {
 
     console.log('✅ AP group deleted successfully');
     console.log(`   Status: ${deleteResult.status}`);
+    console.log('⏳ Waiting 5 seconds for backend propagation...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    console.log('✅ Wait completed');
     testApGroupId = null; // Clear so we don't try to delete again
 
     console.log('\n\n=== ✅ All AP Group Tests Passed! ===');

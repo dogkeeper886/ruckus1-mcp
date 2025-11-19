@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, activateWifiNetworkAtVenueWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, activateWifiNetworkAtVenueWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -260,6 +260,32 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['venueId', 'apGroupId', 'name', 'serialNumber'],
+        },
+      },
+      {
+        name: 'remove_ap',
+        description: 'Remove an access point from a RUCKUS One venue with automatic status checking for async operations',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue containing the AP',
+            },
+            apSerialNumber: {
+              type: 'string',
+              description: 'Serial number of the access point to remove',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of polling retries (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['venueId', 'apSerialNumber'],
         },
       },
       {
@@ -2024,6 +2050,91 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           errorResponse.error.networkError = 'No response received from server';
         }
         
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(errorResponse, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'remove_ap': {
+      try {
+        const {
+          venueId,
+          apSerialNumber,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          venueId: string;
+          apSerialNumber: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+
+        const result = await removeApWithRetry(
+          token,
+          venueId,
+          apSerialNumber,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+
+        console.log('[MCP] Remove AP response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error removing AP:', error);
+
+        // Create a structured error response
+        const errorResponse: any = {
+          operation: 'remove_ap',
+          success: false,
+          error: {
+            message: error.message || 'Unknown error',
+            type: error.name || 'Error'
+          }
+        };
+
+        // If it's an axios error, provide detailed API response information
+        if (error.response) {
+          errorResponse.httpStatus = error.response.status;
+          errorResponse.httpStatusText = error.response.statusText;
+          errorResponse.apiResponse = error.response.data;
+
+          // Extract specific error details from RUCKUS API response
+          if (error.response.data) {
+            if (error.response.data.error) {
+              errorResponse.error.apiError = error.response.data.error;
+            }
+            if (error.response.data.errors && Array.isArray(error.response.data.errors) && error.response.data.errors.length > 0) {
+              errorResponse.error.apiErrors = error.response.data.errors;
+            }
+            if (error.response.data.message) {
+              errorResponse.error.apiMessage = error.response.data.message;
+            }
+          }
+        } else if (error.request) {
+          errorResponse.error.networkError = 'No response received from server';
+        }
+
         return {
           content: [
             {

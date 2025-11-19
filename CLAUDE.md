@@ -15,14 +15,14 @@ This is a **Model Context Protocol (MCP) server** for RUCKUS One network managem
 
 ### Core Components
 - **`src/mcpServer.ts`**: Main MCP server implementation using `@modelcontextprotocol/sdk`
-  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `get_ruckus_activity_details`, `create_ruckus_venue`, `delete_ruckus_venue`, `create_ruckus_ap_group`, `get_ruckus_ap_groups`, `delete_ruckus_ap_group`, `get_ap_model_antenna_settings`, `get_ap_model_antenna_type_settings`, `get_ruckus_aps`, `update_ruckus_ap`, `query_privilege_groups`, `update_custom_role`, `query_role_features` (with status checking and retry logic for async operations)
+  - Implements MCP tools: `get_ruckus_auth_token`, `get_ruckus_venues`, `get_ruckus_activity_details`, `create_ruckus_venue`, `delete_ruckus_venue`, `create_ruckus_ap_group`, `get_ruckus_ap_groups`, `delete_ruckus_ap_group`, `add_ap_to_group`, `remove_ap`, `get_ruckus_aps`, `update_ruckus_ap`, `get_ap_model_antenna_settings`, `get_ap_model_antenna_type_settings`, `query_privilege_groups`, `update_custom_role`, `query_role_features` (with status checking and retry logic for async operations)
   - Implements MCP resources: `ruckus://auth/token`, `ruckus://venues/list`
   - Uses stdio transport for MCP communication
   - **Note**: `update_ruckus_ap` is a consolidated tool that handles AP name changes, venue moves, and AP group changes through optional parameters
 - **`src/services/ruckusApiService.ts`**: Comprehensive RUCKUS One API service layer
   - Handles OAuth2 authentication with client credentials grant flow
   - Supports multi-region RUCKUS cloud endpoints
-  - Provides venue CRUD operations, AP group creation/deletion/querying, AP querying, AP movement with retry mechanisms and polling, comprehensive AP management with retrieve-then-update pattern, and role/permission management operations
+  - Provides venue CRUD operations, AP group creation/deletion/querying, AP addition/removal/querying/movement with retry mechanisms and polling, comprehensive AP management with retrieve-then-update pattern, and role/permission management operations
   - Manages async operation tracking via activity details
   - Implements structured error handling and timeout management
 
@@ -41,7 +41,7 @@ This server is designed to be used with MCP clients (like Claude Desktop). Confi
 - Venues API supports pagination and filtering (configured for 10,000 max results)
 - Error handling returns structured MCP error responses
 - Regional API endpoints are dynamically constructed based on configuration
-- Async operations (venue create/delete, AP group creation/deletion, AP movement) use polling with configurable retry logic
+- Async operations (venue create/delete, AP group creation/deletion, AP addition/removal, AP movement) use polling with configurable retry logic
 - Activity tracking system monitors long-running operations via requestId
 - **Retrieve-Then-Update Pattern**: All AP update operations first retrieve current state to preserve existing properties, preventing data loss during property changes
 

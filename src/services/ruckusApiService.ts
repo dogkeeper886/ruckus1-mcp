@@ -1241,6 +1241,124 @@ export async function deleteApGroupWithRetry(
   };
 }
 
+export async function removeApWithRetry(
+  token: string,
+  venueId: string,
+  apSerialNumber: string,
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/venues/${venueId}/aps/${apSerialNumber}`
+    : `https://api.ruckus.cloud/venues/${venueId}/aps/${apSerialNumber}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'delete',
+    url: apiUrl,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Remove AP');
+
+  const deleteResponse = response.data;
+
+  // Check if this is an async operation (has requestId)
+  const activityId = deleteResponse.requestId;
+
+  if (!activityId) {
+    // If no requestId, it's a synchronous operation, return immediately
+    return {
+      ...deleteResponse,
+      status: 'completed',
+      message: 'AP removed successfully (synchronous operation)'
+    };
+  }
+
+  // Poll for completion status (async operation)
+  let retryCount = 0;
+  while (retryCount < maxRetries) {
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+
+      // Check if operation is completed (has endDatetime populated)
+      const isCompleted = activityDetails.endDatetime !== undefined;
+
+      // Check if operation failed (status is not SUCCESS or INPROGRESS)
+      const isFailed =
+        activityDetails.status !== 'SUCCESS' &&
+        activityDetails.status !== 'INPROGRESS';
+
+      if (isCompleted) {
+        // Check if it completed successfully
+        if (activityDetails.status === 'SUCCESS') {
+          return {
+            ...deleteResponse,
+            activityDetails,
+            status: 'completed',
+            message: 'AP removed successfully'
+          };
+        } else {
+          return {
+            ...deleteResponse,
+            activityDetails,
+            status: 'failed',
+            message: 'AP removal failed',
+            error: activityDetails.error || activityDetails.message || 'Operation completed with non-SUCCESS status'
+          };
+        }
+      }
+
+      if (isFailed) {
+        return {
+          ...deleteResponse,
+          activityDetails,
+          status: 'failed',
+          message: 'AP removal failed',
+          error: activityDetails.error || activityDetails.message || 'Unknown error'
+        };
+      }
+
+      // If still in progress, increment retry count and continue
+      retryCount++;
+      console.log(`[RUCKUS] AP removal in progress, attempt ${retryCount}/${maxRetries}`);
+
+      // If we've reached max retries, exit loop
+      if (retryCount >= maxRetries) {
+        break;
+      }
+
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+
+    } catch (error) {
+      retryCount++;
+      console.error(`[RUCKUS] Error polling activity details (attempt ${retryCount}/${maxRetries}):`, error);
+
+      // If we've reached max retries, return error
+      if (retryCount >= maxRetries) {
+        return {
+          ...deleteResponse,
+          status: 'timeout',
+          message: 'AP removal status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+
+      // Wait before next retry
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...deleteResponse,
+    status: 'timeout',
+    message: 'AP removal status unknown - polling timeout',
+    activityId
+  };
+}
+
 export async function getApDetailsBySerial(
   token: string,
   serialNumber: string,
@@ -1286,14 +1404,22 @@ export async function updateApWithRetrieval(
 ): Promise<any> {
   // Step 1: Get current AP state
   const currentAp = await getApDetailsBySerial(token, serialNumber, region);
-  
+
   // Step 2: Determine target venue (either new venue or current venue)
   const targetVenueId = changes?.venueId ?? currentAp.venueId;
   const targetApGroupId = changes?.apGroupId ?? currentAp.apGroupId;
   const targetName = changes?.name ?? currentAp.name;
-  
-  // Step 3: Perform update with complete payload
-  // Always use 'direct' method as it's the only reliable way to move APs between groups
+
+  // Step 3: Detect if this is a move operation or just a property update
+  const isMovingVenue = changes?.venueId && changes.venueId !== currentAp.venueId;
+  const isMovingGroup = changes?.apGroupId && changes.apGroupId !== currentAp.apGroupId;
+  const isMoving = isMovingVenue || isMovingGroup;
+
+  // Step 4: Choose appropriate method
+  // - Use 'direct' for venue/group moves (group assignment endpoint)
+  // - Use 'update' for property changes only (name/description)
+  const method = isMoving ? 'direct' : 'update';
+
   return await moveApWithRetry(
     token,
     targetVenueId,
@@ -1301,7 +1427,7 @@ export async function updateApWithRetrieval(
     targetApGroupId,
     targetName,
     changes?.description,
-    'direct', // Always use direct method - it's the only one that actually works for group moves
+    method,
     region,
     maxRetries,
     pollIntervalMs
