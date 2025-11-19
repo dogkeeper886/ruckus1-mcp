@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, activateWifiNetworkAtVenueWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, activateWifiNetworkAtVenueWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -1110,6 +1110,64 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['roleId'],
+        },
+      },
+      {
+        name: 'query_wifi_networks',
+        description: 'Query WiFi networks from RUCKUS One with filtering and pagination support',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            filters: {
+              type: 'object',
+              description: 'Optional filters to apply',
+            },
+            fields: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Fields to return (default: ["name", "description", "nwSubType", "venueApGroups", "apSerialNumbers", "apCount", "clientCount", "vlan", "cog", "ssid", "vlanPool", "captiveType", "id", "securityProtocol", "dsaeOnboardNetwork", "isOweMaster", "owePairNetworkId", "tunnelWlanEnable", "isEnforced"])',
+            },
+            searchString: {
+              type: 'string',
+              description: 'Search string to filter WiFi networks',
+            },
+            searchTargetFields: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Fields to search in (default: ["name"])',
+            },
+            page: {
+              type: 'number',
+              description: 'Page number (default: 1)',
+            },
+            pageSize: {
+              type: 'number',
+              description: 'Number of results per page (default: 10)',
+            },
+            sortField: {
+              type: 'string',
+              description: 'Field to sort by (default: "name")',
+            },
+            sortOrder: {
+              type: 'string',
+              description: 'Sort order - ASC or DESC (default: "ASC")',
+            },
+          },
+          required: [],
+        },
+      },
+      {
+        name: 'get_wifi_network',
+        description: 'Get detailed information for a specific WiFi network',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            networkId: {
+              type: 'string',
+              description: 'ID of the WiFi network to get',
+            },
+          },
+          required: ['networkId'],
         },
       },
       {
@@ -3922,6 +3980,115 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
           isError: true,
+        };
+      }
+    }
+
+    case 'query_wifi_networks': {
+      try {
+        const {
+          filters = {},
+          fields = ['name', 'description', 'nwSubType', 'venueApGroups', 'apSerialNumbers', 'apCount', 'clientCount', 'vlan', 'cog', 'ssid', 'vlanPool', 'captiveType', 'id', 'securityProtocol', 'dsaeOnboardNetwork', 'isOweMaster', 'owePairNetworkId', 'tunnelWlanEnable', 'isEnforced'],
+          searchString = '',
+          searchTargetFields = ['name'],
+          page = 1,
+          pageSize = 10,
+          sortField = 'name',
+          sortOrder = 'ASC'
+        } = request.params.arguments as {
+          filters?: any;
+          fields?: string[];
+          searchString?: string;
+          searchTargetFields?: string[];
+          page?: number;
+          pageSize?: number;
+          sortField?: string;
+          sortOrder?: string;
+        };
+
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+
+        const result = await queryWifiNetworks(
+          token,
+          process.env.RUCKUS_REGION,
+          filters,
+          fields,
+          searchString,
+          searchTargetFields,
+          page,
+          pageSize,
+          sortField,
+          sortOrder
+        );
+
+        console.log('[MCP] Query WiFi networks response:', result);
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error querying WiFi networks:', error);
+
+        let errorMessage = `Error querying WiFi networks: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: 'text', text: errorMessage }],
+          isError: true
+        };
+      }
+    }
+
+    case 'get_wifi_network': {
+      try {
+        const { networkId } = request.params.arguments as {
+          networkId: string;
+        };
+
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+
+        const result = await getWifiNetwork(
+          token,
+          networkId,
+          process.env.RUCKUS_REGION
+        );
+
+        console.log('[MCP] Get WiFi network response:', result);
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting WiFi network:', error);
+
+        let errorMessage = `Error getting WiFi network: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: 'text', text: errorMessage }],
+          isError: true
         };
       }
     }

@@ -3064,3 +3064,66 @@ export async function activateWifiNetworkAtVenueWithRetry(
   );
 }
 
+export async function queryWifiNetworks(
+  token: string,
+  region: string = '',
+  filters: any = {},
+  fields: string[] = ['name', 'description', 'nwSubType', 'venueApGroups', 'apSerialNumbers', 'apCount', 'clientCount', 'vlan', 'cog', 'ssid', 'vlanPool', 'captiveType', 'id', 'securityProtocol', 'dsaeOnboardNetwork', 'isOweMaster', 'owePairNetworkId', 'tunnelWlanEnable', 'isEnforced'],
+  searchString: string = '',
+  searchTargetFields: string[] = ['name'],
+  page: number = 1,
+  pageSize: number = 10,
+  sortField: string = 'name',
+  sortOrder: string = 'ASC'
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/wifiNetworks/query`
+    : 'https://api.ruckus.cloud/wifiNetworks/query';
+
+  const payload = {
+    fields,
+    searchString,
+    filters,
+    page,
+    pageSize,
+    defaultPageSize: 10,
+    total: 0,
+    sortField,
+    sortOrder,
+    searchTargetFields
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Query WiFi networks');
+
+  return response.data;
+}
+
+export async function getWifiNetwork(
+  token: string,
+  networkId: string,
+  region: string = ''
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}`
+    : `https://api.ruckus.cloud/wifiNetworks/${networkId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url: apiUrl,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get WiFi network');
+
+  return response.data;
+}
+
