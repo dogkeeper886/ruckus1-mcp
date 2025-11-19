@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, moveApWithRetry, updateApWithRetrieval, moveApToGroup, moveApToVenue, renameAp, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, activateWifiNetworkAtVenueWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -586,49 +586,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: 'move_ruckus_ap',
-        description: 'Move an Access Point to a different venue and/or AP group. Two scenarios: 1) Move AP to different VENUE (cross-venue): Always use method="direct" - moves AP from one venue to another venue\'s AP group. 2) Move AP to different AP GROUP in same venue: Use method="update" - changes AP\'s group within current venue. Examples: "move AP to NYC Office" = cross-venue (method="direct"), "move AP to TestGroup" in same venue = same-venue group change (method="update").',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            venueId: {
-              type: 'string',
-              description: 'Target venue ID where the AP will be moved to',
-            },
-            apSerialNumber: {
-              type: 'string',
-              description: 'Serial number of the AP to move',
-            },
-            apGroupId: {
-              type: 'string',
-              description: 'Target AP group ID in the destination venue',
-            },
-            apName: {
-              type: 'string',
-              description: 'Display name for the AP (optional)',
-            },
-            description: {
-              type: 'string',
-              description: 'Description for the move operation (optional)',
-            },
-            method: {
-              type: 'string',
-              enum: ['direct', 'update'],
-              description: 'API method: "update" for same-venue AP group changes (works within current venue context), "direct" for cross-venue moves or universal moves (works for both same and cross-venue). Recommendation: Use "update" for confirmed same-venue moves, "direct" for cross-venue moves or when unsure.',
-            },
-            maxRetries: {
-              type: 'number',
-              description: 'Maximum number of polling retries (default: 5)',
-            },
-            pollIntervalMs: {
-              type: 'number',
-              description: 'Polling interval in milliseconds (default: 2000)',
-            },
-          },
-          required: ['venueId', 'apSerialNumber', 'apGroupId'],
-        },
-      },
-      {
         name: 'update_ruckus_ap',
         description: 'Update AP properties (name, venue, group, etc.) with automatic property preservation using retrieve-then-update pattern',
         inputSchema: {
@@ -664,88 +621,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['apSerialNumber'],
-        },
-      },
-      {
-        name: 'move_ap_to_group',
-        description: 'Move AP to different group in same venue (preserves name and other properties)',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            apSerialNumber: {
-              type: 'string',
-              description: 'Serial number of the AP to move',
-            },
-            targetApGroupId: {
-              type: 'string',
-              description: 'Target AP group ID in the same venue',
-            },
-            maxRetries: {
-              type: 'number',
-              description: 'Maximum number of polling retries (default: 5)',
-            },
-            pollIntervalMs: {
-              type: 'number',
-              description: 'Polling interval in milliseconds (default: 2000)',
-            },
-          },
-          required: ['apSerialNumber', 'targetApGroupId'],
-        },
-      },
-      {
-        name: 'move_ap_to_venue',
-        description: 'Move AP to different venue with specified AP group (preserves name and other properties)',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            apSerialNumber: {
-              type: 'string',
-              description: 'Serial number of the AP to move',
-            },
-            targetVenueId: {
-              type: 'string',
-              description: 'Target venue ID where the AP will be moved',
-            },
-            targetApGroupId: {
-              type: 'string',
-              description: 'Target AP group ID in the destination venue',
-            },
-            maxRetries: {
-              type: 'number',
-              description: 'Maximum number of polling retries (default: 5)',
-            },
-            pollIntervalMs: {
-              type: 'number',
-              description: 'Polling interval in milliseconds (default: 2000)',
-            },
-          },
-          required: ['apSerialNumber', 'targetVenueId', 'targetApGroupId'],
-        },
-      },
-      {
-        name: 'rename_ap',
-        description: 'Change AP display name (preserves venue, group, and other properties)',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            apSerialNumber: {
-              type: 'string',
-              description: 'Serial number of the AP to rename',
-            },
-            newName: {
-              type: 'string',
-              description: 'New display name for the AP',
-            },
-            maxRetries: {
-              type: 'number',
-              description: 'Maximum number of polling retries (default: 5)',
-            },
-            pollIntervalMs: {
-              type: 'number',
-              description: 'Polling interval in milliseconds (default: 2000)',
-            },
-          },
-          required: ['apSerialNumber', 'newName'],
         },
       },
       {
@@ -1235,6 +1110,211 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['roleId'],
+        },
+      },
+      {
+        name: 'create_wifi_network',
+        description: 'Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venue or activate_wifi_network_at_venues.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            name: {
+              type: 'string',
+              description: 'Name of the WiFi network (internal identifier)',
+            },
+            ssid: {
+              type: 'string',
+              description: 'SSID (network name visible to clients)',
+            },
+            type: {
+              type: 'string',
+              description: 'Network type: psk (WPA2/WPA3 Personal), enterprise (WPA2/WPA3 Enterprise), or open',
+              enum: ['psk', 'enterprise', 'open'],
+            },
+            passphrase: {
+              type: 'string',
+              description: 'Network passphrase/password (required for PSK networks, minimum 8 characters)',
+            },
+            wlanSecurity: {
+              type: 'string',
+              description: 'WLAN security type',
+              enum: ['WPA2Personal', 'WPA3Personal', 'WPA2Enterprise', 'WPA3Enterprise', 'Open'],
+            },
+            vlanId: {
+              type: 'number',
+              description: 'VLAN ID for client traffic (default: 1)',
+            },
+            managementFrameProtection: {
+              type: 'string',
+              description: 'Management Frame Protection (802.11w) setting (default: Disabled)',
+              enum: ['Disabled', 'Capable', 'Required'],
+            },
+            maxClientsOnWlanPerRadio: {
+              type: 'number',
+              description: 'Maximum clients per radio (default: 100)',
+            },
+            enableBandBalancing: {
+              type: 'boolean',
+              description: 'Enable band balancing (default: true)',
+            },
+            clientIsolation: {
+              type: 'boolean',
+              description: 'Enable client isolation (default: false)',
+            },
+            hideSsid: {
+              type: 'boolean',
+              description: 'Hide SSID from broadcast (default: false)',
+            },
+            enableFastRoaming: {
+              type: 'boolean',
+              description: 'Enable 802.11r fast roaming (default: false)',
+            },
+            mobilityDomainId: {
+              type: 'number',
+              description: 'Mobility domain ID for fast roaming (default: 1)',
+            },
+            wifi6Enabled: {
+              type: 'boolean',
+              description: 'Enable WiFi 6 (802.11ax) support (default: true)',
+            },
+            wifi7Enabled: {
+              type: 'boolean',
+              description: 'Enable WiFi 7 (802.11be) support (default: true)',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts for async polling (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['name', 'ssid', 'type', 'wlanSecurity'],
+        },
+      },
+      {
+        name: 'activate_wifi_network_at_venues',
+        description: 'Activate an existing WiFi network at one or more venues. This is a batch operation that can activate the network at multiple venues in a single call. The network must already be created using create_wifi_network.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            networkId: {
+              type: 'string',
+              description: 'ID of the WiFi network to activate (obtained from create_wifi_network)',
+            },
+            venueConfigs: {
+              type: 'array',
+              description: 'Array of venue configurations where the network should be activated',
+              items: {
+                type: 'object',
+                properties: {
+                  venueId: {
+                    type: 'string',
+                    description: 'ID of the venue',
+                  },
+                  isAllApGroups: {
+                    type: 'boolean',
+                    description: 'Broadcast on all AP groups in the venue (true) or specific groups only (false)',
+                  },
+                  apGroups: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Array of AP group IDs (required if isAllApGroups is false)',
+                  },
+                  allApGroupsRadio: {
+                    type: 'string',
+                    description: 'Which radios to use: Both (2.4GHz + 5GHz), 2.4GHz, 5GHz, or 6GHz',
+                    enum: ['Both', '2.4GHz', '5GHz', '6GHz'],
+                  },
+                  allApGroupsRadioTypes: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Radio types to enable (e.g., ["2.4-GHz", "5-GHz", "6-GHz"])',
+                  },
+                  scheduler: {
+                    type: 'object',
+                    description: 'Network schedule configuration',
+                    properties: {
+                      type: {
+                        type: 'string',
+                        description: 'Schedule type: ALWAYS_ON or SCHEDULED',
+                        enum: ['ALWAYS_ON', 'SCHEDULED'],
+                      },
+                    },
+                    required: ['type'],
+                  },
+                },
+                required: ['venueId', 'isAllApGroups', 'allApGroupsRadio', 'allApGroupsRadioTypes', 'scheduler'],
+              },
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts for async polling (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['networkId', 'venueConfigs'],
+        },
+      },
+      {
+        name: 'activate_wifi_network_at_venue',
+        description: 'Activate an existing WiFi network at a single venue. This is a convenience wrapper around activate_wifi_network_at_venues for activating at just one venue. The network must already be created using create_wifi_network.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            networkId: {
+              type: 'string',
+              description: 'ID of the WiFi network to activate (obtained from create_wifi_network)',
+            },
+            venueId: {
+              type: 'string',
+              description: 'ID of the venue where the network should be activated',
+            },
+            isAllApGroups: {
+              type: 'boolean',
+              description: 'Broadcast on all AP groups in the venue (true) or specific groups only (false)',
+            },
+            apGroups: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Array of AP group IDs (required if isAllApGroups is false)',
+            },
+            allApGroupsRadio: {
+              type: 'string',
+              description: 'Which radios to use: Both (2.4GHz + 5GHz), 2.4GHz, 5GHz, or 6GHz',
+              enum: ['Both', '2.4GHz', '5GHz', '6GHz'],
+            },
+            allApGroupsRadioTypes: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Radio types to enable (e.g., ["2.4-GHz", "5-GHz"])',
+            },
+            scheduler: {
+              type: 'object',
+              description: 'Network schedule configuration',
+              properties: {
+                type: {
+                  type: 'string',
+                  description: 'Schedule type: ALWAYS_ON or SCHEDULED',
+                  enum: ['ALWAYS_ON', 'SCHEDULED'],
+                },
+              },
+              required: ['type'],
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts for async polling (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['networkId', 'venueId', 'isAllApGroups', 'allApGroupsRadio', 'allApGroupsRadioTypes', 'scheduler'],
         },
       },
     ],
@@ -2785,117 +2865,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
     }
-    case 'move_ruckus_ap': {
-      try {
-        const { 
-          venueId, 
-          apSerialNumber, 
-          apGroupId,
-          apName,
-          description,
-          method = 'update',
-          maxRetries = 5,
-          pollIntervalMs = 2000
-        } = request.params.arguments as {
-          venueId: string;
-          apSerialNumber: string;
-          apGroupId: string;
-          apName?: string;
-          description?: string;
-          method?: 'direct' | 'update';
-          maxRetries?: number;
-          pollIntervalMs?: number;
-        };
-        
-        console.log('[MCP] Moving AP:', {
-          venueId,
-          apSerialNumber,
-          apGroupId,
-          method
-        });
-        
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
-        
-        const result = await moveApWithRetry(
-          token,
-          venueId,
-          apSerialNumber,
-          apGroupId,
-          apName,
-          description,
-          method,
-          process.env.RUCKUS_REGION,
-          maxRetries,
-          pollIntervalMs
-        );
-        
-        console.log('[MCP] Move AP response:', result);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      } catch (error: any) {
-        console.error('[MCP] Error moving AP:', error);
-        
-        // Build structured error response
-        const errorResponse: any = {
-          message: 'Failed to move AP',
-          error: {
-            message: error.message || 'Unknown error',
-            type: error.name || 'Error'
-          }
-        };
-        
-        // If it's an axios error, provide more detailed information
-        if (error.response) {
-          errorResponse.httpStatus = error.response.status;
-          errorResponse.httpStatusText = error.response.statusText;
-          
-          // Add response data details for debugging
-          if (error.response.data) {
-            if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
-              const firstError = error.response.data.errors[0];
-              if (firstError) {
-                errorResponse.error.primaryErrorCode = firstError.code;
-                errorResponse.error.primaryErrorMessage = firstError.message || firstError.value;
-                errorResponse.error.primaryErrorReason = firstError.reason;
-              }
-            }
-            if (error.response.data.message) {
-              errorResponse.error.apiMessage = error.response.data.message;
-            }
-            if (error.response.data.code) {
-              errorResponse.error.apiCode = error.response.data.code;
-            }
-            if (error.response.data.details) {
-              errorResponse.error.details = error.response.data.details;
-            }
-          }
-        } else if (error.request) {
-          errorResponse.error.networkError = 'No response received from server';
-          errorResponse.error.request = error.request;
-        }
-        
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(errorResponse, null, 2),
-            },
-          ],
-          isError: true,
-        };
-      }
-    }
     case 'update_ruckus_ap': {
       try {
         const { 
@@ -2940,10 +2909,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const result = await updateApWithRetrieval(
           token,
           apSerialNumber,
+          changes,
           process.env.RUCKUS_REGION,
           maxRetries,
-          pollIntervalMs,
-          changes
+          pollIntervalMs
         );
         
         console.log('[MCP] Update AP response:', result);
@@ -2992,223 +2961,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         } else if (error.request) {
           errorResponse.error.networkError = 'No response received from server';
           errorResponse.error.request = error.request;
-        }
-        
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(errorResponse, null, 2),
-            },
-          ],
-          isError: true,
-        };
-      }
-    }
-    case 'move_ap_to_group': {
-      try {
-        const { 
-          apSerialNumber,
-          targetApGroupId,
-          maxRetries = 5,
-          pollIntervalMs = 2000
-        } = request.params.arguments as {
-          apSerialNumber: string;
-          targetApGroupId: string;
-          maxRetries?: number;
-          pollIntervalMs?: number;
-        };
-        
-        console.log('[MCP] Moving AP to group:', {
-          apSerialNumber,
-          targetApGroupId
-        });
-        
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
-        
-        const result = await moveApToGroup(
-          token,
-          apSerialNumber,
-          targetApGroupId,
-          process.env.RUCKUS_REGION,
-          maxRetries,
-          pollIntervalMs
-        );
-        
-        console.log('[MCP] Move AP to group response:', result);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      } catch (error: any) {
-        console.error('[MCP] Error moving AP to group:', error);
-        
-        const errorResponse: any = {
-          message: 'Failed to move AP to group',
-          error: {
-            message: error.message || 'Unknown error',
-            type: error.name || 'Error'
-          }
-        };
-        
-        if (error.response) {
-          errorResponse.httpStatus = error.response.status;
-          errorResponse.httpStatusText = error.response.statusText;
-        }
-        
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(errorResponse, null, 2),
-            },
-          ],
-          isError: true,
-        };
-      }
-    }
-    case 'move_ap_to_venue': {
-      try {
-        const { 
-          apSerialNumber,
-          targetVenueId,
-          targetApGroupId,
-          maxRetries = 5,
-          pollIntervalMs = 2000
-        } = request.params.arguments as {
-          apSerialNumber: string;
-          targetVenueId: string;
-          targetApGroupId: string;
-          maxRetries?: number;
-          pollIntervalMs?: number;
-        };
-        
-        console.log('[MCP] Moving AP to venue:', {
-          apSerialNumber,
-          targetVenueId,
-          targetApGroupId
-        });
-        
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
-        
-        const result = await moveApToVenue(
-          token,
-          apSerialNumber,
-          targetVenueId,
-          targetApGroupId,
-          process.env.RUCKUS_REGION,
-          maxRetries,
-          pollIntervalMs
-        );
-        
-        console.log('[MCP] Move AP to venue response:', result);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      } catch (error: any) {
-        console.error('[MCP] Error moving AP to venue:', error);
-        
-        const errorResponse: any = {
-          message: 'Failed to move AP to venue',
-          error: {
-            message: error.message || 'Unknown error',
-            type: error.name || 'Error'
-          }
-        };
-        
-        if (error.response) {
-          errorResponse.httpStatus = error.response.status;
-          errorResponse.httpStatusText = error.response.statusText;
-        }
-        
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(errorResponse, null, 2),
-            },
-          ],
-          isError: true,
-        };
-      }
-    }
-    case 'rename_ap': {
-      try {
-        const { 
-          apSerialNumber,
-          newName,
-          maxRetries = 5,
-          pollIntervalMs = 2000
-        } = request.params.arguments as {
-          apSerialNumber: string;
-          newName: string;
-          maxRetries?: number;
-          pollIntervalMs?: number;
-        };
-        
-        console.log('[MCP] Renaming AP:', {
-          apSerialNumber,
-          newName
-        });
-        
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
-        
-        const result = await renameAp(
-          token,
-          apSerialNumber,
-          newName,
-          process.env.RUCKUS_REGION,
-          maxRetries,
-          pollIntervalMs
-        );
-        
-        console.log('[MCP] Rename AP response:', result);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      } catch (error: any) {
-        console.error('[MCP] Error renaming AP:', error);
-        
-        const errorResponse: any = {
-          message: 'Failed to rename AP',
-          error: {
-            message: error.message || 'Unknown error',
-            type: error.name || 'Error'
-          }
-        };
-        
-        if (error.response) {
-          errorResponse.httpStatus = error.response.status;
-          errorResponse.httpStatusText = error.response.statusText;
         }
         
         return {
@@ -4173,6 +3925,283 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
     }
+
+    case 'create_wifi_network': {
+      try {
+        const {
+          name,
+          ssid,
+          type,
+          passphrase,
+          wlanSecurity,
+          vlanId,
+          managementFrameProtection,
+          maxClientsOnWlanPerRadio,
+          enableBandBalancing,
+          clientIsolation,
+          hideSsid,
+          enableFastRoaming,
+          mobilityDomainId,
+          wifi6Enabled,
+          wifi7Enabled,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          name: string;
+          ssid: string;
+          type: 'psk' | 'enterprise' | 'open';
+          passphrase?: string;
+          wlanSecurity: 'WPA2Personal' | 'WPA3Personal' | 'WPA2Enterprise' | 'WPA3Enterprise' | 'Open';
+          vlanId?: number;
+          managementFrameProtection?: 'Disabled' | 'Capable' | 'Required';
+          maxClientsOnWlanPerRadio?: number;
+          enableBandBalancing?: boolean;
+          clientIsolation?: boolean;
+          hideSsid?: boolean;
+          enableFastRoaming?: boolean;
+          mobilityDomainId?: number;
+          wifi6Enabled?: boolean;
+          wifi7Enabled?: boolean;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+
+        const networkConfig: any = {
+          name,
+          ssid,
+          type,
+          wlanSecurity,
+        };
+
+        // Add optional properties only if defined
+        if (passphrase !== undefined) networkConfig.passphrase = passphrase;
+        if (vlanId !== undefined) networkConfig.vlanId = vlanId;
+        if (managementFrameProtection !== undefined) networkConfig.managementFrameProtection = managementFrameProtection;
+        if (maxClientsOnWlanPerRadio !== undefined) networkConfig.maxClientsOnWlanPerRadio = maxClientsOnWlanPerRadio;
+        if (enableBandBalancing !== undefined) networkConfig.enableBandBalancing = enableBandBalancing;
+        if (clientIsolation !== undefined) networkConfig.clientIsolation = clientIsolation;
+        if (hideSsid !== undefined) networkConfig.hideSsid = hideSsid;
+        if (enableFastRoaming !== undefined) networkConfig.enableFastRoaming = enableFastRoaming;
+        if (mobilityDomainId !== undefined) networkConfig.mobilityDomainId = mobilityDomainId;
+        if (wifi6Enabled !== undefined) networkConfig.wifi6Enabled = wifi6Enabled;
+        if (wifi7Enabled !== undefined) networkConfig.wifi7Enabled = wifi7Enabled;
+
+        const result = await createWifiNetworkWithRetry(
+          token,
+          networkConfig,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+
+        console.log('[MCP] Create WiFi network response:', result);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error creating WiFi network:', error);
+
+        let errorMessage = `Error creating WiFi network: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case 'activate_wifi_network_at_venues': {
+      try {
+        const {
+          networkId,
+          venueConfigs,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          networkId: string;
+          venueConfigs: Array<{
+            venueId: string;
+            isAllApGroups: boolean;
+            apGroups?: string[];
+            allApGroupsRadio: 'Both' | '2.4GHz' | '5GHz' | '6GHz';
+            allApGroupsRadioTypes: string[];
+            scheduler: {
+              type: 'ALWAYS_ON' | 'SCHEDULED';
+              [key: string]: any;
+            };
+          }>;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+
+        const result = await activateWifiNetworkAtVenuesWithRetry(
+          token,
+          networkId,
+          venueConfigs,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+
+        console.log('[MCP] Activate WiFi network at venues response:', result);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error activating WiFi network at venues:', error);
+
+        let errorMessage = `Error activating WiFi network at venues: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case 'activate_wifi_network_at_venue': {
+      try {
+        const {
+          networkId,
+          venueId,
+          isAllApGroups,
+          apGroups,
+          allApGroupsRadio,
+          allApGroupsRadioTypes,
+          scheduler,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          networkId: string;
+          venueId: string;
+          isAllApGroups: boolean;
+          apGroups?: string[];
+          allApGroupsRadio: 'Both' | '2.4GHz' | '5GHz' | '6GHz';
+          allApGroupsRadioTypes: string[];
+          scheduler: {
+            type: 'ALWAYS_ON' | 'SCHEDULED';
+            [key: string]: any;
+          };
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+
+        const venueConfig: any = {
+          isAllApGroups,
+          allApGroupsRadio,
+          allApGroupsRadioTypes,
+          scheduler
+        };
+
+        // Add optional apGroups only if defined
+        if (apGroups !== undefined) {
+          venueConfig.apGroups = apGroups;
+        }
+
+        const result = await activateWifiNetworkAtVenueWithRetry(
+          token,
+          networkId,
+          venueId,
+          venueConfig,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+
+        console.log('[MCP] Activate WiFi network at venue response:', result);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error activating WiFi network at venue:', error);
+
+        let errorMessage = `Error activating WiFi network at venue: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
     default:
       return {
         content: [
