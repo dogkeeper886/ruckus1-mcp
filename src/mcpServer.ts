@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, activateWifiNetworkAtVenueWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -1365,23 +1365,23 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'activate_wifi_network_at_venues',
-        description: 'Activate an existing WiFi network at one or more venues. This is a batch operation that can activate the network at multiple venues in a single call. The network must already be created using create_wifi_network. FOR GUEST PASS NETWORKS: Must provide portalServiceProfileId. FOR PSK NETWORKS: Do not provide portalServiceProfileId.',
+        description: 'Activate an existing WiFi network at one or more venues. This is a batch operation that activates the network at specified venues in a single call. The network must already be created using create_wifi_network. REQUIRED: networkId (use query_wifi_networks to get network ID) + venueConfigs array (use get_ruckus_venues to get venue IDs). FOR GUEST PASS NETWORKS: Must provide portalServiceProfileId (use query_portal_service_profiles to get ID). FOR PSK NETWORKS: Do not provide portalServiceProfileId. Can activate at a single venue or multiple venues.',
         inputSchema: {
           type: 'object',
           properties: {
             networkId: {
               type: 'string',
-              description: 'ID of the WiFi network to activate (obtained from create_wifi_network)',
+              description: 'ID of the WiFi network to activate (use query_wifi_networks to find network ID)',
             },
             venueConfigs: {
               type: 'array',
-              description: 'Array of venue configurations where the network should be activated. Can contain one venue or multiple venues.',
+              description: 'Array of venue configurations where the network should be activated. Each venue config specifies venue ID, AP groups, radios, and schedule. Can contain one venue or multiple venues.',
               items: {
                 type: 'object',
                 properties: {
                   venueId: {
                     type: 'string',
-                    description: 'ID of the venue',
+                    description: 'ID of the venue (use get_ruckus_venues to get venue IDs)',
                   },
                   isAllApGroups: {
                     type: 'boolean',
@@ -1390,25 +1390,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                   apGroups: {
                     type: 'array',
                     items: { type: 'string' },
-                    description: 'Array of AP group IDs (required if isAllApGroups is false)',
+                    description: 'Array of AP group IDs (use get_ruckus_ap_groups to get AP group IDs). Required only if isAllApGroups is false',
                   },
                   allApGroupsRadio: {
                     type: 'string',
-                    description: 'Which radios to use: Both (2.4GHz + 5GHz), 2.4GHz, 5GHz, or 6GHz',
+                    description: 'Which radios to use: Both (2.4GHz + 5GHz), 2.4GHz, 5GHz, or 6GHz. Use "Both" for most cases',
                     enum: ['Both', '2.4GHz', '5GHz', '6GHz'],
                   },
                   allApGroupsRadioTypes: {
                     type: 'array',
                     items: { type: 'string' },
-                    description: 'Radio types to enable (e.g., ["2.4-GHz", "5-GHz", "6-GHz"])',
+                    description: 'Radio types to enable. Use ["2.4-GHz", "5-GHz"] for dual-band or ["2.4-GHz", "5-GHz", "6-GHz"] for tri-band',
                   },
                   scheduler: {
                     type: 'object',
-                    description: 'Network schedule configuration',
+                    description: 'Network schedule configuration. Use {type: "ALWAYS_ON"} for 24/7 availability',
                     properties: {
                       type: {
                         type: 'string',
-                        description: 'Schedule type: ALWAYS_ON or SCHEDULED',
+                        description: 'Schedule type: ALWAYS_ON (24/7) or SCHEDULED (custom schedule)',
                         enum: ['ALWAYS_ON', 'SCHEDULED'],
                       },
                     },
@@ -1420,7 +1420,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             portalServiceProfileId: {
               type: 'string',
-              description: 'Portal service profile ID to re-associate with the network (REQUIRED for guest pass networks, do not provide for PSK networks)',
+              description: 'Portal service profile ID (REQUIRED for guest pass networks - use query_portal_service_profiles to get ID, do not provide for PSK networks)',
             },
             maxRetries: {
               type: 'number',
@@ -1517,53 +1517,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: 'activate_wifi_network_at_venue',
-        description: 'Activate an existing WiFi network at a single venue. This is a convenience wrapper around activate_wifi_network_at_venues for activating at just one venue. The network must already be created using create_wifi_network. FOR GUEST PASS NETWORKS: Must provide portalServiceProfileId. FOR PSK NETWORKS: Do not provide portalServiceProfileId.',
+        name: 'deactivate_wifi_network_at_venues',
+        description: 'Deactivate a WiFi network from one or more venues. This is a batch operation that removes the network from specified venues in a single call. The network remains globally available but is no longer broadcast at these venues. REQUIRED: networkId (use query_wifi_networks to get network ID) + venueIds array (use get_ruckus_venues to get venue IDs). Can deactivate from a single venue or multiple venues.',
         inputSchema: {
           type: 'object',
           properties: {
             networkId: {
               type: 'string',
-              description: 'ID of the WiFi network to activate (obtained from create_wifi_network)',
+              description: 'ID of the WiFi network to deactivate (use query_wifi_networks to find network ID)',
             },
-            venueId: {
-              type: 'string',
-              description: 'ID of the venue where the network should be activated',
-            },
-            isAllApGroups: {
-              type: 'boolean',
-              description: 'Broadcast on all AP groups in the venue (true) or specific groups only (false)',
-            },
-            apGroups: {
+            venueIds: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Array of AP group IDs (required if isAllApGroups is false)',
-            },
-            allApGroupsRadio: {
-              type: 'string',
-              description: 'Which radios to use: Both (2.4GHz + 5GHz), 2.4GHz, 5GHz, or 6GHz',
-              enum: ['Both', '2.4GHz', '5GHz', '6GHz'],
-            },
-            allApGroupsRadioTypes: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'Radio types to enable (e.g., ["2.4-GHz", "5-GHz"])',
-            },
-            scheduler: {
-              type: 'object',
-              description: 'Network schedule configuration',
-              properties: {
-                type: {
-                  type: 'string',
-                  description: 'Schedule type: ALWAYS_ON or SCHEDULED',
-                  enum: ['ALWAYS_ON', 'SCHEDULED'],
-                },
-              },
-              required: ['type'],
-            },
-            portalServiceProfileId: {
-              type: 'string',
-              description: 'Portal service profile ID (REQUIRED for guest pass networks, do not provide for PSK networks)',
+              description: 'Array of venue IDs where the network should be deactivated (use get_ruckus_venues to get venue IDs). Can contain one venue or multiple venues.',
             },
             maxRetries: {
               type: 'number',
@@ -1574,7 +1540,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: 'Polling interval in milliseconds (default: 2000)',
             },
           },
-          required: ['networkId', 'venueId', 'isAllApGroups', 'allApGroupsRadio', 'allApGroupsRadioTypes', 'scheduler'],
+          required: ['networkId', 'venueIds'],
         },
       },
     ],
@@ -4743,29 +4709,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     }
 
-    case 'activate_wifi_network_at_venue': {
+    case 'deactivate_wifi_network_at_venues': {
       try {
         const {
           networkId,
-          venueId,
-          isAllApGroups,
-          apGroups,
-          allApGroupsRadio,
-          allApGroupsRadioTypes,
-          scheduler,
+          venueIds,
           maxRetries = 5,
           pollIntervalMs = 2000
         } = request.params.arguments as {
           networkId: string;
-          venueId: string;
-          isAllApGroups: boolean;
-          apGroups?: string[];
-          allApGroupsRadio: 'Both' | '2.4GHz' | '5GHz' | '6GHz';
-          allApGroupsRadioTypes: string[];
-          scheduler: {
-            type: 'ALWAYS_ON' | 'SCHEDULED';
-            [key: string]: any;
-          };
+          venueIds: string[];
           maxRetries?: number;
           pollIntervalMs?: number;
         };
@@ -4777,29 +4730,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
 
-        const venueConfig: any = {
-          isAllApGroups,
-          allApGroupsRadio,
-          allApGroupsRadioTypes,
-          scheduler
-        };
-
-        // Add optional apGroups only if defined
-        if (apGroups !== undefined) {
-          venueConfig.apGroups = apGroups;
-        }
-
-        const result = await activateWifiNetworkAtVenueWithRetry(
+        const result = await deactivateWifiNetworkAtVenuesWithRetry(
           token,
           networkId,
-          venueId,
-          venueConfig,
+          venueIds,
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs
         );
 
-        console.log('[MCP] Activate WiFi network at venue response:', result);
+        console.log('[MCP] Deactivate WiFi network at venues response:', result);
 
         return {
           content: [
@@ -4810,9 +4750,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       } catch (error: any) {
-        console.error('[MCP] Error activating WiFi network at venue:', error);
+        console.error('[MCP] Error deactivating WiFi network at venues:', error);
 
-        let errorMessage = `Error activating WiFi network at venue: ${error}`;
+        let errorMessage = `Error deactivating WiFi network at venues: ${error}`;
 
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
