@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -1541,6 +1541,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['networkId', 'venueIds'],
+        },
+      },
+      {
+        name: 'delete_wifi_network',
+        description: 'Permanently delete a WiFi network from RUCKUS One. This removes the network globally and cannot be undone. PREREQUISITE: Network must be deactivated from all venues first (use deactivate_wifi_network_at_venues). REQUIRED: networkId (use query_wifi_networks to get network ID).',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            networkId: {
+              type: 'string',
+              description: 'ID of the WiFi network to delete (use query_wifi_networks to find network ID)',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts for async polling (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['networkId'],
         },
       },
     ],
@@ -4753,6 +4775,68 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error('[MCP] Error deactivating WiFi network at venues:', error);
 
         let errorMessage = `Error deactivating WiFi network at venues: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case 'delete_wifi_network': {
+      try {
+        const {
+          networkId,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          networkId: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+
+        const result = await deleteWifiNetworkWithRetry(
+          token,
+          networkId,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+
+        console.log('[MCP] Delete WiFi network response:', result);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error deleting WiFi network:', error);
+
+        let errorMessage = `Error deleting WiFi network: ${error}`;
 
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
