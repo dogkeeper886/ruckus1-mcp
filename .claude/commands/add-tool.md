@@ -213,6 +213,51 @@ If the API log is incomplete:
 
 ---
 
+## Phase 9.5: Tool Description Review
+
+### Review Tool Description for AI Agent Clarity
+
+Before finalizing, ensure the tool description is clear and actionable for AI agents:
+
+**Description Structure:**
+- Start with clear action and purpose
+- Include PREREQUISITE if applicable (with tool reference)
+- Include REQUIRED section listing all required parameters
+- Provide tool references for obtaining IDs (e.g., "use query_wifi_networks to get network ID")
+- Mention special conditions or warnings
+- Clarify single vs batch operations if applicable
+
+**Good Description Pattern:**
+```
+[Action verb] [what it does]. [Additional context]. PREREQUISITE: [condition] (use [tool_name]). REQUIRED: [param1] (use [tool_name] to get [param1]) + [param2] (use [tool_name] to get [param2]). [Special notes].
+```
+
+**Examples of Good Descriptions:**
+- `'Permanently delete a WiFi network from RUCKUS One. This removes the network globally and cannot be undone. PREREQUISITE: Network must be deactivated from all venues first (use deactivate_wifi_network_at_venues). REQUIRED: networkId (use query_wifi_networks to get network ID).'`
+- `'Activate an existing WiFi network at one or more venues. This is a batch operation that activates the network at specified venues in a single call. The network must already be created using create_wifi_network. REQUIRED: networkId (use query_wifi_networks to get network ID) + venueConfigs array (use get_ruckus_venues to get venue IDs). FOR GUEST PASS NETWORKS: Must provide portalServiceProfileId (use query_portal_service_profiles to get ID). FOR PSK NETWORKS: Do not provide portalServiceProfileId. Can activate at a single venue or multiple venues.'`
+
+**Parameter Descriptions:**
+Each parameter should also include tool references:
+- `'ID of the WiFi network to delete (use query_wifi_networks to find network ID)'`
+- `'Array of venue IDs (use get_ruckus_venues to get venue IDs)'`
+- `'Portal service profile ID (use query_portal_service_profiles to get ID)'`
+
+**Common Issues to Avoid:**
+- ❌ Vague descriptions without tool references
+- ❌ Missing PREREQUISITE information for destructive operations
+- ❌ Not mentioning what tool to use to get required IDs
+- ❌ Unclear warnings about permanent actions
+- ❌ Missing context about batch vs single operations
+
+**Action:** Review and update tool description to ensure AI agents understand:
+1. What the tool does
+2. What prerequisites must be met
+3. How to obtain all required parameters
+4. What special conditions apply
+5. What the operation's scope is (single/batch, permanent/reversible)
+
+---
+
 ## Phase 10: Summary and Documentation
 
 ### Provide Implementation Summary
@@ -254,6 +299,7 @@ Suggest:
 6. Implement following exact patterns
 7. Review against guidelines
 8. Ask questions if needed
-9. Provide summary
+9. Review tool description for AI agent clarity
+10. Provide summary
 
 Use todo tracking throughout to maintain visibility into progress.

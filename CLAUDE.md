@@ -289,6 +289,101 @@ export async function yourNewToolWithRetry(
 }
 ```
 
+### Step 3C: Tool Description Guidelines for AI Agent Clarity
+
+**CRITICAL**: Tool descriptions must be clear and actionable for AI agents to use tools correctly.
+
+**Description Structure (All Operations):**
+1. **Action and Purpose**: Clear statement of what the tool does
+2. **PREREQUISITE** (if applicable): Required state/condition with tool reference
+3. **REQUIRED**: List all required parameters with tool references for obtaining values
+4. **Special Conditions**: Type-specific requirements, warnings, scope clarification
+
+**Template Pattern:**
+```
+[Action verb] [what it does]. [Additional context]. PREREQUISITE: [condition] (use [tool_name]). REQUIRED: [param1] (use [tool_name] to get [param1]) + [param2] (use [tool_name] to get [param2]). [Special notes].
+```
+
+**Examples:**
+
+**Delete Operation:**
+```typescript
+{
+  name: 'delete_wifi_network',
+  description: 'Permanently delete a WiFi network from RUCKUS One. This removes the network globally and cannot be undone. PREREQUISITE: Network must be deactivated from all venues first (use deactivate_wifi_network_at_venues). REQUIRED: networkId (use query_wifi_networks to get network ID).',
+  // ...
+}
+```
+
+**Batch Operation:**
+```typescript
+{
+  name: 'activate_wifi_network_at_venues',
+  description: 'Activate an existing WiFi network at one or more venues. This is a batch operation that activates the network at specified venues in a single call. The network must already be created using create_wifi_network. REQUIRED: networkId (use query_wifi_networks to get network ID) + venueConfigs array (use get_ruckus_venues to get venue IDs). FOR GUEST PASS NETWORKS: Must provide portalServiceProfileId (use query_portal_service_profiles to get ID). FOR PSK NETWORKS: Do not provide portalServiceProfileId. Can activate at a single venue or multiple venues.',
+  // ...
+}
+```
+
+**Create Operation:**
+```typescript
+{
+  name: 'create_wifi_network',
+  description: 'Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None.',
+  // ...
+}
+```
+
+**Parameter Description Guidelines:**
+Every parameter description should include tool references when IDs are required:
+
+```typescript
+properties: {
+  networkId: {
+    type: 'string',
+    description: 'ID of the WiFi network to delete (use query_wifi_networks to find network ID)'
+  },
+  venueIds: {
+    type: 'array',
+    items: { type: 'string' },
+    description: 'Array of venue IDs (use get_ruckus_venues to get venue IDs). Can contain one venue or multiple venues.'
+  },
+  portalServiceProfileId: {
+    type: 'string',
+    description: 'Portal service profile ID (use query_portal_service_profiles to get ID)'
+  },
+  apGroups: {
+    type: 'array',
+    items: { type: 'string' },
+    description: 'Array of AP group IDs (use get_ruckus_ap_groups to get AP group IDs). Required only if isAllApGroups is false'
+  }
+}
+```
+
+**Common Patterns to Include:**
+
+1. **Destructive Operations**: Add "Permanently" and "cannot be undone" warnings
+2. **Prerequisites**: Use "PREREQUISITE:" followed by condition and tool reference
+3. **Required Parameters**: Use "REQUIRED:" followed by parameter list with tool references
+4. **Type-Specific Logic**: Use "FOR [TYPE]:" to clarify different requirements
+5. **Batch vs Single**: Clarify "Can [operation] at a single [item] or multiple [items]"
+6. **Usage Hints**: Include common values like "Use 'Both' for most cases"
+
+**Issues to Avoid:**
+- ❌ Generic descriptions without tool references: "ID of the network"
+- ❌ Missing prerequisites for destructive operations
+- ❌ Vague warnings: "should be deactivated" vs "must be deactivated from all venues first"
+- ❌ Not mentioning which tools provide required IDs
+- ❌ Unclear scope: Not stating if operation is permanent, reversible, single, or batch
+
+**Checklist for Every Tool Description:**
+- [ ] Clear action verb and purpose statement
+- [ ] PREREQUISITE section if applicable (with tool reference)
+- [ ] REQUIRED section with all parameters (with tool references)
+- [ ] Type-specific requirements clearly stated (FOR X: / FOR Y:)
+- [ ] Scope clarified (single/batch, permanent/reversible, global/venue-specific)
+- [ ] All parameter descriptions include tool references for IDs
+- [ ] Warnings included for destructive/permanent operations
+
 ### Step 4A: MCP Handler Template - Read-Only Operations
 ```typescript
 // src/mcpServer.ts - Query operations handler
