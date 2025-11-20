@@ -4166,3 +4166,119 @@ export async function deactivateWifiNetworkAtVenuesWithRetry(
   };
 }
 
+/**
+ * Delete a WiFi network with automatic retry mechanism
+ * This function handles the deletion workflow with polling for completion status
+ */
+export async function deleteWifiNetworkWithRetry(
+  token: string,
+  networkId: string,
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}`
+    : `https://api.ruckus.cloud/wifiNetworks/${networkId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'delete',
+    url: apiUrl,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Delete WiFi network');
+
+  const deleteResponse = response.data;
+
+  // Always get requestId for async tracking (delete operations always return requestId)
+  const activityId = deleteResponse.requestId;
+
+  if (!activityId) {
+    throw new Error('No requestId returned from WiFi network deletion API');
+  }
+
+  // Poll for completion status
+  let retryCount = 0;
+  while (retryCount < maxRetries) {
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+
+      // Check if operation is completed (has endDatetime populated)
+      const isCompleted = activityDetails.endDatetime !== undefined;
+
+      // Check if operation failed (status is not SUCCESS or INPROGRESS)
+      const isFailed =
+        activityDetails.status !== 'SUCCESS' &&
+        activityDetails.status !== 'INPROGRESS';
+
+      if (isCompleted) {
+        // Check if it completed successfully
+        if (activityDetails.status === 'SUCCESS') {
+          return {
+            ...deleteResponse,
+            activityDetails,
+            status: 'completed',
+            message: 'WiFi network deleted successfully'
+          };
+        } else {
+          return {
+            ...deleteResponse,
+            activityDetails,
+            status: 'failed',
+            message: 'WiFi network deletion failed',
+            error: activityDetails.error || activityDetails.message || 'Operation completed with non-SUCCESS status'
+          };
+        }
+      }
+
+      if (isFailed) {
+        return {
+          ...deleteResponse,
+          activityDetails,
+          status: 'failed',
+          message: 'WiFi network deletion failed',
+          error: activityDetails.error || activityDetails.message || 'Unknown error'
+        };
+      }
+
+      // If still in progress, increment retry count and continue
+      retryCount++;
+      console.log(`[RUCKUS] WiFi network deletion in progress, attempt ${retryCount}/${maxRetries}`);
+
+      // If we've reached max retries, exit loop
+      if (retryCount >= maxRetries) {
+        break;
+      }
+
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+
+    } catch (error) {
+      retryCount++;
+      console.error(`[RUCKUS] Error polling activity details (attempt ${retryCount}/${maxRetries}):`, error);
+
+      // If we've reached max retries, return error
+      if (retryCount >= maxRetries) {
+        return {
+          ...deleteResponse,
+          status: 'timeout',
+          message: 'WiFi network deletion status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+
+      // Wait before next retry
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...deleteResponse,
+    status: 'timeout',
+    message: 'WiFi network deletion status unknown - polling timeout',
+    activityId
+  };
+}
+
