@@ -43,7 +43,8 @@ This server is designed to be used with MCP clients (like Claude Desktop). Confi
 - Regional API endpoints are dynamically constructed based on configuration
 - Async operations (venue create/delete, AP group creation/deletion, AP addition/removal, AP movement) use polling with configurable retry logic
 - Activity tracking system monitors long-running operations via requestId
-- **Retrieve-Then-Update Pattern**: All AP update operations first retrieve current state to preserve existing properties, preventing data loss during property changes
+- **Retrieve-Then-Update Pattern (AP Updates)**: AP update operations retrieve current state to preserve specific fields (name, venueId, apGroupId, description) while updating only provided values
+- **Retrieve-Then-Update Pattern (Full Config)**: Some operations retrieve full resource configuration to preserve ALL existing fields when updating (see Advanced Patterns section)
 
 ## Better Process for Adding New MCP Tools
 
@@ -228,6 +229,10 @@ export async function yourNewToolWithRetry(
   // Do not modify the polling logic
 }
 ```
+
+**Note:** For multi-step operations or complex scenarios, see "Advanced Async Operation Patterns" section below.
+
+**Note:** For multi-step operations or complex scenarios, see "Advanced Async Operation Patterns" section below.
 
 ### Step 3A: MCP Registration Template - Read-Only Operations
 ```typescript
@@ -457,6 +462,208 @@ case 'your_new_tool': {
 - **NO custom error handling**: Copy existing error handling exactly
 - **NO custom polling logic**: Copy polling loop from existing tool exactly
 - **NO additional response fields**: Don't add extra metadata to responses
+- **Use Advanced Patterns when appropriate**: If operation requires multi-step, conditional steps, type-based logic, or full config preservation, follow patterns in "Advanced Async Operation Patterns" section
+- **Use Advanced Patterns when appropriate**: If operation requires multi-step, conditional steps, type-based logic, or full config preservation, follow patterns in "Advanced Async Operation Patterns" section
+
+### Advanced Async Operation Patterns
+
+These patterns have been identified from real implementations and should be used when appropriate:
+
+#### 1. Conditional Async Steps in Multi-Step Operations
+
+**When to use:** When a multi-step async operation has steps that are conditional based on input parameters or resource type.
+
+**Pattern:**
+```typescript
+// Step 1: Always execute
+const step1Response = await makeRuckusApiCall({...}, 'Step 1');
+const step1RequestId = step1Response.data.requestId;
+
+// Step 2: Conditionally execute
+let step2RequestId: string | undefined;
+if (condition) {
+  const step2Response = await makeRuckusApiCall({...}, 'Step 2');
+  step2RequestId = step2Response.data.requestId;
+}
+
+// Collect all requestIds (conditional step included only if executed)
+const requestIds = [
+  { id: step1RequestId, name: 'Step 1' },
+  ...(step2RequestId ? [{ id: step2RequestId, name: 'Step 2' }] : []),
+  { id: step3RequestId, name: 'Step 3' }
+];
+
+// Poll all operations (conditional ones included automatically)
+```
+
+**Example:** `createWifiNetworkWithRetry` conditionally associates portal service profile for guest networks.
+
+**Key points:**
+- Use spread operator with conditional: `...(condition ? [{ id, name }] : [])`
+- All conditional requestIds are included in polling array
+- Return values should include all requestIds (even undefined ones)
+
+#### 2. Retrieve-Then-Update for Full Config Preservation
+
+**When to use:** When updating a resource requires preserving all existing fields, not just updating specific ones. 
+
+**Difference from AP Update Pattern:**
+- **AP Update Pattern** (`updateApWithRetrieval`): Retrieves current state, updates only specific fields (name, venueId, apGroupId, description), preserves other fields implicitly
+- **Full Config Pattern**: Retrieves full config, merges with updates using spread operator, preserves ALL fields explicitly
+
+**Pattern:**
+```typescript
+// Step 0: Retrieve full resource configuration if not provided
+let resourceConfig: any;
+if (fullConfigProvided) {
+  resourceConfig = fullConfigProvided;
+} else {
+  console.log('[RUCKUS] Retrieving full resource configuration...');
+  resourceConfig = await getResource(token, resourceId, region);
+}
+
+// Step 1: Merge full config with updates
+const updatePayload = {
+  ...resourceConfig,
+  // Override with new values
+  fieldToUpdate: newValue,
+  // Preserve all other fields
+  id: resourceId
+};
+
+const updateResponse = await makeRuckusApiCall({
+  method: 'put',
+  url: updateUrl,
+  data: updatePayload,
+  ...
+}, 'Update resource');
+```
+
+**Example:** `activateWifiNetworkAtVenuesWithRetry` retrieves full network config before updating with venues.
+
+**Key points:**
+- Accept optional `fullConfig` parameter for advanced use cases
+- Use spread operator to merge: `{ ...resourceConfig, updates }`
+- Always include `id` field in update payload
+- This preserves ALL existing fields, not just specific ones
+
+#### 3. Optional Payload Pattern (Empty Body Support)
+
+**When to use:** When an API endpoint accepts both empty body (undefined payload) and payload with specific values, and the behavior differs.
+
+**Pattern:**
+```typescript
+// Use empty payload if both parameters are false (default), otherwise use provided values
+const payload = (param1 === false && param2 === false) 
+  ? undefined  // Empty body
+  : {
+      param1,
+      param2
+    };
+
+const response = await makeRuckusApiCall({
+  method: 'put',
+  url: apiUrl,
+  data: payload,  // undefined = empty body
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  }
+}, 'Operation name');
+```
+
+**Example:** `updateWifiNetworkRadiusServerProfileSettingsWithRetry` uses empty payload when both `enableAccountingProxy` and `enableAuthProxy` are false.
+
+**Key points:**
+- Use `undefined` for empty body (not empty object `{}`)
+- Check default values to determine if payload should be empty
+- Document when empty body vs payload is used
+
+#### 4. Type-Based Conditional Logic
+
+**When to use:** When different resource types require different API payloads, endpoints, or processing logic.
+
+**Pattern:**
+```typescript
+// Detect resource type
+const resourceType = resourceConfig.type || resourceConfig.nwSubType;
+const isSpecialType = resourceType === 'special';
+
+// Build payload conditionally
+const payload: any = {
+  // Common fields
+  name: config.name,
+  type: config.type,
+  // Type-specific fields
+  ...(isSpecialType ? {
+    specialField: config.specialField,
+    specialConfig: config.specialConfig
+  } : {
+    standardField: config.standardField
+  })
+};
+
+// Use different payloads for different types
+const apiPayload = isSpecialType 
+  ? { enableAuthProxy: true }   // Special type
+  : { enableAuthProxy: false }; // Standard type
+```
+
+**Example:** Guest pass networks vs PSK networks use different RADIUS payloads (`enableAuthProxy: true` vs `false`).
+
+**Key points:**
+- Detect type early in function
+- Use conditional spread operators for type-specific fields
+- Apply type-specific logic consistently throughout function
+- Handle type detection with fallback: `type || nwSubType`
+
+#### 5. Multi-Step Operations with Conditional Steps
+
+**When to use:** When an operation requires multiple async steps, some of which are conditional based on type or parameters.
+
+**Pattern:**
+```typescript
+// Step 1: Always execute
+const step1Response = await makeRuckusApiCall({...}, 'Step 1');
+const step1RequestId = step1Response.data.requestId;
+
+// Step 2: Conditionally execute based on type
+let step2RequestId: string | undefined;
+if (isSpecialType && optionalParam) {
+  const step2Response = await makeRuckusApiCall({...}, 'Step 2');
+  step2RequestId = step2Response.data.requestId;
+}
+
+// Step 3: Always execute
+const step3Response = await makeRuckusApiCall({...}, 'Step 3');
+const step3RequestId = step3Response.data.requestId;
+
+// Collect all requestIds (conditional steps included only if executed)
+const requestIds = [
+  { id: step1RequestId, name: 'Step 1' },
+  ...(step2RequestId ? [{ id: step2RequestId, name: 'Step 2' }] : []),
+  { id: step3RequestId, name: 'Step 3' }
+];
+
+// Poll all operations (same polling logic for all)
+let retryCount = 0;
+const completedActivities: any[] = [];
+
+while (retryCount < maxRetries) {
+  const pendingActivities = requestIds.filter(req =>
+    !completedActivities.find(c => c.activityId === req.id)
+  );
+  // ... standard polling logic
+}
+```
+
+**Example:** `createWifiNetworkWithRetry` does: create + (conditionally) portal association + RADIUS.
+
+**Key points:**
+- Combine patterns 1 and 4 (conditional steps + type-based logic)
+- Use consistent polling logic for all steps
+- Track all requestIds in single array
+- Return all requestIds in response (even undefined ones)
 
 ### Pre-Implementation Checklist
 - [ ] **CRITICAL**: Determined operation type (read-only vs async)
@@ -464,6 +671,11 @@ case 'your_new_tool': {
 - [ ] Confirmed parameter order matches pattern
 - [ ] Confirmed defaults match pattern (read-only: no retry params, async: 5, 2000)
 - [ ] Confirmed error handling structure matches
+- [ ] **For async operations**: Checked if advanced patterns are needed:
+  - [ ] Multi-step operations with conditional steps?
+  - [ ] Type-based conditional logic?
+  - [ ] Full config preservation required?
+  - [ ] Optional payload (empty body) support needed?
 - [ ] Ready to implement following exact template for operation type
 
 **VIOLATION OF THIS PROCESS WILL REQUIRE COMPLETE REWRITE**
