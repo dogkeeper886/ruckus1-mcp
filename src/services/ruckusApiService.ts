@@ -2068,7 +2068,7 @@ export async function createPortalServiceProfileWithRetry(
     : 'https://api.ruckus.cloud/portalServiceProfiles';
 
   const payload = {
-    name: profileData.name,
+    serviceName: profileData.name,
     content: profileData.content
   };
 
@@ -2170,7 +2170,7 @@ export async function updatePortalServiceProfileWithRetry(
     : `https://api.ruckus.cloud/portalServiceProfiles/${profileId}`;
 
   const payload = {
-    name: profileData.name,
+    serviceName: profileData.name,
     content: profileData.content
   };
 
@@ -2906,9 +2906,9 @@ export async function createWifiNetworkWithRetry(
   networkConfig: {
     name: string;
     ssid: string;
-    type: 'psk' | 'enterprise' | 'open';
+    type: 'psk' | 'enterprise' | 'open' | 'guest';
     passphrase?: string;
-    wlanSecurity: 'WPA2Personal' | 'WPA3Personal' | 'WPA2Enterprise' | 'WPA3Enterprise' | 'Open';
+    wlanSecurity: 'WPA2Personal' | 'WPA3Personal' | 'WPA2Enterprise' | 'WPA3Enterprise' | 'Open' | 'None';
     vlanId?: number;
     managementFrameProtection?: 'Disabled' | 'Capable' | 'Required';
     // Advanced customization options (subset of available options)
@@ -2920,6 +2920,9 @@ export async function createWifiNetworkWithRetry(
     mobilityDomainId?: number;
     wifi6Enabled?: boolean;
     wifi7Enabled?: boolean;
+    // Guest pass specific options
+    guestPortal?: any;
+    portalServiceProfileId?: string;
   },
   region: string = '',
   maxRetries: number = 5,
@@ -2930,99 +2933,141 @@ export async function createWifiNetworkWithRetry(
     : 'https://api.ruckus.cloud/wifiNetworks';
 
   // Build WLAN configuration payload
-  const payload = {
+  const isGuestType = networkConfig.type === 'guest';
+  
+  const basePayload: any = {
     name: networkConfig.name,
     type: networkConfig.type,
     isCloudpathEnabled: false,
     venues: [],  // Empty - network created without venue activation
     enableAccountingService: false,
-    wlan: {
-      ssid: networkConfig.ssid,
-      ...(networkConfig.passphrase && { passphrase: networkConfig.passphrase }),
-      wlanSecurity: networkConfig.wlanSecurity,
-      managementFrameProtection: networkConfig.managementFrameProtection || 'Disabled',
-      advancedCustomization: {
-        userUplinkRateLimiting: 0,
-        userDownlinkRateLimiting: 0,
-        maxClientsOnWlanPerRadio: networkConfig.maxClientsOnWlanPerRadio || 100,
-        enableBandBalancing: networkConfig.enableBandBalancing !== undefined ? networkConfig.enableBandBalancing : true,
-        clientIsolation: networkConfig.clientIsolation || false,
-        clientIsolationOptions: {
-          autoVrrp: false
-        },
-        hideSsid: networkConfig.hideSsid || false,
-        forceMobileDeviceDhcp: false,
-        clientLoadBalancingEnable: true,
-        directedThreshold: 5,
-        enableNeighborReport: true,
-        enableFastRoaming: networkConfig.enableFastRoaming || false,
-        mobilityDomainId: networkConfig.mobilityDomainId || 1,
-        radioCustomization: {
-          rfBandUsage: 'BOTH',
-          phyTypeConstraint: 'NONE'
-        },
-        enableSyslog: false,
-        clientInactivityTimeout: 120,
-        accessControlEnable: false,
-        respectiveAccessControl: true,
-        applicationPolicyEnable: false,
-        l2AclEnable: false,
-        l3AclEnable: false,
-        wifiCallingEnabled: false,
-        proxyARP: false,
-        enableAirtimeDecongestion: false,
-        enableJoinRSSIThreshold: false,
-        joinRSSIThreshold: -85,
-        enableTransientClientManagement: false,
-        joinWaitTime: 30,
-        joinExpireTime: 300,
-        joinWaitThreshold: 10,
-        enableOptimizedConnectivityExperience: false,
-        broadcastProbeResponseDelay: 15,
-        rssiAssociationRejectionThreshold: -75,
-        enableAntiSpoofing: false,
-        enableArpRequestRateLimit: true,
-        arpRequestRateLimit: 15,
-        enableDhcpRequestRateLimit: true,
-        dhcpRequestRateLimit: 15,
-        dnsProxyEnabled: false,
-        dnsProxy: {
-          dnsProxyRules: []
-        },
-        bssPriority: 'HIGH',
-        dhcpOption82Enabled: false,
-        dhcpOption82SubOption1Enabled: false,
-        dhcpOption82SubOption1Format: null,
-        dhcpOption82SubOption2Enabled: false,
-        dhcpOption82SubOption2Format: null,
-        dhcpOption82SubOption150Enabled: false,
-        dhcpOption82SubOption151Enabled: false,
-        dhcpOption82SubOption151Format: null,
-        dhcpOption82MacFormat: null,
-        enableMulticastUplinkRateLimiting: false,
-        enableMulticastDownlinkRateLimiting: false,
-        enableMulticastUplinkRateLimiting6G: false,
-        enableMulticastDownlinkRateLimiting6G: false,
-        wifi6Enabled: networkConfig.wifi6Enabled !== undefined ? networkConfig.wifi6Enabled : true,
-        wifi7Enabled: networkConfig.wifi7Enabled !== undefined ? networkConfig.wifi7Enabled : true,
-        multiLinkOperationEnabled: false,
-        multiLinkOperationOptions: {
-          enable24G: true,
-          enable50G: true,
-          enable6G: true
-        },
-        qosMirroringEnabled: true,
-        qosMapSetEnabled: false,
-        qosMapSetOptions: {
-          rules: []
-        },
-        applicationVisibilityEnabled: true
-      },
-      enable: true,
-      vlanId: networkConfig.vlanId || 1
-    },
     hotspot20Settings: {}
   };
+
+  // Build WLAN configuration
+  const wlanConfig: any = {
+    ssid: networkConfig.ssid,
+    wlanSecurity: networkConfig.wlanSecurity,
+    enable: true,
+    vlanId: networkConfig.vlanId || 1
+  };
+
+  // Add passphrase for PSK networks
+  if (networkConfig.passphrase && !isGuestType) {
+    wlanConfig.passphrase = networkConfig.passphrase;
+  }
+
+  // Guest pass specific WLAN settings
+  if (isGuestType) {
+    wlanConfig.bypassCPUsingMacAddressAuthentication = true;
+    wlanConfig.bypassCNA = false;
+    wlanConfig.macAddressAuthentication = false;
+  } else {
+    wlanConfig.managementFrameProtection = networkConfig.managementFrameProtection || 'Disabled';
+  }
+
+  // Advanced customization (common for all types)
+  wlanConfig.advancedCustomization = {
+    userUplinkRateLimiting: 0,
+    userDownlinkRateLimiting: 0,
+    maxClientsOnWlanPerRadio: networkConfig.maxClientsOnWlanPerRadio || 100,
+    enableBandBalancing: networkConfig.enableBandBalancing !== undefined ? networkConfig.enableBandBalancing : true,
+    clientIsolation: networkConfig.clientIsolation !== undefined ? networkConfig.clientIsolation : (isGuestType ? true : false),
+    clientIsolationOptions: {
+      autoVrrp: false
+    },
+    hideSsid: networkConfig.hideSsid || false,
+    forceMobileDeviceDhcp: false,
+    clientLoadBalancingEnable: true,
+    enableAaaVlanOverride: true,
+    directedThreshold: 5,
+    enableNeighborReport: true,
+    enableFastRoaming: networkConfig.enableFastRoaming || false,
+    mobilityDomainId: networkConfig.mobilityDomainId || 1,
+    radioCustomization: {
+      rfBandUsage: 'BOTH',
+      phyTypeConstraint: 'NONE'
+    },
+    enableSyslog: false,
+    clientInactivityTimeout: 120,
+    accessControlEnable: false,
+    respectiveAccessControl: true,
+    applicationPolicyEnable: false,
+    l2AclEnable: false,
+    l3AclEnable: false,
+    wifiCallingEnabled: false,
+    proxyARP: false,
+    enableAirtimeDecongestion: false,
+    enableJoinRSSIThreshold: false,
+    joinRSSIThreshold: -85,
+    enableTransientClientManagement: false,
+    joinWaitTime: 30,
+    joinExpireTime: 300,
+    joinWaitThreshold: 10,
+    enableOptimizedConnectivityExperience: false,
+    broadcastProbeResponseDelay: 15,
+    rssiAssociationRejectionThreshold: -75,
+    enableAntiSpoofing: false,
+    enableArpRequestRateLimit: true,
+    arpRequestRateLimit: 15,
+    enableDhcpRequestRateLimit: true,
+    dhcpRequestRateLimit: 15,
+    dnsProxyEnabled: false,
+    dnsProxy: {
+      dnsProxyRules: []
+    },
+    bssPriority: 'HIGH',
+    dhcpOption82Enabled: false,
+    dhcpOption82SubOption1Enabled: false,
+    dhcpOption82SubOption1Format: null,
+    dhcpOption82SubOption2Enabled: false,
+    dhcpOption82SubOption2Format: null,
+    dhcpOption82SubOption150Enabled: false,
+    dhcpOption82SubOption151Enabled: false,
+    dhcpOption82SubOption151Format: null,
+    dhcpOption82MacFormat: null,
+    enableMulticastUplinkRateLimiting: false,
+    enableMulticastDownlinkRateLimiting: false,
+    enableMulticastUplinkRateLimiting6G: false,
+    enableMulticastDownlinkRateLimiting6G: false,
+    wifi6Enabled: networkConfig.wifi6Enabled !== undefined ? networkConfig.wifi6Enabled : true,
+    wifi7Enabled: networkConfig.wifi7Enabled !== undefined ? networkConfig.wifi7Enabled : true,
+    multiLinkOperationEnabled: false,
+    multiLinkOperationOptions: {
+      enable24G: true,
+      enable50G: true,
+      enable6G: true
+    },
+    qosMirroringEnabled: true,
+    qosMapSetEnabled: false,
+    qosMapSetOptions: {
+      rules: []
+    },
+    applicationVisibilityEnabled: true
+  };
+
+  wlanConfig.advancedCustomization = wlanConfig.advancedCustomization;
+  basePayload.wlan = wlanConfig;
+
+  // Add guest portal configuration for guest type
+  if (isGuestType) {
+    basePayload.guestPortal = networkConfig.guestPortal || {
+      guestNetworkType: 'GuestPass',
+      enableSelfService: true,
+      endOfDayReauthDelay: false,
+      lockoutPeriod: 120,
+      lockoutPeriodEnabled: false,
+      macCredentialsDuration: 240,
+      maxDevices: 1,
+      userSessionGracePeriod: 60,
+      userSessionTimeout: 1440,
+      walledGardens: []
+    };
+    basePayload.redirectCheckbox = false;
+    basePayload.enableDhcp = false;
+  }
+
+  const payload = basePayload;
 
   // Step 1: Create WiFi network
   console.log('[RUCKUS] Creating WiFi network...');
@@ -3050,13 +3095,40 @@ export async function createWifiNetworkWithRetry(
 
   console.log(`[RUCKUS] WiFi network created with ID: ${networkId}, requestId: ${createRequestId}`);
 
-  // Step 2: Set RADIUS server profile settings (required even for PSK networks)
+  // Step 2: Associate portal service profile for guest pass networks
+  let portalRequestId: string | undefined;
+  if (isGuestType && networkConfig.portalServiceProfileId) {
+    console.log('[RUCKUS] Associating portal service profile...');
+    const portalUrl = `${apiUrl}/${networkId}/portalServiceProfiles/${networkConfig.portalServiceProfileId}`;
+
+    const portalResponse = await makeRuckusApiCall({
+      method: 'put',
+      url: portalUrl,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    }, 'Associate portal service profile');
+
+    const portalData = portalResponse.data;
+    portalRequestId = portalData.requestId;
+
+    if (!portalRequestId) {
+      console.warn('[RUCKUS] No requestId returned from portal service profile association API (may be synchronous)');
+    }
+  }
+
+  // Step 3: Set RADIUS server profile settings (for all network types)
   console.log('[RUCKUS] Configuring RADIUS settings...');
   const radiusUrl = `${apiUrl}/${networkId}/radiusServerProfileSettings`;
+
+  // Send empty object for all network types during creation
+  const radiusPayload = {};
 
   const radiusResponse = await makeRuckusApiCall({
     method: 'put',
     url: radiusUrl,
+    data: radiusPayload,
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -3070,9 +3142,10 @@ export async function createWifiNetworkWithRetry(
     console.warn('[RUCKUS] No requestId returned from RADIUS settings API (may be synchronous)');
   }
 
-  // Poll both operations for completion
+  // Poll all operations for completion
   const requestIds = [
     { id: createRequestId, name: 'Create WiFi network' },
+    ...(portalRequestId ? [{ id: portalRequestId, name: 'Associate portal service profile' }] : []),
     ...(radiusRequestId ? [{ id: radiusRequestId, name: 'Configure RADIUS settings' }] : [])
   ];
 
@@ -3091,6 +3164,7 @@ export async function createWifiNetworkWithRetry(
         return {
           networkId,
           createRequestId,
+          portalRequestId,
           radiusRequestId,
           status: 'completed',
           message: 'WiFi network created successfully',
@@ -3121,6 +3195,7 @@ export async function createWifiNetworkWithRetry(
             return {
               networkId,
               createRequestId,
+              portalRequestId,
               radiusRequestId,
               status: 'failed',
               message: `${activity.name} failed`,
@@ -3133,6 +3208,7 @@ export async function createWifiNetworkWithRetry(
           return {
             networkId,
             createRequestId,
+            portalRequestId,
             radiusRequestId,
             status: 'failed',
             message: `${activity.name} failed`,
@@ -3160,6 +3236,7 @@ export async function createWifiNetworkWithRetry(
         return {
           networkId,
           createRequestId,
+          portalRequestId,
           radiusRequestId,
           status: 'timeout',
           message: 'WiFi network creation status unknown - polling timeout',
@@ -3175,6 +3252,7 @@ export async function createWifiNetworkWithRetry(
   return {
     networkId,
     createRequestId,
+    portalRequestId,
     radiusRequestId,
     status: 'timeout',
     message: 'WiFi network creation status unknown - polling timeout',
@@ -3198,13 +3276,28 @@ export async function activateWifiNetworkAtVenuesWithRetry(
   }>,
   region: string = '',
   maxRetries: number = 5,
-  pollIntervalMs: number = 2000
+  pollIntervalMs: number = 2000,
+  portalServiceProfileId?: string,
+  fullNetworkConfig?: any
 ): Promise<any> {
   const baseApiUrl = region && region.trim() !== ''
     ? `https://api.${region}.ruckus.cloud`
     : 'https://api.ruckus.cloud';
 
-  // Step 1: Update WiFi network with venues array
+  // Step 0: Retrieve full network configuration if not provided
+  let networkConfig: any;
+  if (fullNetworkConfig) {
+    networkConfig = fullNetworkConfig;
+  } else {
+    console.log('[RUCKUS] Retrieving full network configuration...');
+    networkConfig = await getWifiNetwork(token, networkId, region);
+  }
+
+  // Detect network type
+  const networkType = networkConfig.type || networkConfig.nwSubType;
+  const isGuestType = networkType === 'guest';
+
+  // Step 1: Update WiFi network with full config and venues array
   console.log('[RUCKUS] Updating WiFi network with venue associations...');
   const updateUrl = `${baseApiUrl}/wifiNetworks/${networkId}`;
 
@@ -3218,11 +3311,11 @@ export async function activateWifiNetworkAtVenuesWithRetry(
     venueId: config.venueId
   }));
 
-  // Note: We need to include the full network configuration in the update
-  // For now, we'll use a minimal payload with venues. In production, you may need to
-  // GET the network first to preserve all settings
+  // Merge full network config with venues array
   const updatePayload = {
-    venues: venuesArray
+    ...networkConfig,
+    venues: venuesArray,
+    id: networkId
   };
 
   const updateResponse = await makeRuckusApiCall({
@@ -3242,13 +3335,37 @@ export async function activateWifiNetworkAtVenuesWithRetry(
     console.warn('[RUCKUS] No requestId returned from network update (may be synchronous)');
   }
 
-  // Step 2: Update RADIUS server profile settings with explicit payload
+  // Step 2: Re-associate portal service profile for guest pass networks
+  let portalRequestId: string | undefined;
+  if (isGuestType && portalServiceProfileId) {
+    console.log('[RUCKUS] Re-associating portal service profile...');
+    const portalUrl = `${baseApiUrl}/wifiNetworks/${networkId}/portalServiceProfiles/${portalServiceProfileId}`;
+
+    const portalResponse = await makeRuckusApiCall({
+      method: 'put',
+      url: portalUrl,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    }, 'Re-associate portal service profile');
+
+    const portalData = portalResponse.data;
+    portalRequestId = portalData.requestId;
+
+    if (!portalRequestId) {
+      console.warn('[RUCKUS] No requestId returned from portal service profile re-association API (may be synchronous)');
+    }
+  }
+
+  // Step 3: Update RADIUS server profile settings with correct payload based on network type
   console.log('[RUCKUS] Updating RADIUS server profile settings...');
   const radiusUrl = `${baseApiUrl}/wifiNetworks/${networkId}/radiusServerProfileSettings`;
 
+  // Guest pass networks use enableAuthProxy: true, PSK/Enterprise use enableAuthProxy: false
   const radiusPayload = {
     enableAccountingProxy: false,
-    enableAuthProxy: false
+    enableAuthProxy: isGuestType ? true : false
   };
 
   const radiusResponse = await makeRuckusApiCall({
@@ -3338,6 +3455,7 @@ export async function activateWifiNetworkAtVenuesWithRetry(
   // Collect all requestIds for polling
   const allRequestIds = [
     ...(updateRequestId ? [{ id: updateRequestId, name: 'Update network with venues' }] : []),
+    ...(portalRequestId ? [{ id: portalRequestId, name: 'Re-associate portal service profile' }] : []),
     ...(radiusRequestId ? [{ id: radiusRequestId, name: 'Update RADIUS settings' }] : []),
     ...venueRequestIds
   ];
@@ -3546,5 +3664,295 @@ export async function getWifiNetwork(
   }, 'Get WiFi network');
 
   return response.data;
+}
+
+export async function updateWifiNetworkPortalServiceProfileWithRetry(
+  token: string,
+  networkId: string,
+  profileId: string,
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}/portalServiceProfiles/${profileId}`
+    : `https://api.ruckus.cloud/wifiNetworks/${networkId}/portalServiceProfiles/${profileId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'put',
+    url: apiUrl,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Update WiFi network portal service profile');
+
+  const updateResponse = response.data;
+  
+  const activityId = updateResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...updateResponse,
+      status: 'completed',
+      message: 'Portal service profile associated successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting portal service profile association status polling for activity ${activityId}`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxRetries} for portal service profile association activity ${activityId}`);
+    
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...updateResponse,
+          status: 'completed',
+          message: 'Portal service profile associated successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAILED') {
+        return {
+          ...updateResponse,
+          status: 'failed',
+          message: 'Portal service profile association failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+      
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'Portal service profile association status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    } catch (error: any) {
+      console.error(`Error polling portal service profile association activity (attempt ${attempt}):`, error.message);
+      
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'Portal service profile association status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...updateResponse,
+    status: 'timeout',
+    message: 'Portal service profile association status unknown - polling timeout',
+    activityId
+  };
+}
+
+export async function updateWifiNetworkRadiusServerProfileSettingsWithRetry(
+  token: string,
+  networkId: string,
+  region: string = '',
+  enableAccountingProxy: boolean = false,
+  enableAuthProxy: boolean = false,
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}/radiusServerProfileSettings`
+    : `https://api.ruckus.cloud/wifiNetworks/${networkId}/radiusServerProfileSettings`;
+
+  // Use empty object if both are false (default), otherwise send the values
+  const payload = (enableAccountingProxy === false && enableAuthProxy === false)
+    ? {}
+    : {
+        enableAccountingProxy,
+        enableAuthProxy
+      };
+
+  const response = await makeRuckusApiCall({
+    method: 'put',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Update WiFi network RADIUS server profile settings');
+
+  const updateResponse = response.data;
+  
+  const activityId = updateResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...updateResponse,
+      status: 'completed',
+      message: 'RADIUS server profile settings updated successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting RADIUS server profile settings update status polling for activity ${activityId}`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxRetries} for RADIUS server profile settings update activity ${activityId}`);
+    
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...updateResponse,
+          status: 'completed',
+          message: 'RADIUS server profile settings updated successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAILED') {
+        return {
+          ...updateResponse,
+          status: 'failed',
+          message: 'RADIUS server profile settings update failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+      
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'RADIUS server profile settings update status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    } catch (error: any) {
+      console.error(`Error polling RADIUS server profile settings update activity (attempt ${attempt}):`, error.message);
+      
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'RADIUS server profile settings update status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...updateResponse,
+    status: 'timeout',
+    message: 'RADIUS server profile settings update status unknown - polling timeout',
+    activityId
+  };
+}
+
+export async function updateWifiNetworkWithRetry(
+  token: string,
+  networkId: string,
+  networkConfig: any,
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}`
+    : `https://api.ruckus.cloud/wifiNetworks/${networkId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'put',
+    url: apiUrl,
+    data: networkConfig,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Update WiFi network');
+
+  const updateResponse = response.data;
+  
+  const activityId = updateResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...updateResponse,
+      status: 'completed',
+      message: 'WiFi network updated successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting WiFi network update status polling for activity ${activityId}`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxRetries} for WiFi network update activity ${activityId}`);
+    
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...updateResponse,
+          status: 'completed',
+          message: 'WiFi network updated successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAILED') {
+        return {
+          ...updateResponse,
+          status: 'failed',
+          message: 'WiFi network update failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+      
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'WiFi network update status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    } catch (error: any) {
+      console.error(`Error polling WiFi network update activity (attempt ${attempt}):`, error.message);
+      
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'WiFi network update status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...updateResponse,
+    status: 'timeout',
+    message: 'WiFi network update status unknown - polling timeout',
+    activityId
+  };
 }
 

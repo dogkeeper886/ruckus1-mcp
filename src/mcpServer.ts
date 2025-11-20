@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, activateWifiNetworkAtVenueWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, activateWifiNetworkAtVenueWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -1276,7 +1276,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'create_wifi_network',
-        description: 'Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venue or activate_wifi_network_at_venues.',
+        description: 'Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venue or activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -1290,17 +1290,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             type: {
               type: 'string',
-              description: 'Network type: psk (WPA2/WPA3 Personal), enterprise (WPA2/WPA3 Enterprise), or open',
-              enum: ['psk', 'enterprise', 'open'],
+              description: 'Network type: psk (WPA2 Personal) or guest (Guest Pass portal)',
+              enum: ['psk', 'enterprise', 'open', 'guest'],
             },
             passphrase: {
               type: 'string',
-              description: 'Network passphrase/password (required for PSK networks, minimum 8 characters)',
+              description: 'Network passphrase/password (REQUIRED for type=psk, minimum 8 characters)',
             },
             wlanSecurity: {
               type: 'string',
-              description: 'WLAN security type',
-              enum: ['WPA2Personal', 'WPA3Personal', 'WPA2Enterprise', 'WPA3Enterprise', 'Open'],
+              description: 'WLAN security type (REQUIRED). Use WPA2Personal for PSK networks, None for guest pass networks',
+              enum: ['WPA2Personal', 'WPA3Personal', 'WPA2Enterprise', 'WPA3Enterprise', 'Open', 'None'],
+            },
+            guestPortal: {
+              type: 'object',
+              description: 'Guest portal configuration object (optional for type=guest, uses defaults if not provided)',
+            },
+            portalServiceProfileId: {
+              type: 'string',
+              description: 'Portal service profile ID (REQUIRED for type=guest, use query_portal_service_profiles to get available IDs)',
             },
             vlanId: {
               type: 'number',
@@ -1357,7 +1365,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'activate_wifi_network_at_venues',
-        description: 'Activate an existing WiFi network at one or more venues. This is a batch operation that can activate the network at multiple venues in a single call. The network must already be created using create_wifi_network.',
+        description: 'Activate an existing WiFi network at one or more venues. This is a batch operation that can activate the network at multiple venues in a single call. The network must already be created using create_wifi_network. FOR GUEST PASS NETWORKS: Must provide portalServiceProfileId. FOR PSK NETWORKS: Do not provide portalServiceProfileId.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -1367,7 +1375,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             venueConfigs: {
               type: 'array',
-              description: 'Array of venue configurations where the network should be activated',
+              description: 'Array of venue configurations where the network should be activated. Can contain one venue or multiple venues.',
               items: {
                 type: 'object',
                 properties: {
@@ -1410,6 +1418,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 required: ['venueId', 'isAllApGroups', 'allApGroupsRadio', 'allApGroupsRadioTypes', 'scheduler'],
               },
             },
+            portalServiceProfileId: {
+              type: 'string',
+              description: 'Portal service profile ID to re-associate with the network (REQUIRED for guest pass networks, do not provide for PSK networks)',
+            },
             maxRetries: {
               type: 'number',
               description: 'Maximum number of retry attempts for async polling (default: 5)',
@@ -1423,8 +1435,90 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'update_wifi_network_portal_service_profile',
+        description: 'Associate a portal service profile with a WiFi network',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            networkId: {
+              type: 'string',
+              description: 'ID of the WiFi network',
+            },
+            profileId: {
+              type: 'string',
+              description: 'ID of the portal service profile to associate',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['networkId', 'profileId'],
+        },
+      },
+      {
+        name: 'update_wifi_network_radius_server_profile_settings',
+        description: 'Update RADIUS server profile settings for a WiFi network',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            networkId: {
+              type: 'string',
+              description: 'ID of the WiFi network',
+            },
+            enableAccountingProxy: {
+              type: 'boolean',
+              description: 'Enable accounting proxy (default: false)',
+            },
+            enableAuthProxy: {
+              type: 'boolean',
+              description: 'Enable authentication proxy (default: false)',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['networkId'],
+        },
+      },
+      {
+        name: 'update_wifi_network',
+        description: 'Update a WiFi network with full configuration object',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            networkId: {
+              type: 'string',
+              description: 'ID of the WiFi network to update',
+            },
+            networkConfig: {
+              type: 'object',
+              description: 'Full network configuration object',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['networkId', 'networkConfig'],
+        },
+      },
+      {
         name: 'activate_wifi_network_at_venue',
-        description: 'Activate an existing WiFi network at a single venue. This is a convenience wrapper around activate_wifi_network_at_venues for activating at just one venue. The network must already be created using create_wifi_network.',
+        description: 'Activate an existing WiFi network at a single venue. This is a convenience wrapper around activate_wifi_network_at_venues for activating at just one venue. The network must already be created using create_wifi_network. FOR GUEST PASS NETWORKS: Must provide portalServiceProfileId. FOR PSK NETWORKS: Do not provide portalServiceProfileId.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -1466,6 +1560,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 },
               },
               required: ['type'],
+            },
+            portalServiceProfileId: {
+              type: 'string',
+              description: 'Portal service profile ID (REQUIRED for guest pass networks, do not provide for PSK networks)',
             },
             maxRetries: {
               type: 'number',
@@ -4469,14 +4567,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           mobilityDomainId,
           wifi6Enabled,
           wifi7Enabled,
+          guestPortal,
+          portalServiceProfileId,
           maxRetries = 5,
           pollIntervalMs = 2000
         } = request.params.arguments as {
           name: string;
           ssid: string;
-          type: 'psk' | 'enterprise' | 'open';
+          type: 'psk' | 'enterprise' | 'open' | 'guest';
           passphrase?: string;
-          wlanSecurity: 'WPA2Personal' | 'WPA3Personal' | 'WPA2Enterprise' | 'WPA3Enterprise' | 'Open';
+          wlanSecurity: 'WPA2Personal' | 'WPA3Personal' | 'WPA2Enterprise' | 'WPA3Enterprise' | 'Open' | 'None';
           vlanId?: number;
           managementFrameProtection?: 'Disabled' | 'Capable' | 'Required';
           maxClientsOnWlanPerRadio?: number;
@@ -4487,6 +4587,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           mobilityDomainId?: number;
           wifi6Enabled?: boolean;
           wifi7Enabled?: boolean;
+          guestPortal?: any;
+          portalServiceProfileId?: string;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
@@ -4517,6 +4619,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (mobilityDomainId !== undefined) networkConfig.mobilityDomainId = mobilityDomainId;
         if (wifi6Enabled !== undefined) networkConfig.wifi6Enabled = wifi6Enabled;
         if (wifi7Enabled !== undefined) networkConfig.wifi7Enabled = wifi7Enabled;
+        if (guestPortal !== undefined) networkConfig.guestPortal = guestPortal;
+        if (portalServiceProfileId !== undefined) networkConfig.portalServiceProfileId = portalServiceProfileId;
 
         const result = await createWifiNetworkWithRetry(
           token,
@@ -4566,6 +4670,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const {
           networkId,
           venueConfigs,
+          portalServiceProfileId,
           maxRetries = 5,
           pollIntervalMs = 2000
         } = request.params.arguments as {
@@ -4581,6 +4686,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               [key: string]: any;
             };
           }>;
+          portalServiceProfileId?: string;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
@@ -4598,7 +4704,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           venueConfigs,
           process.env.RUCKUS_REGION,
           maxRetries,
-          pollIntervalMs
+          pollIntervalMs,
+          portalServiceProfileId
         );
 
         console.log('[MCP] Activate WiFi network at venues response:', result);
@@ -4723,6 +4830,177 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
           isError: true,
+        };
+      }
+    }
+
+    case 'update_wifi_network_portal_service_profile': {
+      try {
+        const { 
+          networkId,
+          profileId,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          networkId: string;
+          profileId: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await updateWifiNetworkPortalServiceProfileWithRetry(
+          token,
+          networkId,
+          profileId,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error updating WiFi network portal service profile:', error);
+        
+        let errorMessage = `Error updating WiFi network portal service profile: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [{ type: 'text', text: errorMessage }],
+          isError: true
+        };
+      }
+    }
+
+    case 'update_wifi_network_radius_server_profile_settings': {
+      try {
+        const { 
+          networkId,
+          enableAccountingProxy = false,
+          enableAuthProxy = false,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          networkId: string;
+          enableAccountingProxy?: boolean;
+          enableAuthProxy?: boolean;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await updateWifiNetworkRadiusServerProfileSettingsWithRetry(
+          token,
+          networkId,
+          process.env.RUCKUS_REGION,
+          enableAccountingProxy,
+          enableAuthProxy,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error updating WiFi network RADIUS server profile settings:', error);
+        
+        let errorMessage = `Error updating WiFi network RADIUS server profile settings: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [{ type: 'text', text: errorMessage }],
+          isError: true
+        };
+      }
+    }
+
+    case 'update_wifi_network': {
+      try {
+        const { 
+          networkId,
+          networkConfig,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          networkId: string;
+          networkConfig: any;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+        
+        const result = await updateWifiNetworkWithRetry(
+          token,
+          networkId,
+          networkConfig,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error updating WiFi network:', error);
+        
+        let errorMessage = `Error updating WiFi network: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [{ type: 'text', text: errorMessage }],
+          isError: true
         };
       }
     }
