@@ -43,11 +43,11 @@ Get a list of venues from RUCKUS One.
 {
   "data": [
     {
-      "id": "venue-uuid",
-      "name": "NYC Office",
-      "addressLine": "123 Main St",
-      "city": "New York",
-      "country": "United States",
+      "id": "example-venue-uuid",
+      "name": "Example Venue",
+      "addressLine": "Example Street Address",
+      "city": "Example City",
+      "country": "Example Country",
       "latitude": 40.7128,
       "longitude": -74.0060
     }
@@ -76,11 +76,11 @@ Create a new venue in RUCKUS One with automatic status checking.
 **Returns:**
 ```json
 {
-  "requestId": "activity-uuid",
+  "requestId": "example-activity-uuid",
   "status": "completed",
   "message": "Venue created successfully",
   "activityDetails": {
-    "id": "activity-uuid",
+    "id": "example-activity-uuid",
     "status": "SUCCESS",
     "endDatetime": "2024-01-01T12:00:00Z"
   }
@@ -131,10 +131,10 @@ Query AP groups from RUCKUS One with filtering and pagination support.
 {
   "data": [
     {
-      "id": "ap-group-uuid",
-      "name": "NYC Office APs",
-      "description": "Access points for NYC office",
-      "venueId": "venue-uuid",
+      "id": "example-ap-group-uuid",
+      "name": "Example AP Group",
+      "description": "Access points for example venue",
+      "venueId": "example-venue-uuid",
       "isDefault": false,
       "apCount": 5
     }
@@ -161,10 +161,10 @@ Create a new AP group in a RUCKUS One venue with automatic status checking.
 ```json
 [
   {
-    "serialNumber": "421706000056"
+    "serialNumber": "example-serial-number"
   },
   {
-    "serialNumber": "421706000057"
+    "serialNumber": "example-serial-number-2"
   }
 ]
 ```
@@ -212,16 +212,16 @@ Query access points with filtering, search, and pagination.
 {
   "data": [
     {
-      "id": "ap-uuid",
-      "name": "e510",
-      "serialNumber": "421706000056",
+      "id": "example-ap-uuid",
+      "name": "Example AP",
+      "serialNumber": "example-serial-number",
       "model": "R750",
       "status": "ONLINE",
-      "venueId": "venue-uuid",
-      "apGroupId": "ap-group-uuid",
+      "venueId": "example-venue-uuid",
+      "apGroupId": "example-ap-group-uuid",
       "macAddress": "00:11:22:33:44:55",
       "networkStatus": {
-        "ipAddress": "192.168.1.100"
+        "ipAddress": "10.0.0.1"
       }
     }
   ],
@@ -301,8 +301,8 @@ Get activity details from RUCKUS One using activity ID (e.g., requestId from ven
 **Returns:**
 ```json
 {
-  "id": "activity-uuid",
-  "requestId": "request-uuid",
+  "id": "example-activity-uuid",
+  "requestId": "example-request-uuid",
   "status": "SUCCESS",
   "type": "VENUE_CREATE",
   "description": "Create venue operation",

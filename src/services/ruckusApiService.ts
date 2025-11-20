@@ -2053,6 +2053,301 @@ export async function getPortalServiceProfile(
   return response.data;
 }
 
+export async function createPortalServiceProfileWithRetry(
+  token: string,
+  profileData: {
+    name: string;
+    content: any;
+  },
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/portalServiceProfiles`
+    : 'https://api.ruckus.cloud/portalServiceProfiles';
+
+  const payload = {
+    name: profileData.name,
+    content: profileData.content
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Create portal service profile');
+
+  const createResponse = response.data;
+  
+  const activityId = createResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...createResponse,
+      status: 'completed',
+      message: 'Portal service profile created successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting portal service profile creation status polling for activity ${activityId}`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxRetries} for portal service profile creation activity ${activityId}`);
+    
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...createResponse,
+          status: 'completed',
+          message: 'Portal service profile created successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAILED') {
+        return {
+          ...createResponse,
+          status: 'failed',
+          message: 'Portal service profile creation failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+      
+      if (attempt === maxRetries) {
+        return {
+          ...createResponse,
+          status: 'timeout',
+          message: 'Portal service profile creation status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    } catch (error: any) {
+      console.error(`Error polling portal service profile creation activity (attempt ${attempt}):`, error.message);
+      
+      if (attempt === maxRetries) {
+        return {
+          ...createResponse,
+          status: 'timeout',
+          message: 'Portal service profile creation status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...createResponse,
+    status: 'timeout',
+    message: 'Portal service profile creation status unknown - polling timeout',
+    activityId
+  };
+}
+
+export async function updatePortalServiceProfileWithRetry(
+  token: string,
+  profileId: string,
+  profileData: {
+    name: string;
+    content: any;
+  },
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/portalServiceProfiles/${profileId}`
+    : `https://api.ruckus.cloud/portalServiceProfiles/${profileId}`;
+
+  const payload = {
+    name: profileData.name,
+    content: profileData.content
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'put',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Update portal service profile');
+
+  const updateResponse = response.data;
+  
+  const activityId = updateResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...updateResponse,
+      status: 'completed',
+      message: 'Portal service profile updated successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting portal service profile update status polling for activity ${activityId}`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxRetries} for portal service profile update activity ${activityId}`);
+    
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...updateResponse,
+          status: 'completed',
+          message: 'Portal service profile updated successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAILED') {
+        return {
+          ...updateResponse,
+          status: 'failed',
+          message: 'Portal service profile update failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+      
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'Portal service profile update status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    } catch (error: any) {
+      console.error(`Error polling portal service profile update activity (attempt ${attempt}):`, error.message);
+      
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'Portal service profile update status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...updateResponse,
+    status: 'timeout',
+    message: 'Portal service profile update status unknown - polling timeout',
+    activityId
+  };
+}
+
+export async function deletePortalServiceProfileWithRetry(
+  token: string,
+  profileId: string,
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/portalServiceProfiles/${profileId}`
+    : `https://api.ruckus.cloud/portalServiceProfiles/${profileId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'delete',
+    url: apiUrl,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Delete portal service profile');
+
+  const deleteResponse = response.data;
+  
+  const activityId = deleteResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...deleteResponse,
+      status: 'completed',
+      message: 'Portal service profile deleted successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting portal service profile deletion status polling for activity ${activityId}`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxRetries} for portal service profile deletion activity ${activityId}`);
+    
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...deleteResponse,
+          status: 'completed',
+          message: 'Portal service profile deleted successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAILED') {
+        return {
+          ...deleteResponse,
+          status: 'failed',
+          message: 'Portal service profile deletion failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+      
+      if (attempt === maxRetries) {
+        return {
+          ...deleteResponse,
+          status: 'timeout',
+          message: 'Portal service profile deletion status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    } catch (error: any) {
+      console.error(`Error polling portal service profile deletion activity (attempt ${attempt}):`, error.message);
+      
+      if (attempt === maxRetries) {
+        return {
+          ...deleteResponse,
+          status: 'timeout',
+          message: 'Portal service profile deletion status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...deleteResponse,
+    status: 'timeout',
+    message: 'Portal service profile deletion status unknown - polling timeout',
+    activityId
+  };
+}
+
 export async function queryPrivilegeGroups(
   token: string,
   region: string = ''
