@@ -4282,3 +4282,143 @@ export async function deleteWifiNetworkWithRetry(
   };
 }
 
+/**
+ * Create a guest pass credential for a WiFi network with automatic retry mechanism
+ * This function handles the guest pass creation workflow with polling for completion status
+ */
+export async function createGuestPassWithRetry(
+  token: string,
+  networkId: string,
+  guestPassData: {
+    name: string;
+    expiration: {
+      duration: number;
+      unit: 'Hour' | 'Day' | 'Week' | 'Month';
+      activationType: 'Creation' | 'FirstUse';
+    };
+    maxDevices: number;
+    deliveryMethods: ('PRINT' | 'EMAIL' | 'SMS')[];
+    mobilePhoneNumber?: string | null;
+    email?: string;
+    notes?: string;
+  },
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}/guestUsers`
+    : `https://api.ruckus.cloud/wifiNetworks/${networkId}/guestUsers`;
+
+  const payload = {
+    name: guestPassData.name,
+    mobilePhoneNumber: guestPassData.mobilePhoneNumber || null,
+    email: guestPassData.email || '',
+    notes: guestPassData.notes || '',
+    expiration: guestPassData.expiration,
+    maxDevices: guestPassData.maxDevices,
+    deliveryMethods: guestPassData.deliveryMethods
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Create guest pass');
+
+  const createResponse = response.data;
+
+  // Always get requestId for async tracking (create operations always return requestId)
+  const activityId = createResponse.requestId;
+
+  if (!activityId) {
+    throw new Error('No requestId returned from guest pass creation API');
+  }
+
+  // Poll for completion status
+  let retryCount = 0;
+  while (retryCount < maxRetries) {
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+
+      // Check if operation is completed (has endDatetime populated)
+      const isCompleted = activityDetails.endDatetime !== undefined;
+
+      // Check if operation failed (status is not SUCCESS or INPROGRESS)
+      const isFailed =
+        activityDetails.status !== 'SUCCESS' &&
+        activityDetails.status !== 'INPROGRESS';
+
+      if (isCompleted) {
+        // Check if it completed successfully
+        if (activityDetails.status === 'SUCCESS') {
+          return {
+            ...createResponse,
+            activityDetails,
+            status: 'completed',
+            message: 'Guest pass created successfully'
+          };
+        } else {
+          return {
+            ...createResponse,
+            activityDetails,
+            status: 'failed',
+            message: 'Guest pass creation failed',
+            error: activityDetails.error || activityDetails.message || 'Operation completed with non-SUCCESS status'
+          };
+        }
+      }
+
+      if (isFailed) {
+        return {
+          ...createResponse,
+          activityDetails,
+          status: 'failed',
+          message: 'Guest pass creation failed',
+          error: activityDetails.error || activityDetails.message || 'Unknown error'
+        };
+      }
+
+      // If still in progress, increment retry count and continue
+      retryCount++;
+      console.log(`[RUCKUS] Guest pass creation in progress, attempt ${retryCount}/${maxRetries}`);
+
+      // If we've reached max retries, exit loop
+      if (retryCount >= maxRetries) {
+        break;
+      }
+
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+
+    } catch (error) {
+      retryCount++;
+      console.error(`[RUCKUS] Error polling activity details (attempt ${retryCount}/${maxRetries}):`, error);
+
+      // If we've reached max retries, return error
+      if (retryCount >= maxRetries) {
+        return {
+          ...createResponse,
+          status: 'timeout',
+          message: 'Guest pass creation status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+
+      // Wait before next retry
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...createResponse,
+    status: 'timeout',
+    message: 'Guest pass creation status unknown - polling timeout',
+    activityId
+  };
+}
+

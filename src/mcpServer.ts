@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, createGuestPassWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
 
 dotenv.config();
 
@@ -1563,6 +1563,77 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['networkId'],
+        },
+      },
+      {
+        name: 'create_guest_pass',
+        description: 'Create a guest pass credential for a WiFi network in RUCKUS One. This generates a temporary access credential with configurable expiration and device limits. Returns the generated password in the response. REQUIRED: networkId (use query_wifi_networks to get network ID) + name + expiration (duration, unit, activationType) + maxDevices + deliveryMethods. Use deliveryMethods: ["PRINT"] for manual distribution.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            networkId: {
+              type: 'string',
+              description: 'ID of the WiFi network to create guest pass for (use query_wifi_networks to find network ID)',
+            },
+            name: {
+              type: 'string',
+              description: 'Name/identifier for the guest pass',
+            },
+            expiration: {
+              type: 'object',
+              description: 'Expiration configuration for the guest pass',
+              properties: {
+                duration: {
+                  type: 'number',
+                  description: 'Duration value (e.g., 7 for 7 days)',
+                },
+                unit: {
+                  type: 'string',
+                  description: 'Time unit for duration',
+                  enum: ['Hour', 'Day', 'Week', 'Month'],
+                },
+                activationType: {
+                  type: 'string',
+                  description: 'When expiration starts: Creation (from creation time) or FirstUse (from first connection)',
+                  enum: ['Creation', 'FirstUse'],
+                },
+              },
+              required: ['duration', 'unit', 'activationType'],
+            },
+            maxDevices: {
+              type: 'number',
+              description: 'Maximum number of devices that can use this guest pass simultaneously',
+            },
+            deliveryMethods: {
+              type: 'array',
+              items: {
+                type: 'string',
+                enum: ['PRINT', 'EMAIL', 'SMS'],
+              },
+              description: 'How the guest pass will be delivered. Use ["PRINT"] for manual distribution',
+            },
+            mobilePhoneNumber: {
+              type: 'string',
+              description: 'Mobile phone number for SMS delivery (required if SMS in deliveryMethods)',
+            },
+            email: {
+              type: 'string',
+              description: 'Email address for email delivery (required if EMAIL in deliveryMethods)',
+            },
+            notes: {
+              type: 'string',
+              description: 'Optional notes about this guest pass',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts for async polling (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['networkId', 'name', 'expiration', 'maxDevices', 'deliveryMethods'],
         },
       },
     ],
@@ -4837,6 +4908,95 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error('[MCP] Error deleting WiFi network:', error);
 
         let errorMessage = `Error deleting WiFi network: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case 'create_guest_pass': {
+      try {
+        const {
+          networkId,
+          name,
+          expiration,
+          maxDevices,
+          deliveryMethods,
+          mobilePhoneNumber,
+          email,
+          notes,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          networkId: string;
+          name: string;
+          expiration: {
+            duration: number;
+            unit: 'Hour' | 'Day' | 'Week' | 'Month';
+            activationType: 'Creation' | 'FirstUse';
+          };
+          maxDevices: number;
+          deliveryMethods: ('PRINT' | 'EMAIL' | 'SMS')[];
+          mobilePhoneNumber?: string;
+          email?: string;
+          notes?: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await getRuckusJwtToken(
+          process.env.RUCKUS_TENANT_ID!,
+          process.env.RUCKUS_CLIENT_ID!,
+          process.env.RUCKUS_CLIENT_SECRET!,
+          process.env.RUCKUS_REGION
+        );
+
+        const result = await createGuestPassWithRetry(
+          token,
+          networkId,
+          {
+            name,
+            expiration,
+            maxDevices,
+            deliveryMethods,
+            ...(mobilePhoneNumber !== undefined && { mobilePhoneNumber }),
+            ...(email !== undefined && { email }),
+            ...(notes !== undefined && { notes })
+          },
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+
+        console.log('[MCP] Create guest pass response:', result);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error creating guest pass:', error);
+
+        let errorMessage = `Error creating guest pass: ${error}`;
 
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
