@@ -1,4 +1,5 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import { AuthTokenResponse } from '../types/ruckusApi';
 
 async function makeRuckusApiCall<T = any>(
   config: AxiosRequestConfig,
@@ -57,7 +58,7 @@ export async function getRuckusJwtToken(
   clientId: string,
   clientSecret: string,
   region: string = ''
-): Promise<string> {
+): Promise<AuthTokenResponse> {
   const url = `https://${region ? region + '.' : ''}ruckus.cloud/oauth2/token/${tenantId}`;
   const params = new URLSearchParams();
   params.append('grant_type', 'client_credentials');
@@ -71,7 +72,7 @@ export async function getRuckusJwtToken(
     headers: { 'content-type': 'application/x-www-form-urlencoded' }
   }, 'OAuth token request');
 
-  return response.data.access_token;
+  return response.data;
 } 
 
 export async function getRuckusActivityDetails(

@@ -4,6 +4,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, createGuestPassWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
+import { tokenService } from './services/tokenService';
 
 dotenv.config();
 
@@ -1647,7 +1648,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   switch (name) {
     case 'get_ruckus_auth_token': {
       try {
-        const token = await getRuckusJwtToken(
+        const tokenResponse = await getRuckusJwtToken(
           process.env.RUCKUS_TENANT_ID!,
           process.env.RUCKUS_CLIENT_ID!,
           process.env.RUCKUS_CLIENT_SECRET!,
@@ -1657,7 +1658,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: token,
+              text: tokenResponse.access_token,
             },
           ],
         };
@@ -1687,12 +1688,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     case 'get_ruckus_venues': {
       try {
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         const region = process.env.RUCKUS_REGION;
         const apiUrl = region && region.trim() !== ''
           ? `https://api.${region}.ruckus.cloud/venues/query`
@@ -1753,12 +1749,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           activityId: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const activityDetails = await getRuckusActivityDetails(
           token,
@@ -1823,12 +1814,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const venueData: any = {
           name,
@@ -1928,12 +1914,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await deleteVenueWithRetry(
           token,
@@ -2041,12 +2022,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await updateVenueWithRetry(
           token,
@@ -2110,12 +2086,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const apGroupData: any = { name };
         if (description !== undefined) apGroupData.description = description;
@@ -2218,12 +2189,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const apData: any = {
           name,
@@ -2310,12 +2276,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
 
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
 
         const result = await removeApWithRetry(
           token,
@@ -2395,12 +2356,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pageSize?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await queryApGroups(
           token,
@@ -2458,12 +2414,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await deleteApGroupWithRetry(
           token,
@@ -2562,12 +2513,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await updateApGroupWithRetry(
           token,
@@ -2614,12 +2560,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           venueId: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const antennaSettings = await getVenueExternalAntennaSettings(
           token,
@@ -2663,12 +2604,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           venueId: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const antennaTypeSettings = await getVenueAntennaTypeSettings(
           token,
@@ -2716,12 +2652,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           apGroupId: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const apGroupAntennaSettings = await getApGroupExternalAntennaSettings(
           token,
@@ -2767,12 +2698,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           apGroupId: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const apGroupAntennaTypeSettings = await getApGroupAntennaTypeSettings(
           token,
@@ -2817,12 +2743,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           venueId: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const venueApModelBandModeSettings = await getVenueApModelBandModeSettings(
           token,
@@ -2865,12 +2786,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           venueId: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const venueRadioSettings = await getVenueRadioSettings(
           token,
@@ -2914,12 +2830,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           apGroupId: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const apGroupApModelBandModeSettings = await getApGroupApModelBandModeSettings(
           token,
@@ -2964,12 +2875,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           apGroupId: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const apGroupRadioSettings = await getApGroupRadioSettings(
           token,
@@ -3014,12 +2920,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           apSerialNumber: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const apRadioSettings = await getApRadioSettings(
           token,
@@ -3064,12 +2965,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           apSerialNumber: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const apClientAdmissionControlSettings = await getApClientAdmissionControlSettings(
           token,
@@ -3114,12 +3010,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           apGroupId: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const apGroupClientAdmissionControlSettings = await getApGroupClientAdmissionControlSettings(
           token,
@@ -3177,12 +3068,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           mesh?: boolean;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         // Build filters object
         const filters: any = {};
@@ -3296,12 +3182,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           apGroupId
         });
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         // Build changes object with only provided values
         const changes: any = {};
@@ -3400,12 +3281,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortOrder?: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await queryDirectoryServerProfiles(
           token,
@@ -3459,12 +3335,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           profileId: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await getDirectoryServerProfile(
           token,
@@ -3546,12 +3417,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await createDirectoryServerProfileWithRetry(
           token,
@@ -3644,12 +3510,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await updateDirectoryServerProfileWithRetry(
           token,
@@ -3712,12 +3573,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await deleteDirectoryServerProfileWithRetry(
           token,
@@ -3772,12 +3628,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortOrder?: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await queryPortalServiceProfiles(
           token,
@@ -3830,12 +3681,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           profileId: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await getPortalServiceProfile(
           token,
@@ -3890,12 +3736,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await createPortalServiceProfileWithRetry(
           token,
@@ -3949,12 +3790,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await updatePortalServiceProfileWithRetry(
           token,
@@ -4005,12 +3841,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await deletePortalServiceProfileWithRetry(
           token,
@@ -4047,12 +3878,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     case 'get_ruckus_user_groups': {
       try {
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await queryPrivilegeGroups(
           token,
@@ -4094,12 +3920,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     case 'get_ruckus_roles': {
       try {
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await queryCustomRoles(
           token,
@@ -4161,12 +3982,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await updatePrivilegeGroupSimple(
           token,
@@ -4229,12 +4045,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const roleData = { name, features } as any;
         if (preDefinedRole !== undefined) {
@@ -4298,12 +4109,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pageSize?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await queryRoleFeatures(
           token,
@@ -4360,12 +4166,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           preDefinedRole?: string;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await createCustomRole(
           token,
@@ -4449,12 +4250,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await deleteCustomRoleWithRetry(
           token,
@@ -4521,12 +4317,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortOrder?: string;
         };
 
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
 
         const result = await queryWifiNetworks(
           token,
@@ -4571,12 +4362,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           networkId: string;
         };
 
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
 
         const result = await getWifiNetwork(
           token,
@@ -4652,12 +4438,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
 
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
 
         const networkConfig: any = {
           name,
@@ -4750,12 +4531,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
 
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
 
         const result = await activateWifiNetworkAtVenuesWithRetry(
           token,
@@ -4816,12 +4592,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
 
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
 
         const result = await deactivateWifiNetworkAtVenuesWithRetry(
           token,
@@ -4879,12 +4650,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
 
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
 
         const result = await deleteWifiNetworkWithRetry(
           token,
@@ -4959,12 +4725,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
 
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
 
         const result = await createGuestPassWithRetry(
           token,
@@ -5032,12 +4793,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await updateWifiNetworkPortalServiceProfileWithRetry(
           token,
@@ -5090,12 +4846,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await updateWifiNetworkRadiusServerProfileSettingsWithRetry(
           token,
@@ -5147,12 +4898,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        const token = await getRuckusJwtToken(
-          process.env.RUCKUS_TENANT_ID!,
-          process.env.RUCKUS_CLIENT_ID!,
-          process.env.RUCKUS_CLIENT_SECRET!,
-          process.env.RUCKUS_REGION
-        );
+        const token = await tokenService.getValidToken();
         
         const result = await updateWifiNetworkWithRetry(
           token,

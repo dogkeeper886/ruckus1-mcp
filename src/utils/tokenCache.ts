@@ -17,17 +17,17 @@ export class TokenCache {
   getToken(tenantId: string, clientId: string): string | null {
     const key = this.getCacheKey(tenantId, clientId);
     const cached = this.cache.get(key);
-    
+
     if (!cached) {
       return null;
     }
-    
+
     // Check if token is expired (with buffer)
     if (Date.now() >= cached.expiresAt - this.EXPIRY_BUFFER_MS) {
       this.cache.delete(key);
       return null;
     }
-    
+
     return cached.token;
   }
 

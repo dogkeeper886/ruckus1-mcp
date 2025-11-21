@@ -1,21 +1,25 @@
-import { getRuckusJwtToken } from './ruckusApiService.js';
-import { tokenCache } from '../utils/tokenCache.js';
-import { validateEnvironment } from '../utils/config.js';
-import { handleApiError } from '../utils/errorHandler.js';
+import { getRuckusJwtToken } from './ruckusApiService';
+import { tokenCache } from '../utils/tokenCache';
+import { validateEnvironment } from '../utils/config';
+import { handleApiError } from '../utils/errorHandler';
 
 export class TokenService {
-  private config: ReturnType<typeof validateEnvironment>;
+  private config: ReturnType<typeof validateEnvironment> | null = null;
 
-  constructor() {
-    this.config = validateEnvironment();
+  private ensureInitialized(): void {
+    if (!this.config) {
+      this.config = validateEnvironment();
+    }
   }
 
   async getValidToken(): Promise<string> {
+    this.ensureInitialized();
+
     try {
       // Try to get cached token first
       const cachedToken = tokenCache.getToken(
-        this.config.tenantId,
-        this.config.clientId
+        this.config!.tenantId,
+        this.config!.clientId
       );
 
       if (cachedToken) {
@@ -23,48 +27,41 @@ export class TokenService {
       }
 
       // No cached token or expired, fetch new one
-      const accessToken = await getRuckusJwtToken(
-        this.config.tenantId,
-        this.config.clientId,
-        this.config.clientSecret,
-        this.config.region
+      const tokenResponse = await getRuckusJwtToken(
+        this.config!.tenantId,
+        this.config!.clientId,
+        this.config!.clientSecret,
+        this.config!.region
       );
 
-      // Create a token response object for caching
-      // Default RUCKUS tokens typically have 1 hour expiry
-      const tokenResponse = {
-        access_token: accessToken,
-        token_type: 'Bearer',
-        expires_in: 3600 // 1 hour default
-      };
-
-      // Cache the new token
+      // Cache the new token with actual expires_in from API
       tokenCache.setToken(
-        this.config.tenantId,
-        this.config.clientId,
+        this.config!.tenantId,
+        this.config!.clientId,
         tokenResponse
       );
 
-      return accessToken;
+      return tokenResponse.access_token;
     } catch (error) {
       // If token fetch fails, clear any cached token
-      tokenCache.invalidateToken(this.config.tenantId, this.config.clientId);
-      
+      tokenCache.invalidateToken(this.config!.tenantId, this.config!.clientId);
+
       throw handleApiError(
         error,
         'TokenService',
         'getValidToken',
         {
-          tenantId: this.config.tenantId,
-          clientId: this.config.clientId,
-          region: this.config.region
+          tenantId: this.config!.tenantId,
+          clientId: this.config!.clientId,
+          region: this.config!.region
         }
       );
     }
   }
 
   invalidateToken(): void {
-    tokenCache.invalidateToken(this.config.tenantId, this.config.clientId);
+    this.ensureInitialized();
+    tokenCache.invalidateToken(this.config!.tenantId, this.config!.clientId);
   }
 
   clearAllTokens(): void {
@@ -76,5 +73,5 @@ export class TokenService {
   }
 }
 
-// Global token service instance
+// Global token service instance (lazy initialization)
 export const tokenService = new TokenService();
