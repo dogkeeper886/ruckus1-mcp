@@ -4284,6 +4284,51 @@ export async function deleteWifiNetworkWithRetry(
 }
 
 /**
+ * Query guest passes from RUCKUS One with filtering and pagination support
+ */
+export async function queryGuestPasses(
+  token: string,
+  region: string = '',
+  filters: any = {},
+  fields: string[] = ['creationDate', 'name', 'passDurationHours', 'id', 'wifiNetworkId', 'maxNumberOfClients', 'notes', 'clients', 'guestStatus', 'emailAddress', 'mobilePhoneNumber', 'guestType', 'ssid', 'socialLogin', 'expiryDate', 'cog', 'hostApprovalEmail', 'devicesMac'],
+  searchString: string = '',
+  searchTargetFields: string[] = ['name', 'mobilePhoneNumber', 'emailAddress'],
+  page: number = 1,
+  pageSize: number = 10,
+  sortField: string = 'name',
+  sortOrder: string = 'ASC'
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/guestUsers/query`
+    : 'https://api.ruckus.cloud/guestUsers/query';
+
+  const payload = {
+    fields,
+    searchString,
+    filters,
+    page,
+    pageSize,
+    defaultPageSize: 10,
+    total: 0,
+    sortField,
+    sortOrder,
+    searchTargetFields
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Query guest passes');
+
+  return response.data;
+}
+
+/**
  * Create a guest pass credential for a WiFi network with automatic retry mechanism
  * This function handles the guest pass creation workflow with polling for completion status
  */

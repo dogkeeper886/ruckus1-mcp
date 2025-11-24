@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, createGuestPassWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, queryGuestPasses, createGuestPassWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
 import { tokenService } from './services/tokenService';
 
 dotenv.config();
@@ -1564,6 +1564,50 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['networkId'],
+        },
+      },
+      {
+        name: 'query_guest_passes',
+        description: 'Query guest passes from RUCKUS One with filtering and pagination support. Use filters like {"includeExpired": ["true"]} to include expired passes. Search by name, mobilePhoneNumber, or emailAddress.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            filters: {
+              type: 'object',
+              description: 'Optional filters to apply (e.g., {"includeExpired": ["true"]})',
+            },
+            fields: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Fields to return (default: ["creationDate", "name", "passDurationHours", "id", "wifiNetworkId", "maxNumberOfClients", "notes", "clients", "guestStatus", "emailAddress", "mobilePhoneNumber", "guestType", "ssid", "socialLogin", "expiryDate", "cog", "hostApprovalEmail", "devicesMac"])',
+            },
+            searchString: {
+              type: 'string',
+              description: 'Search string to filter guest passes',
+            },
+            searchTargetFields: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Fields to search in (default: ["name", "mobilePhoneNumber", "emailAddress"])',
+            },
+            page: {
+              type: 'number',
+              description: 'Page number (default: 1)',
+            },
+            pageSize: {
+              type: 'number',
+              description: 'Number of results per page (default: 10)',
+            },
+            sortField: {
+              type: 'string',
+              description: 'Field to sort by (default: "name")',
+            },
+            sortOrder: {
+              type: 'string',
+              description: 'Sort order - ASC or DESC (default: "ASC")',
+            },
+          },
+          required: [],
         },
       },
       {
@@ -4674,6 +4718,77 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error('[MCP] Error deleting WiFi network:', error);
 
         let errorMessage = `Error deleting WiFi network: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case 'query_guest_passes': {
+      try {
+        const {
+          filters = {},
+          fields = ['creationDate', 'name', 'passDurationHours', 'id', 'wifiNetworkId', 'maxNumberOfClients', 'notes', 'clients', 'guestStatus', 'emailAddress', 'mobilePhoneNumber', 'guestType', 'ssid', 'socialLogin', 'expiryDate', 'cog', 'hostApprovalEmail', 'devicesMac'],
+          searchString = '',
+          searchTargetFields = ['name', 'mobilePhoneNumber', 'emailAddress'],
+          page = 1,
+          pageSize = 10,
+          sortField = 'name',
+          sortOrder = 'ASC'
+        } = request.params.arguments as {
+          filters?: any;
+          fields?: string[];
+          searchString?: string;
+          searchTargetFields?: string[];
+          page?: number;
+          pageSize?: number;
+          sortField?: string;
+          sortOrder?: string;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await queryGuestPasses(
+          token,
+          process.env.RUCKUS_REGION,
+          filters,
+          fields,
+          searchString,
+          searchTargetFields,
+          page,
+          pageSize,
+          sortField,
+          sortOrder
+        );
+
+        console.log('[MCP] Query guest passes response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error querying guest passes:', error);
+
+        let errorMessage = `Error querying guest passes: ${error}`;
 
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
