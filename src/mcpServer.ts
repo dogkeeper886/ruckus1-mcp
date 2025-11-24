@@ -1683,7 +1683,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'delete_guest_pass',
-        description: 'Delete a guest pass from a WiFi network in RUCKUS One with automatic status checking for async operations. This permanently removes the guest pass credential. REQUIRED: networkId (use query_wifi_networks to get network ID) + guestPassId (use query_guest_passes to get guest pass ID).',
+        description: 'Delete a guest pass from a WiFi network in RUCKUS One with automatic status checking for async operations. This permanently removes the guest pass credential and cannot be undone. REQUIRED: networkId (use query_wifi_networks to get network ID) + guestPassId (use query_guest_passes to get guest pass ID).',
         inputSchema: {
           type: 'object',
           properties: {
