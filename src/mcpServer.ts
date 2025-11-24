@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, queryGuestPasses, createGuestPassWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, queryGuestPasses, createGuestPassWithRetry, deleteGuestPassWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
 import { tokenService } from './services/tokenService';
 
 dotenv.config();
@@ -1679,6 +1679,32 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['networkId', 'name', 'expiration', 'maxDevices', 'deliveryMethods'],
+        },
+      },
+      {
+        name: 'delete_guest_pass',
+        description: 'Delete a guest pass from a WiFi network in RUCKUS One with automatic status checking for async operations. This permanently removes the guest pass credential. REQUIRED: networkId (use query_wifi_networks to get network ID) + guestPassId (use query_guest_passes to get guest pass ID).',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            networkId: {
+              type: 'string',
+              description: 'ID of the WiFi network containing the guest pass (use query_wifi_networks to find network ID)',
+            },
+            guestPassId: {
+              type: 'string',
+              description: 'ID of the guest pass to delete (use query_guest_passes to find guest pass ID)',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['networkId', 'guestPassId'],
         },
       },
     ],
@@ -4873,6 +4899,66 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error('[MCP] Error creating guest pass:', error);
 
         let errorMessage = `Error creating guest pass: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case 'delete_guest_pass': {
+      try {
+        const {
+          networkId,
+          guestPassId,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          networkId: string;
+          guestPassId: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await deleteGuestPassWithRetry(
+          token,
+          networkId,
+          guestPassId,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+
+        console.log('[MCP] Delete guest pass response:', result);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error deleting guest pass:', error);
+
+        let errorMessage = `Error deleting guest pass: ${error}`;
 
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;

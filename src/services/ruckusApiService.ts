@@ -4468,3 +4468,125 @@ export async function createGuestPassWithRetry(
   };
 }
 
+/**
+ * Delete a guest pass from a WiFi network with automatic retry mechanism
+ * This function handles the guest pass deletion workflow with polling for completion status
+ */
+export async function deleteGuestPassWithRetry(
+  token: string,
+  networkId: string,
+  guestPassId: string,
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}/guestUsers/${guestPassId}`
+    : `https://api.ruckus.cloud/wifiNetworks/${networkId}/guestUsers/${guestPassId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'delete',
+    url: apiUrl,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Delete guest pass');
+
+  const deleteResponse = response.data;
+
+  // Check if this is an async operation (has requestId)
+  const activityId = deleteResponse.requestId;
+
+  if (!activityId) {
+    // If no requestId, it's a synchronous operation, return immediately
+    return {
+      ...deleteResponse,
+      status: 'completed',
+      message: 'Guest pass deleted successfully (synchronous operation)'
+    };
+  }
+
+  // Poll for completion status (async operation)
+  let retryCount = 0;
+  while (retryCount < maxRetries) {
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+
+      // Check if operation is completed (has endDatetime populated)
+      const isCompleted = activityDetails.endDatetime !== undefined;
+
+      // Check if operation failed (status is not SUCCESS or INPROGRESS)
+      const isFailed =
+        activityDetails.status !== 'SUCCESS' &&
+        activityDetails.status !== 'INPROGRESS';
+
+      if (isCompleted) {
+        // Check if it completed successfully
+        if (activityDetails.status === 'SUCCESS') {
+          return {
+            ...deleteResponse,
+            activityDetails,
+            status: 'completed',
+            message: 'Guest pass deleted successfully'
+          };
+        } else {
+          return {
+            ...deleteResponse,
+            activityDetails,
+            status: 'failed',
+            message: 'Guest pass deletion failed',
+            error: activityDetails.error || activityDetails.message || 'Operation completed with non-SUCCESS status'
+          };
+        }
+      }
+
+      if (isFailed) {
+        return {
+          ...deleteResponse,
+          activityDetails,
+          status: 'failed',
+          message: 'Guest pass deletion failed',
+          error: activityDetails.error || activityDetails.message || 'Unknown error'
+        };
+      }
+
+      // If still in progress, increment retry count and continue
+      retryCount++;
+      console.log(`[RUCKUS] Guest pass deletion in progress, attempt ${retryCount}/${maxRetries}`);
+
+      // If we've reached max retries, exit loop
+      if (retryCount >= maxRetries) {
+        break;
+      }
+
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+
+    } catch (error) {
+      retryCount++;
+      console.error(`[RUCKUS] Error polling activity details (attempt ${retryCount}/${maxRetries}):`, error);
+
+      // If we've reached max retries, return error
+      if (retryCount >= maxRetries) {
+        return {
+          ...deleteResponse,
+          status: 'timeout',
+          message: 'Guest pass deletion status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+
+      // Wait before next retry
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...deleteResponse,
+    status: 'timeout',
+    message: 'Guest pass deletion status unknown - polling timeout',
+    activityId
+  };
+}
+
