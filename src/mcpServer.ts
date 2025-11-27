@@ -1835,7 +1835,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name } = request.params;
-  console.log(`[MCP] Tool called: ${name}`);
 
   switch (name) {
     case 'get_ruckus_auth_token': {
@@ -1902,7 +1901,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'Content-Type': 'application/json'
           }
         });
-        console.log('[MCP] Venues response:', response.data);
         return {
           content: [
             {
@@ -1949,7 +1947,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] Activity details response:', activityDetails);
         return {
           content: [
             {
@@ -2026,7 +2023,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs
         );
         
-        console.log('[MCP] Create venue response:', result);
         return {
           content: [
             {
@@ -2116,7 +2112,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs
         );
         
-        console.log('[MCP] Delete venue response:', result);
         return {
           content: [
             {
@@ -2293,7 +2288,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs
         );
         
-        console.log('[MCP] Create AP group response:', result);
         return {
           content: [
             {
@@ -2399,7 +2393,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs
         );
         
-        console.log('[MCP] Add AP to group response:', result);
         return {
           content: [
             {
@@ -2479,7 +2472,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs
         );
 
-        console.log('[MCP] Remove AP response:', result);
         return {
           content: [
             {
@@ -2559,7 +2551,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pageSize
         );
         
-        console.log('[MCP] Query AP groups response:', result);
         return {
           content: [
             {
@@ -2617,7 +2608,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs
         );
         
-        console.log('[MCP] Delete AP group response:', result);
         return {
           content: [
             {
@@ -2760,7 +2750,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] Venue external antenna settings response:', antennaSettings);
         return {
           content: [
             {
@@ -2804,7 +2793,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] Venue antenna type settings response:', antennaTypeSettings);
         return {
           content: [
             {
@@ -2853,7 +2841,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] AP group external antenna settings response:', apGroupAntennaSettings);
         return {
           content: [
             {
@@ -2899,7 +2886,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] AP group antenna type settings response:', apGroupAntennaTypeSettings);
         return {
           content: [
             {
@@ -2943,7 +2929,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] Venue AP model band mode settings response:', venueApModelBandModeSettings);
         return {
           content: [
             {
@@ -2986,7 +2971,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] Venue radio settings response:', venueRadioSettings);
         return {
           content: [
             {
@@ -3031,7 +3015,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] AP group AP model band mode settings response:', apGroupApModelBandModeSettings);
         return {
           content: [
             {
@@ -3076,7 +3059,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] AP group radio settings response:', apGroupRadioSettings);
         return {
           content: [
             {
@@ -3121,7 +3103,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] AP radio settings response:', apRadioSettings);
         return {
           content: [
             {
@@ -3166,7 +3147,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] AP client admission control settings response:', apClientAdmissionControlSettings);
         return {
           content: [
             {
@@ -3211,7 +3191,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] AP group client admission control settings response:', apGroupClientAdmissionControlSettings);
         return {
           content: [
             {
@@ -3280,7 +3259,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           mesh
         );
         
-        console.log('[MCP] Query APs response:', apsData);
         return {
           content: [
             {
@@ -3367,13 +3345,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs?: number;
         };
         
-        console.log('[MCP] Updating AP:', {
-          apSerialNumber,
-          apName,
-          venueId,
-          apGroupId
-        });
-        
         const token = await tokenService.getValidToken();
         
         // Build changes object with only provided values
@@ -3392,7 +3363,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs
         );
         
-        console.log('[MCP] Update AP response:', result);
         return {
           content: [
             {
@@ -3488,7 +3458,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortOrder
         );
         
-        console.log('[MCP] Query directory server profiles response:', result);
         return {
           content: [
             {
@@ -3535,7 +3504,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] Get directory server profile response:', result);
         return {
           content: [
             {
@@ -3819,7 +3787,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pageSize
         );
         
-        console.log('[MCP] Query RADIUS server profiles response:', result);
         return {
           content: [
             {
@@ -3866,7 +3833,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] Get RADIUS server profile response:', result);
         return {
           content: [
             {
@@ -4049,7 +4015,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortOrder
         );
         
-        console.log('[MCP] Query portal service profiles response:', result);
         return {
           content: [
             {
@@ -4096,7 +4061,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] Get portal service profile response:', result);
         return {
           content: [
             {
@@ -4292,7 +4256,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] Get user groups response:', result);
         return {
           content: [
             {
@@ -4334,7 +4297,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
         
-        console.log('[MCP] Get roles response:', result);
         return {
           content: [
             {
@@ -4528,7 +4490,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pageSize
         );
         
-        console.log('[MCP] Query role features response:', result);
         return {
           content: [
             {
@@ -4583,7 +4544,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           preDefinedRole
         );
         
-        console.log('[MCP] Create custom role response:', result);
         
         // Build user-friendly response with auto-added permissions info
         let responseText: string;
@@ -4667,7 +4627,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs
         );
         
-        console.log('[MCP] Delete custom role response:', result);
         
         return {
           content: [
@@ -4739,7 +4698,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortOrder
         );
 
-        console.log('[MCP] Query WiFi networks response:', result);
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
         };
@@ -4777,7 +4735,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION
         );
 
-        console.log('[MCP] Get WiFi network response:', result);
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
         };
@@ -4877,7 +4834,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs
         );
 
-        console.log('[MCP] Create WiFi network response:', result);
 
         return {
           content: [
@@ -4950,7 +4906,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           portalServiceProfileId
         );
 
-        console.log('[MCP] Activate WiFi network at venues response:', result);
 
         return {
           content: [
@@ -5010,7 +4965,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs
         );
 
-        console.log('[MCP] Deactivate WiFi network at venues response:', result);
 
         return {
           content: [
@@ -5067,7 +5021,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs
         );
 
-        console.log('[MCP] Delete WiFi network response:', result);
 
         return {
           content: [
@@ -5139,7 +5092,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortOrder
         );
 
-        console.log('[MCP] Query guest passes response:', result);
         return {
           content: [
             {
@@ -5222,7 +5174,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs
         );
 
-        console.log('[MCP] Create guest pass response:', result);
 
         return {
           content: [
@@ -5282,7 +5233,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs
         );
 
-        console.log('[MCP] Delete guest pass response:', result);
 
         return {
           content: [
