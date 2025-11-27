@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, queryGuestPasses, createGuestPassWithRetry, deleteGuestPassWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryRadiusServerProfiles, getRadiusServerProfile, createRadiusServerProfileWithRetry, deleteRadiusServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, queryGuestPasses, createGuestPassWithRetry, deleteGuestPassWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
 import { tokenService } from './services/tokenService';
 
 dotenv.config();
@@ -897,6 +897,128 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             profileId: {
               type: 'string',
               description: 'ID of the directory server profile to delete',
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['profileId'],
+        },
+      },
+      {
+        name: 'query_radius_server_profiles',
+        description: 'Query RADIUS server profiles from RUCKUS One with pagination support',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            page: {
+              type: 'number',
+              description: 'Page number (default: 1)',
+            },
+            pageSize: {
+              type: 'number',
+              description: 'Number of results per page (default: 10)',
+            },
+          },
+          required: [],
+        },
+      },
+      {
+        name: 'get_radius_server_profile',
+        description: 'Get detailed information for a specific RADIUS server profile',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            profileId: {
+              type: 'string',
+              description: 'ID of the RADIUS server profile to get (use query_radius_server_profiles to get profile ID)',
+            },
+          },
+          required: ['profileId'],
+        },
+      },
+      {
+        name: 'create_radius_server_profile',
+        description: 'Create a new RADIUS server profile in RUCKUS One with automatic status checking for async operations. REQUIRED: name (string) + type ("AUTHENTICATION" or "ACCOUNTING") + enableSecondaryServer (boolean) + primary (object with port, sharedSecret, hostname). Optional: secondary (object with port, sharedSecret, hostname). Use query_radius_server_profiles to verify the profile was created.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            name: {
+              type: 'string',
+              description: 'Name of the RADIUS server profile',
+            },
+            type: {
+              type: 'string',
+              description: 'Type of RADIUS server profile: "AUTHENTICATION" or "ACCOUNTING"',
+            },
+            enableSecondaryServer: {
+              type: 'boolean',
+              description: 'Whether to enable secondary server',
+            },
+            primary: {
+              type: 'object',
+              description: 'Primary RADIUS server configuration',
+              properties: {
+                port: {
+                  type: 'number',
+                  description: 'Port number for the primary server',
+                },
+                sharedSecret: {
+                  type: 'string',
+                  description: 'Shared secret for the primary server',
+                },
+                hostname: {
+                  type: 'string',
+                  description: 'Hostname for the primary server',
+                },
+              },
+              required: ['port', 'sharedSecret', 'hostname'],
+            },
+            secondary: {
+              type: 'object',
+              description: 'Secondary RADIUS server configuration (optional)',
+              properties: {
+                port: {
+                  type: 'number',
+                  description: 'Port number for the secondary server',
+                },
+                sharedSecret: {
+                  type: 'string',
+                  description: 'Shared secret for the secondary server',
+                },
+                hostname: {
+                  type: 'string',
+                  description: 'Hostname for the secondary server',
+                },
+              },
+              required: ['port', 'sharedSecret', 'hostname'],
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['name', 'type', 'enableSecondaryServer', 'primary'],
+        },
+      },
+      {
+        name: 'delete_radius_server_profile',
+        description: 'Delete a RADIUS server profile from RUCKUS One with automatic status checking for async operations. Permanently removes the profile and cannot be undone. REQUIRED: profileId (use query_radius_server_profiles to get profile ID).',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            profileId: {
+              type: 'string',
+              description: 'ID of the RADIUS server profile to delete (use query_radius_server_profiles to get profile ID)',
             },
             maxRetries: {
               type: 'number',
@@ -3663,6 +3785,221 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error('[MCP] Error deleting directory server profile:', error);
         
         let errorMessage = `Error deleting directory server profile: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [{ type: 'text', text: errorMessage }],
+          isError: true
+        };
+      }
+    }
+    case 'query_radius_server_profiles': {
+      try {
+        const { 
+          page = 1,
+          pageSize = 10
+        } = request.params.arguments as {
+          page?: number;
+          pageSize?: number;
+        };
+        
+        const token = await tokenService.getValidToken();
+        
+        const result = await queryRadiusServerProfiles(
+          token,
+          process.env.RUCKUS_REGION,
+          page,
+          pageSize
+        );
+        
+        console.log('[MCP] Query RADIUS server profiles response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error querying RADIUS server profiles:', error);
+        
+        let errorMessage = `Error querying RADIUS server profiles: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'get_radius_server_profile': {
+      try {
+        const { profileId } = request.params.arguments as {
+          profileId: string;
+        };
+        
+        const token = await tokenService.getValidToken();
+        
+        const result = await getRadiusServerProfile(
+          token,
+          profileId,
+          process.env.RUCKUS_REGION
+        );
+        
+        console.log('[MCP] Get RADIUS server profile response:', result);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error getting RADIUS server profile:', error);
+        
+        let errorMessage = `Error getting RADIUS server profile: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case 'create_radius_server_profile': {
+      try {
+        const { 
+          name,
+          type,
+          enableSecondaryServer,
+          primary,
+          secondary,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          name: string;
+          type: string;
+          enableSecondaryServer: boolean;
+          primary: {
+            port: number;
+            sharedSecret: string;
+            hostname: string;
+          };
+          secondary?: {
+            port: number;
+            sharedSecret: string;
+            hostname: string;
+          };
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await tokenService.getValidToken();
+        
+        const result = await createRadiusServerProfileWithRetry(
+          token,
+          {
+            name,
+            type: type as 'AUTHENTICATION' | 'ACCOUNTING',
+            enableSecondaryServer,
+            primary,
+            ...(secondary !== undefined && { secondary })
+          },
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error creating RADIUS server profile:', error);
+        
+        let errorMessage = `Error creating RADIUS server profile: ${error}`;
+        
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        
+        return {
+          content: [{ type: 'text', text: errorMessage }],
+          isError: true
+        };
+      }
+    }
+    case 'delete_radius_server_profile': {
+      try {
+        const { 
+          profileId,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          profileId: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        
+        const token = await tokenService.getValidToken();
+        
+        const result = await deleteRadiusServerProfileWithRetry(
+          token,
+          profileId,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error deleting RADIUS server profile:', error);
+        
+        let errorMessage = `Error deleting RADIUS server profile: ${error}`;
         
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;

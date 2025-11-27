@@ -1645,6 +1645,55 @@ export async function getDirectoryServerProfile(
   return response.data;
 }
 
+export async function queryRadiusServerProfiles(
+  token: string,
+  region: string = '',
+  page: number = 1,
+  pageSize: number = 10
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/radiusServerProfiles/query`
+    : 'https://api.ruckus.cloud/radiusServerProfiles/query';
+
+  const payload = {
+    page,
+    pageSize
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Query RADIUS server profiles');
+
+  return response.data;
+}
+
+export async function getRadiusServerProfile(
+  token: string,
+  profileId: string,
+  region: string = ''
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/radiusServerProfiles/${profileId}`
+    : `https://api.ruckus.cloud/radiusServerProfiles/${profileId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'get',
+    url: apiUrl,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Get RADIUS server profile');
+
+  return response.data;
+}
+
 export async function createDirectoryServerProfileWithRetry(
   token: string,
   profileData: {
@@ -1769,6 +1818,132 @@ export async function createDirectoryServerProfileWithRetry(
     ...createResponse,
     status: 'timeout',
     message: 'Directory server profile creation status unknown - polling timeout',
+    activityId
+  };
+}
+
+export async function createRadiusServerProfileWithRetry(
+  token: string,
+  profileData: {
+    name: string;
+    type: 'AUTHENTICATION' | 'ACCOUNTING';
+    enableSecondaryServer: boolean;
+    primary: {
+      port: number;
+      sharedSecret: string;
+      hostname: string;
+    };
+    secondary?: {
+      port: number;
+      sharedSecret: string;
+      hostname: string;
+    };
+  },
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/radiusServerProfiles`
+    : 'https://api.ruckus.cloud/radiusServerProfiles';
+
+  const payload: any = {
+    name: profileData.name,
+    type: profileData.type,
+    enableSecondaryServer: profileData.enableSecondaryServer,
+    primary: {
+      port: profileData.primary.port,
+      sharedSecret: profileData.primary.sharedSecret,
+      hostname: profileData.primary.hostname
+    }
+  };
+
+  if (profileData.secondary) {
+    payload.secondary = {
+      port: profileData.secondary.port,
+      sharedSecret: profileData.secondary.sharedSecret,
+      hostname: profileData.secondary.hostname
+    };
+  }
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Create RADIUS server profile');
+
+  const createResponse = response.data;
+  
+  const activityId = createResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...createResponse,
+      status: 'completed',
+      message: 'RADIUS server profile created successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting RADIUS server profile creation status polling for activity ${activityId}`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxRetries} for RADIUS server profile creation activity ${activityId}`);
+    
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...createResponse,
+          status: 'completed',
+          message: 'RADIUS server profile created successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAILED') {
+        return {
+          ...createResponse,
+          status: 'failed',
+          message: 'RADIUS server profile creation failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+      
+      if (attempt === maxRetries) {
+        return {
+          ...createResponse,
+          status: 'timeout',
+          message: 'RADIUS server profile creation status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    } catch (error: any) {
+      console.error(`Error polling RADIUS server profile creation activity (attempt ${attempt}):`, error.message);
+      
+      if (attempt === maxRetries) {
+        return {
+          ...createResponse,
+          status: 'timeout',
+          message: 'RADIUS server profile creation status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...createResponse,
+    status: 'timeout',
+    message: 'RADIUS server profile creation status unknown - polling timeout',
     activityId
   };
 }
@@ -1991,6 +2166,98 @@ export async function deleteDirectoryServerProfileWithRetry(
     ...deleteResponse,
     status: 'timeout',
     message: 'Directory server profile deletion status unknown - polling timeout',
+    activityId
+  };
+}
+
+export async function deleteRadiusServerProfileWithRetry(
+  token: string,
+  profileId: string,
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/radiusServerProfiles/${profileId}`
+    : `https://api.ruckus.cloud/radiusServerProfiles/${profileId}`;
+
+  const response = await makeRuckusApiCall({
+    method: 'delete',
+    url: apiUrl,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Delete RADIUS server profile');
+
+  const deleteResponse = response.data;
+  
+  const activityId = deleteResponse.requestId;
+  
+  if (!activityId) {
+    return {
+      ...deleteResponse,
+      status: 'completed',
+      message: 'RADIUS server profile deleted successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting RADIUS server profile deletion status polling for activity ${activityId}`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxRetries} for RADIUS server profile deletion activity ${activityId}`);
+    
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+      
+      if (activityDetails.status === 'COMPLETED') {
+        return {
+          ...deleteResponse,
+          status: 'completed',
+          message: 'RADIUS server profile deleted successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAILED') {
+        return {
+          ...deleteResponse,
+          status: 'failed',
+          message: 'RADIUS server profile deletion failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+      
+      if (attempt === maxRetries) {
+        return {
+          ...deleteResponse,
+          status: 'timeout',
+          message: 'RADIUS server profile deletion status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    } catch (error: any) {
+      console.error(`Error polling RADIUS server profile deletion activity (attempt ${attempt}):`, error.message);
+      
+      if (attempt === maxRetries) {
+        return {
+          ...deleteResponse,
+          status: 'timeout',
+          message: 'RADIUS server profile deletion status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...deleteResponse,
+    status: 'timeout',
+    message: 'RADIUS server profile deletion status unknown - polling timeout',
     activityId
   };
 }
