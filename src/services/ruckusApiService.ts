@@ -1887,8 +1887,6 @@ export async function createRadiusServerProfileWithRetry(
     payload.secondary = secondaryConfig;
   }
 
-  console.log('[RUCKUS] Creating RADIUS profile with payload:', JSON.stringify(payload, null, 2));
-
   const response = await makeRuckusApiCall({
     method: 'post',
     url: apiUrl,
