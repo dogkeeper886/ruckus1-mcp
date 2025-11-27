@@ -1847,24 +1847,47 @@ export async function createRadiusServerProfileWithRetry(
     ? `https://api.${region}.ruckus.cloud/radiusServerProfiles`
     : 'https://api.ruckus.cloud/radiusServerProfiles';
 
+  // Helper to detect if value is an IP address (IPv4 or IPv6) vs hostname/FQDN
+  const isIpAddress = (value: string): boolean => {
+    // IPv4 pattern
+    const ipv4Pattern = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    // IPv6 pattern (simplified)
+    const ipv6Pattern = /^[0-9a-fA-F:]+$/;
+    return ipv4Pattern.test(value) || (value.includes(':') && ipv6Pattern.test(value));
+  };
+
+  // Build primary server config with correct field (ip vs hostname)
+  const primaryConfig: any = {
+    port: profileData.primary.port,
+    sharedSecret: profileData.primary.sharedSecret
+  };
+  if (isIpAddress(profileData.primary.hostname)) {
+    primaryConfig.ip = profileData.primary.hostname;
+  } else {
+    primaryConfig.hostname = profileData.primary.hostname;
+  }
+
   const payload: any = {
     name: profileData.name,
     type: profileData.type,
     enableSecondaryServer: profileData.enableSecondaryServer,
-    primary: {
-      port: profileData.primary.port,
-      sharedSecret: profileData.primary.sharedSecret,
-      hostname: profileData.primary.hostname
-    }
+    primary: primaryConfig
   };
 
   if (profileData.secondary) {
-    payload.secondary = {
+    const secondaryConfig: any = {
       port: profileData.secondary.port,
-      sharedSecret: profileData.secondary.sharedSecret,
-      hostname: profileData.secondary.hostname
+      sharedSecret: profileData.secondary.sharedSecret
     };
+    if (isIpAddress(profileData.secondary.hostname)) {
+      secondaryConfig.ip = profileData.secondary.hostname;
+    } else {
+      secondaryConfig.hostname = profileData.secondary.hostname;
+    }
+    payload.secondary = secondaryConfig;
   }
+
+  console.log('[RUCKUS] Creating RADIUS profile with payload:', JSON.stringify(payload, null, 2));
 
   const response = await makeRuckusApiCall({
     method: 'post',
@@ -1872,7 +1895,8 @@ export async function createRadiusServerProfileWithRetry(
     data: payload,
     headers: {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/vnd.ruckus.v1.1+json',
+      'Accept': 'application/vnd.ruckus.v1.1+json'
     }
   }, 'Create RADIUS server profile');
 
