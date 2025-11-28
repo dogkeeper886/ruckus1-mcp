@@ -622,7 +622,7 @@ export async function updateVenueWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...updateResponse,
           status: 'completed',
@@ -987,7 +987,7 @@ export async function updateApGroupWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`[RUCKUS] AP group update activity ${activityId} status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         console.log(`[RUCKUS] AP group updated successfully after ${retryCount + 1} attempts`);
         return {
           ...updateResponse,
@@ -1771,7 +1771,7 @@ export async function createDirectoryServerProfileWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...createResponse,
           status: 'completed',
@@ -1919,7 +1919,7 @@ export async function createRadiusServerProfileWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...createResponse,
           status: 'completed',
@@ -2049,7 +2049,7 @@ export async function updateDirectoryServerProfileWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...updateResponse,
           status: 'completed',
@@ -2141,7 +2141,7 @@ export async function deleteDirectoryServerProfileWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...deleteResponse,
           status: 'completed',
@@ -2233,7 +2233,7 @@ export async function deleteRadiusServerProfileWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...deleteResponse,
           status: 'completed',
@@ -2280,6 +2280,155 @@ export async function deleteRadiusServerProfileWithRetry(
     ...deleteResponse,
     status: 'timeout',
     message: 'RADIUS server profile deletion status unknown - polling timeout',
+    activityId
+  };
+}
+
+export async function updateRadiusServerProfileWithRetry(
+  token: string,
+  profileId: string,
+  profileData: {
+    name: string;
+    type: 'AUTHENTICATION' | 'ACCOUNTING';
+    enableSecondaryServer: boolean;
+    primary: {
+      port: number;
+      sharedSecret: string;
+      hostname: string;
+    };
+    secondary?: {
+      port: number;
+      sharedSecret: string;
+      hostname: string;
+    };
+  },
+  region: string = '',
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/radiusServerProfiles/${profileId}`
+    : `https://api.ruckus.cloud/radiusServerProfiles/${profileId}`;
+
+  // Helper to detect if value is an IP address (IPv4 or IPv6) vs hostname/FQDN
+  const isIpAddress = (value: string): boolean => {
+    // IPv4 pattern
+    const ipv4Pattern = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    // IPv6 pattern (simplified)
+    const ipv6Pattern = /^[0-9a-fA-F:]+$/;
+    return ipv4Pattern.test(value) || (value.includes(':') && ipv6Pattern.test(value));
+  };
+
+  // Build primary server config with correct field (ip vs hostname)
+  const primaryConfig: any = {
+    port: profileData.primary.port,
+    sharedSecret: profileData.primary.sharedSecret
+  };
+  if (isIpAddress(profileData.primary.hostname)) {
+    primaryConfig.ip = profileData.primary.hostname;
+  } else {
+    primaryConfig.hostname = profileData.primary.hostname;
+  }
+
+  const payload: any = {
+    name: profileData.name,
+    type: profileData.type,
+    enableSecondaryServer: profileData.enableSecondaryServer,
+    primary: primaryConfig
+  };
+
+  if (profileData.secondary) {
+    const secondaryConfig: any = {
+      port: profileData.secondary.port,
+      sharedSecret: profileData.secondary.sharedSecret
+    };
+    if (isIpAddress(profileData.secondary.hostname)) {
+      secondaryConfig.ip = profileData.secondary.hostname;
+    } else {
+      secondaryConfig.hostname = profileData.secondary.hostname;
+    }
+    payload.secondary = secondaryConfig;
+  }
+
+  const response = await makeRuckusApiCall({
+    method: 'put',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/vnd.ruckus.v1.1+json',
+      'Accept': 'application/vnd.ruckus.v1.1+json'
+    }
+  }, 'Update RADIUS server profile');
+
+  const updateResponse = response.data;
+
+  const activityId = updateResponse.requestId;
+
+  if (!activityId) {
+    return {
+      ...updateResponse,
+      status: 'completed',
+      message: 'RADIUS server profile updated successfully (synchronous operation)'
+    };
+  }
+
+  console.log(`Starting RADIUS server profile update status polling for activity ${activityId}`);
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxRetries} for RADIUS server profile update activity ${activityId}`);
+
+    try {
+      const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+      console.log(`Activity status: ${activityDetails.status}`);
+
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
+        return {
+          ...updateResponse,
+          status: 'completed',
+          message: 'RADIUS server profile updated successfully',
+          activityDetails
+        };
+      } else if (activityDetails.status === 'FAIL') {
+        return {
+          ...updateResponse,
+          status: 'failed',
+          message: 'RADIUS server profile update failed',
+          error: activityDetails.error || 'Unknown error occurred',
+          activityDetails
+        };
+      }
+
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'RADIUS server profile update status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    } catch (error: any) {
+      console.error(`Error polling RADIUS server profile update activity (attempt ${attempt}):`, error.message);
+
+      if (attempt === maxRetries) {
+        return {
+          ...updateResponse,
+          status: 'timeout',
+          message: 'RADIUS server profile update status unknown - polling timeout',
+          error: 'Failed to get activity status after maximum retries'
+        };
+      }
+
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  return {
+    ...updateResponse,
+    status: 'timeout',
+    message: 'RADIUS server profile update status unknown - polling timeout',
     activityId
   };
 }
@@ -2393,7 +2542,7 @@ export async function createPortalServiceProfileWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...createResponse,
           status: 'completed',
@@ -2495,7 +2644,7 @@ export async function updatePortalServiceProfileWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...updateResponse,
           status: 'completed',
@@ -2587,7 +2736,7 @@ export async function deletePortalServiceProfileWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...deleteResponse,
           status: 'completed',
@@ -2777,7 +2926,7 @@ export async function updatePrivilegeGroupWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...operationResponse,
           ...activityDetails,
@@ -2916,7 +3065,7 @@ export async function updateCustomRoleWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...operationResponse,
           ...activityDetails,
@@ -3998,7 +4147,7 @@ export async function updateWifiNetworkPortalServiceProfileWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...updateResponse,
           status: 'completed',
@@ -4101,7 +4250,7 @@ export async function updateWifiNetworkRadiusServerProfileSettingsWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...updateResponse,
           status: 'completed',
@@ -4195,7 +4344,7 @@ export async function updateWifiNetworkWithRetry(
       const activityDetails = await getRuckusActivityDetails(token, activityId, region);
       console.log(`Activity status: ${activityDetails.status}`);
       
-      if (activityDetails.status === 'COMPLETED') {
+      if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
         return {
           ...updateResponse,
           status: 'completed',
@@ -4371,7 +4520,7 @@ export async function deactivateWifiNetworkAtVenuesWithRetry(
         const activityDetails = await getRuckusActivityDetails(token, request.id, region);
         console.log(`[RUCKUS] Activity ${request.name} (${request.id}) status:`, activityDetails.status);
 
-        if (activityDetails.status === 'COMPLETED') {
+        if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
           completedActivities.push({
             activityId: request.id,
             name: request.name,

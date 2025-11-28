@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryRadiusServerProfiles, getRadiusServerProfile, createRadiusServerProfileWithRetry, deleteRadiusServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, queryGuestPasses, createGuestPassWithRetry, deleteGuestPassWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryRadiusServerProfiles, getRadiusServerProfile, createRadiusServerProfileWithRetry, deleteRadiusServerProfileWithRetry, updateRadiusServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, queryGuestPasses, createGuestPassWithRetry, deleteGuestPassWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
 import { tokenService } from './services/tokenService';
 
 dotenv.config();
@@ -1030,6 +1030,78 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['profileId'],
+        },
+      },
+      {
+        name: 'update_radius_server_profile',
+        description: 'Update a RADIUS server profile in RUCKUS One with automatic status checking for async operations. Updates profile name, type, and server configurations. REQUIRED: profileId (use query_radius_server_profiles to get profile ID) + name + type + enableSecondaryServer + primary server config.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            profileId: {
+              type: 'string',
+              description: 'ID of the RADIUS server profile to update (use query_radius_server_profiles to get profile ID)',
+            },
+            name: {
+              type: 'string',
+              description: 'Name of the RADIUS server profile',
+            },
+            type: {
+              type: 'string',
+              description: 'Type of RADIUS server profile: "AUTHENTICATION" or "ACCOUNTING"',
+            },
+            enableSecondaryServer: {
+              type: 'boolean',
+              description: 'Whether to enable secondary server',
+            },
+            primary: {
+              type: 'object',
+              description: 'Primary RADIUS server configuration',
+              properties: {
+                port: {
+                  type: 'number',
+                  description: 'Port number for the primary server',
+                },
+                sharedSecret: {
+                  type: 'string',
+                  description: 'Shared secret for the primary server',
+                },
+                hostname: {
+                  type: 'string',
+                  description: 'Hostname or IP address for the primary server',
+                },
+              },
+              required: ['port', 'sharedSecret', 'hostname'],
+            },
+            secondary: {
+              type: 'object',
+              description: 'Secondary RADIUS server configuration (optional)',
+              properties: {
+                port: {
+                  type: 'number',
+                  description: 'Port number for the secondary server',
+                },
+                sharedSecret: {
+                  type: 'string',
+                  description: 'Shared secret for the secondary server',
+                },
+                hostname: {
+                  type: 'string',
+                  description: 'Hostname or IP address for the secondary server',
+                },
+              },
+              required: ['port', 'sharedSecret', 'hostname'],
+            },
+            maxRetries: {
+              type: 'number',
+              description: 'Maximum number of retry attempts (default: 5)',
+            },
+            pollIntervalMs: {
+              type: 'number',
+              description: 'Polling interval in milliseconds (default: 2000)',
+            },
+          },
+          required: ['profileId', 'name', 'type', 'enableSecondaryServer', 'primary'],
         },
       },
       {
@@ -3975,6 +4047,89 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           errorMessage += `\nNo response received: ${error.request}`;
         }
         
+        return {
+          content: [{ type: 'text', text: errorMessage }],
+          isError: true
+        };
+      }
+    }
+    case 'update_radius_server_profile': {
+      try {
+        const {
+          profileId,
+          name,
+          type,
+          enableSecondaryServer,
+          primary,
+          secondary,
+          maxRetries = 5,
+          pollIntervalMs = 2000
+        } = request.params.arguments as {
+          profileId: string;
+          name: string;
+          type: 'AUTHENTICATION' | 'ACCOUNTING';
+          enableSecondaryServer: boolean;
+          primary: {
+            port: number;
+            sharedSecret: string;
+            hostname: string;
+          };
+          secondary?: {
+            port: number;
+            sharedSecret: string;
+            hostname: string;
+          };
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const profileData: {
+          name: string;
+          type: 'AUTHENTICATION' | 'ACCOUNTING';
+          enableSecondaryServer: boolean;
+          primary: { port: number; sharedSecret: string; hostname: string; };
+          secondary?: { port: number; sharedSecret: string; hostname: string; };
+        } = {
+          name,
+          type,
+          enableSecondaryServer,
+          primary
+        };
+
+        if (secondary) {
+          profileData.secondary = secondary;
+        }
+
+        const result = await updateRadiusServerProfileWithRetry(
+          token,
+          profileId,
+          profileData,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs
+        );
+
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error updating RADIUS server profile:', error);
+
+        let errorMessage = `Error updating RADIUS server profile: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
         return {
           content: [{ type: 'text', text: errorMessage }],
           isError: true
