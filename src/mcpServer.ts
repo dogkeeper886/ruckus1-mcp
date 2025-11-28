@@ -974,10 +974,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 },
                 hostname: {
                   type: 'string',
-                  description: 'Hostname for the primary server',
+                  description: 'Hostname for the primary server (provide either hostname or ip, not both unless testing API validation)',
+                },
+                ip: {
+                  type: 'string',
+                  description: 'IP address for the primary server (provide either hostname or ip, not both unless testing API validation)',
                 },
               },
-              required: ['port', 'sharedSecret', 'hostname'],
+              required: ['port', 'sharedSecret'],
             },
             secondary: {
               type: 'object',
@@ -993,10 +997,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 },
                 hostname: {
                   type: 'string',
-                  description: 'Hostname for the secondary server',
+                  description: 'Hostname for the secondary server (provide either hostname or ip, not both unless testing API validation)',
+                },
+                ip: {
+                  type: 'string',
+                  description: 'IP address for the secondary server (provide either hostname or ip, not both unless testing API validation)',
                 },
               },
-              required: ['port', 'sharedSecret', 'hostname'],
+              required: ['port', 'sharedSecret'],
             },
             maxRetries: {
               type: 'number',
@@ -1070,8 +1078,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                   type: 'string',
                   description: 'Hostname or IP address for the primary server',
                 },
+                ip: {
+                  type: 'string',
+                  description: 'IP address for the primary server (provide either hostname or ip, not both unless testing API validation)',
+                },
               },
-              required: ['port', 'sharedSecret', 'hostname'],
+              required: ['port', 'sharedSecret'],
             },
             secondary: {
               type: 'object',
@@ -1089,8 +1101,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                   type: 'string',
                   description: 'Hostname or IP address for the secondary server',
                 },
+                ip: {
+                  type: 'string',
+                  description: 'IP address for the secondary server (provide either hostname or ip, not both unless testing API validation)',
+                },
               },
-              required: ['port', 'sharedSecret', 'hostname'],
+              required: ['port', 'sharedSecret'],
             },
             maxRetries: {
               type: 'number',
@@ -3939,7 +3955,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     case 'create_radius_server_profile': {
       try {
-        const { 
+        const {
           name,
           type,
           enableSecondaryServer,
@@ -3954,12 +3970,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           primary: {
             port: number;
             sharedSecret: string;
-            hostname: string;
+            hostname?: string;
+            ip?: string;
           };
           secondary?: {
             port: number;
             sharedSecret: string;
-            hostname: string;
+            hostname?: string;
+            ip?: string;
           };
           maxRetries?: number;
           pollIntervalMs?: number;
@@ -4072,12 +4090,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           primary: {
             port: number;
             sharedSecret: string;
-            hostname: string;
+            hostname?: string;
+            ip?: string;
           };
           secondary?: {
             port: number;
             sharedSecret: string;
-            hostname: string;
+            hostname?: string;
+            ip?: string;
           };
           maxRetries?: number;
           pollIntervalMs?: number;
@@ -4089,8 +4109,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           name: string;
           type: 'AUTHENTICATION' | 'ACCOUNTING';
           enableSecondaryServer: boolean;
-          primary: { port: number; sharedSecret: string; hostname: string; };
-          secondary?: { port: number; sharedSecret: string; hostname: string; };
+          primary: { port: number; sharedSecret: string; hostname?: string; ip?: string; };
+          secondary?: { port: number; sharedSecret: string; hostname?: string; ip?: string; };
         } = {
           name,
           type,

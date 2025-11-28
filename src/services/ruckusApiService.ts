@@ -1687,11 +1687,47 @@ export async function getRadiusServerProfile(
     url: apiUrl,
     headers: {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/vnd.ruckus.v1.1+json',
+      'Accept': 'application/vnd.ruckus.v1.1+json'
     }
   }, 'Get RADIUS server profile');
 
-  return response.data;
+  const profileData = response.data;
+
+  // If hostname/ip not in response, extract from query API
+  if (profileData.primary && !profileData.primary.hostname && !profileData.primary.ip) {
+    try {
+      const queryResult = await queryRadiusServerProfiles(token, region);
+      const match = queryResult.data?.find((p: any) => p.id === profileId);
+      if (match?.primary && typeof match.primary === 'string') {
+        // Parse "hostname:port" or "ip:port" format
+        const [hostOrIp] = match.primary.split(':');
+        // Detect if IP (IPv4) or hostname
+        const isIp = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(hostOrIp);
+        profileData.primary[isIp ? 'ip' : 'hostname'] = hostOrIp;
+      }
+    } catch (error) {
+      // If query fails, return profile without hostname/ip - don't fail the whole request
+      console.error('Failed to extract hostname from query API:', error);
+    }
+  }
+
+  // Same for secondary if present
+  if (profileData.secondary && !profileData.secondary.hostname && !profileData.secondary.ip) {
+    try {
+      const queryResult = await queryRadiusServerProfiles(token, region);
+      const match = queryResult.data?.find((p: any) => p.id === profileId);
+      if (match?.secondary && typeof match.secondary === 'string' && match.secondary !== '') {
+        const [hostOrIp] = match.secondary.split(':');
+        const isIp = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(hostOrIp);
+        profileData.secondary[isIp ? 'ip' : 'hostname'] = hostOrIp;
+      }
+    } catch (error) {
+      console.error('Failed to extract secondary hostname from query API:', error);
+    }
+  }
+
+  return profileData;
 }
 
 export async function createDirectoryServerProfileWithRetry(
@@ -1831,12 +1867,14 @@ export async function createRadiusServerProfileWithRetry(
     primary: {
       port: number;
       sharedSecret: string;
-      hostname: string;
+      hostname?: string;
+      ip?: string;
     };
     secondary?: {
       port: number;
       sharedSecret: string;
-      hostname: string;
+      hostname?: string;
+      ip?: string;
     };
   },
   region: string = '',
@@ -1861,10 +1899,23 @@ export async function createRadiusServerProfileWithRetry(
     port: profileData.primary.port,
     sharedSecret: profileData.primary.sharedSecret
   };
-  if (isIpAddress(profileData.primary.hostname)) {
-    primaryConfig.ip = profileData.primary.hostname;
-  } else {
+
+  // If both ip AND hostname provided, send both (for mutual exclusivity testing)
+  if (profileData.primary.ip && profileData.primary.hostname) {
+    primaryConfig.ip = profileData.primary.ip;
     primaryConfig.hostname = profileData.primary.hostname;
+  }
+  // If only ip provided, use it directly
+  else if (profileData.primary.ip) {
+    primaryConfig.ip = profileData.primary.ip;
+  }
+  // If only hostname provided, use auto-detection (existing logic)
+  else if (profileData.primary.hostname) {
+    if (isIpAddress(profileData.primary.hostname)) {
+      primaryConfig.ip = profileData.primary.hostname;
+    } else {
+      primaryConfig.hostname = profileData.primary.hostname;
+    }
   }
 
   const payload: any = {
@@ -1879,10 +1930,23 @@ export async function createRadiusServerProfileWithRetry(
       port: profileData.secondary.port,
       sharedSecret: profileData.secondary.sharedSecret
     };
-    if (isIpAddress(profileData.secondary.hostname)) {
-      secondaryConfig.ip = profileData.secondary.hostname;
-    } else {
+
+    // If both ip AND hostname provided, send both (for mutual exclusivity testing)
+    if (profileData.secondary.ip && profileData.secondary.hostname) {
+      secondaryConfig.ip = profileData.secondary.ip;
       secondaryConfig.hostname = profileData.secondary.hostname;
+    }
+    // If only ip provided, use it directly
+    else if (profileData.secondary.ip) {
+      secondaryConfig.ip = profileData.secondary.ip;
+    }
+    // If only hostname provided, use auto-detection (existing logic)
+    else if (profileData.secondary.hostname) {
+      if (isIpAddress(profileData.secondary.hostname)) {
+        secondaryConfig.ip = profileData.secondary.hostname;
+      } else {
+        secondaryConfig.hostname = profileData.secondary.hostname;
+      }
     }
     payload.secondary = secondaryConfig;
   }
@@ -2294,12 +2358,14 @@ export async function updateRadiusServerProfileWithRetry(
     primary: {
       port: number;
       sharedSecret: string;
-      hostname: string;
+      hostname?: string;
+      ip?: string;
     };
     secondary?: {
       port: number;
       sharedSecret: string;
-      hostname: string;
+      hostname?: string;
+      ip?: string;
     };
   },
   region: string = '',
@@ -2324,10 +2390,23 @@ export async function updateRadiusServerProfileWithRetry(
     port: profileData.primary.port,
     sharedSecret: profileData.primary.sharedSecret
   };
-  if (isIpAddress(profileData.primary.hostname)) {
-    primaryConfig.ip = profileData.primary.hostname;
-  } else {
+
+  // If both ip AND hostname provided, send both (for mutual exclusivity testing)
+  if (profileData.primary.ip && profileData.primary.hostname) {
+    primaryConfig.ip = profileData.primary.ip;
     primaryConfig.hostname = profileData.primary.hostname;
+  }
+  // If only ip provided, use it directly
+  else if (profileData.primary.ip) {
+    primaryConfig.ip = profileData.primary.ip;
+  }
+  // If only hostname provided, use auto-detection (existing logic)
+  else if (profileData.primary.hostname) {
+    if (isIpAddress(profileData.primary.hostname)) {
+      primaryConfig.ip = profileData.primary.hostname;
+    } else {
+      primaryConfig.hostname = profileData.primary.hostname;
+    }
   }
 
   const payload: any = {
@@ -2342,10 +2421,23 @@ export async function updateRadiusServerProfileWithRetry(
       port: profileData.secondary.port,
       sharedSecret: profileData.secondary.sharedSecret
     };
-    if (isIpAddress(profileData.secondary.hostname)) {
-      secondaryConfig.ip = profileData.secondary.hostname;
-    } else {
+
+    // If both ip AND hostname provided, send both (for mutual exclusivity testing)
+    if (profileData.secondary.ip && profileData.secondary.hostname) {
+      secondaryConfig.ip = profileData.secondary.ip;
       secondaryConfig.hostname = profileData.secondary.hostname;
+    }
+    // If only ip provided, use it directly
+    else if (profileData.secondary.ip) {
+      secondaryConfig.ip = profileData.secondary.ip;
+    }
+    // If only hostname provided, use auto-detection (existing logic)
+    else if (profileData.secondary.hostname) {
+      if (isIpAddress(profileData.secondary.hostname)) {
+        secondaryConfig.ip = profileData.secondary.hostname;
+      } else {
+        secondaryConfig.hostname = profileData.secondary.hostname;
+      }
     }
     payload.secondary = secondaryConfig;
   }
