@@ -629,7 +629,7 @@ export async function updateVenueWithRetry(
           message: 'Venue updated successfully',
           activityDetails
         };
-      } else if (activityDetails.status === 'FAILED') {
+      } else if (activityDetails.status === 'FAIL') {
         return {
           ...updateResponse,
           status: 'failed',
@@ -995,7 +995,7 @@ export async function updateApGroupWithRetry(
           message: 'AP group updated successfully',
           activityDetails
         };
-      } else if (activityDetails.status === 'FAILED') {
+      } else if (activityDetails.status === 'FAIL') {
         console.error(`[RUCKUS] AP group update failed:`, activityDetails);
         return {
           ...updateResponse,
@@ -1778,7 +1778,7 @@ export async function createDirectoryServerProfileWithRetry(
           message: 'Directory server profile created successfully',
           activityDetails
         };
-      } else if (activityDetails.status === 'FAILED') {
+      } else if (activityDetails.status === 'FAIL') {
         return {
           ...createResponse,
           status: 'failed',
@@ -1926,7 +1926,7 @@ export async function createRadiusServerProfileWithRetry(
           message: 'RADIUS server profile created successfully',
           activityDetails
         };
-      } else if (activityDetails.status === 'FAILED') {
+      } else if (activityDetails.status === 'FAIL') {
         return {
           ...createResponse,
           status: 'failed',
@@ -2056,7 +2056,7 @@ export async function updateDirectoryServerProfileWithRetry(
           message: 'Directory server profile updated successfully',
           activityDetails
         };
-      } else if (activityDetails.status === 'FAILED') {
+      } else if (activityDetails.status === 'FAIL') {
         return {
           ...updateResponse,
           status: 'failed',
@@ -2148,7 +2148,7 @@ export async function deleteDirectoryServerProfileWithRetry(
           message: 'Directory server profile deleted successfully',
           activityDetails
         };
-      } else if (activityDetails.status === 'FAILED') {
+      } else if (activityDetails.status === 'FAIL') {
         return {
           ...deleteResponse,
           status: 'failed',
@@ -2240,7 +2240,7 @@ export async function deleteRadiusServerProfileWithRetry(
           message: 'RADIUS server profile deleted successfully',
           activityDetails
         };
-      } else if (activityDetails.status === 'FAILED') {
+      } else if (activityDetails.status === 'FAIL') {
         return {
           ...deleteResponse,
           status: 'failed',
@@ -2400,7 +2400,7 @@ export async function createPortalServiceProfileWithRetry(
           message: 'Portal service profile created successfully',
           activityDetails
         };
-      } else if (activityDetails.status === 'FAILED') {
+      } else if (activityDetails.status === 'FAIL') {
         return {
           ...createResponse,
           status: 'failed',
@@ -2502,7 +2502,7 @@ export async function updatePortalServiceProfileWithRetry(
           message: 'Portal service profile updated successfully',
           activityDetails
         };
-      } else if (activityDetails.status === 'FAILED') {
+      } else if (activityDetails.status === 'FAIL') {
         return {
           ...updateResponse,
           status: 'failed',
@@ -2594,7 +2594,7 @@ export async function deletePortalServiceProfileWithRetry(
           message: 'Portal service profile deleted successfully',
           activityDetails
         };
-      } else if (activityDetails.status === 'FAILED') {
+      } else if (activityDetails.status === 'FAIL') {
         return {
           ...deleteResponse,
           status: 'failed',
@@ -2786,7 +2786,7 @@ export async function updatePrivilegeGroupWithRetry(
         };
       }
       
-      if (activityDetails.status === 'FAILED') {
+      if (activityDetails.status === 'FAIL') {
         throw new Error(`Update privilege group failed: ${activityDetails.errorMessage || 'Unknown error'}`);
       }
     } catch (error) {
@@ -2925,7 +2925,7 @@ export async function updateCustomRoleWithRetry(
         };
       }
       
-      if (activityDetails.status === 'FAILED') {
+      if (activityDetails.status === 'FAIL') {
         throw new Error(`Update custom role failed: ${activityDetails.errorMessage || 'Unknown error'}`);
       }
     } catch (error) {
@@ -4005,7 +4005,7 @@ export async function updateWifiNetworkPortalServiceProfileWithRetry(
           message: 'Portal service profile associated successfully',
           activityDetails
         };
-      } else if (activityDetails.status === 'FAILED') {
+      } else if (activityDetails.status === 'FAIL') {
         return {
           ...updateResponse,
           status: 'failed',
@@ -4108,7 +4108,7 @@ export async function updateWifiNetworkRadiusServerProfileSettingsWithRetry(
           message: 'RADIUS server profile settings updated successfully',
           activityDetails
         };
-      } else if (activityDetails.status === 'FAILED') {
+      } else if (activityDetails.status === 'FAIL') {
         return {
           ...updateResponse,
           status: 'failed',
@@ -4202,7 +4202,7 @@ export async function updateWifiNetworkWithRetry(
           message: 'WiFi network updated successfully',
           activityDetails
         };
-      } else if (activityDetails.status === 'FAILED') {
+      } else if (activityDetails.status === 'FAIL') {
         return {
           ...updateResponse,
           status: 'failed',
@@ -4379,7 +4379,7 @@ export async function deactivateWifiNetworkAtVenuesWithRetry(
             details: activityDetails
           });
           console.log(`[RUCKUS] ✓ ${request.name} completed successfully`);
-        } else if (activityDetails.status === 'FAILED') {
+        } else if (activityDetails.status === 'FAIL') {
           console.error(`[RUCKUS] ✗ ${request.name} failed:`, activityDetails);
           return {
             status: 'failed',
