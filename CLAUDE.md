@@ -46,6 +46,24 @@ This server is designed to be used with MCP clients (like Claude Desktop). Confi
 - **Retrieve-Then-Update Pattern (AP Updates)**: AP update operations retrieve current state to preserve specific fields (name, venueId, apGroupId, description) while updating only provided values
 - **Retrieve-Then-Update Pattern (Full Config)**: Some operations retrieve full resource configuration to preserve ALL existing fields when updating (see Advanced Patterns section)
 
+### Activity Status Values
+
+The RUCKUS API returns these status values for async operations:
+- `'SUCCESS'` - Operation completed successfully
+- `'COMPLETED'` - Operation completed (alias for SUCCESS in some endpoints)
+- `'FAIL'` - Operation failed
+- `'INPROGRESS'` - Operation still running
+
+**Recommended check:**
+```typescript
+if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') {
+  // Success
+} else if (activityDetails.status === 'FAIL') {
+  // Failed
+}
+// Otherwise: still in progress, continue polling
+```
+
 ## Better Process for Adding New MCP Tools
 
 **CRITICAL**: Follow this exact process to avoid inconsistent implementations:
@@ -232,7 +250,37 @@ export async function yourNewToolWithRetry(
 
 **Note:** For multi-step operations or complex scenarios, see "Advanced Async Operation Patterns" section below.
 
-**Note:** For multi-step operations or complex scenarios, see "Advanced Async Operation Patterns" section below.
+### Polling Pattern Flexibility
+
+Two polling patterns exist in the codebase. Both are acceptable:
+
+**Pattern A (while loop):** Used in older functions
+```typescript
+let retryCount = 0;
+while (retryCount < maxRetries) {
+  const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+  const isCompleted = activityDetails.endDatetime !== undefined;
+  if (isCompleted && activityDetails.status === 'SUCCESS') { return { status: 'completed', ... }; }
+  if (activityDetails.status === 'FAIL') { return { status: 'failed', ... }; }
+  retryCount++;
+  await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+}
+return { status: 'timeout', ... };
+```
+
+**Pattern B (for loop):** Preferred for new code (clearer logging)
+```typescript
+for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  console.log(`[RUCKUS] Polling attempt ${attempt}/${maxRetries}...`);
+  const activityDetails = await getRuckusActivityDetails(token, activityId, region);
+  if (activityDetails.status === 'COMPLETED' || activityDetails.status === 'SUCCESS') { return { status: 'completed', ... }; }
+  if (activityDetails.status === 'FAIL') { return { status: 'failed', ... }; }
+  await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+}
+return { status: 'timeout', ... };
+```
+
+**Guideline:** Use Pattern B for new code. Either pattern is acceptable when modifying existing functions.
 
 ### Step 3A: MCP Registration Template - Read-Only Operations
 ```typescript
@@ -558,7 +606,6 @@ case 'your_new_tool': {
 - **NO custom polling logic**: Copy polling loop from existing tool exactly
 - **NO additional response fields**: Don't add extra metadata to responses
 - **Use Advanced Patterns when appropriate**: If operation requires multi-step, conditional steps, type-based logic, or full config preservation, follow patterns in "Advanced Async Operation Patterns" section
-- **Use Advanced Patterns when appropriate**: If operation requires multi-step, conditional steps, type-based logic, or full config preservation, follow patterns in "Advanced Async Operation Patterns" section
 
 ### Advanced Async Operation Patterns
 
@@ -760,6 +807,44 @@ while (retryCount < maxRetries) {
 - Track all requestIds in single array
 - Return all requestIds in response (even undefined ones)
 
+#### 6. Type-Based Early Return (Different Flows)
+
+**When to use:** When different resource types require completely different API flows, not just different payloads.
+
+**Pattern:**
+```typescript
+// Detect resource type
+const networkType = networkConfig.type || networkConfig.nwSubType;
+const isEnterpriseType = networkType === 'aaa';
+
+// For special type: completely different flow with early return
+if (isEnterpriseType) {
+  console.log('[RUCKUS] Enterprise type - using simple flow');
+  const requestIds: Array<{ id: string; name: string }> = [];
+
+  for (const item of items) {
+    const response = await makeRuckusApiCall({...});
+    if (response.data.requestId) {
+      requestIds.push({ id: response.data.requestId, name: `Operation for ${item}` });
+    }
+  }
+
+  // Poll and return early
+  // ... polling logic ...
+  return { status: 'completed', ... };
+}
+
+// For standard types: existing multi-step flow (unchanged)
+// ... original code ...
+```
+
+**Example:** 802.1x activation/deactivation uses 1 API call per venue, while PSK/guest use multi-step flows.
+
+**Key points:**
+- Use early return to keep flows separate
+- Reuse or duplicate polling logic as needed
+- Maintains clean separation of concerns
+
 ### Pre-Implementation Checklist
 - [ ] **CRITICAL**: Determined operation type (read-only vs async)
 - [ ] Identified similar existing tool to copy from (read-only: `queryApGroups`/`getRuckusActivityDetails`, async: `createVenueWithRetry`)
@@ -771,6 +856,7 @@ while (retryCount < maxRetries) {
   - [ ] Type-based conditional logic?
   - [ ] Full config preservation required?
   - [ ] Optional payload (empty body) support needed?
+  - [ ] Type-based early return (completely different flows)?
 - [ ] Ready to implement following exact template for operation type
 
 **VIOLATION OF THIS PROCESS WILL REQUIRE COMPLETE REWRITE**

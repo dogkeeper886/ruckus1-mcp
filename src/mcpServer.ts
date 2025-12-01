@@ -1487,7 +1487,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'create_wifi_network',
-        description: 'Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venue or activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None.',
+        description: 'Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venue or activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -1501,7 +1501,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             type: {
               type: 'string',
-              description: 'Network type: psk (WPA2 Personal) or guest (Guest Pass portal)',
+              description: 'Network type: psk (WPA2 Personal), enterprise (802.1x with RADIUS), open (no security), or guest (Guest Pass portal)',
               enum: ['psk', 'enterprise', 'open', 'guest'],
             },
             passphrase: {
@@ -1510,7 +1510,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             wlanSecurity: {
               type: 'string',
-              description: 'WLAN security type (REQUIRED). Use WPA2Personal for PSK networks, None for guest pass networks',
+              description: 'WLAN security type (REQUIRED). Use WPA2Personal for PSK networks, WPA2Enterprise for enterprise/802.1x networks, None for guest pass networks',
               enum: ['WPA2Personal', 'WPA3Personal', 'WPA2Enterprise', 'WPA3Enterprise', 'Open', 'None'],
             },
             guestPortal: {
@@ -1520,6 +1520,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             portalServiceProfileId: {
               type: 'string',
               description: 'Portal service profile ID (REQUIRED for type=guest, use query_portal_service_profiles to get available IDs)',
+            },
+            radiusServiceProfileId: {
+              type: 'string',
+              description: 'RADIUS authentication service profile ID (REQUIRED for type=enterprise, use query_radius_server_profiles to get ID of profile with type=AUTHENTICATION)',
             },
             vlanId: {
               type: 'number',
@@ -4953,6 +4957,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           wifi7Enabled,
           guestPortal,
           portalServiceProfileId,
+          radiusServiceProfileId,
           maxRetries = 5,
           pollIntervalMs = 2000
         } = request.params.arguments as {
@@ -4973,6 +4978,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           wifi7Enabled?: boolean;
           guestPortal?: any;
           portalServiceProfileId?: string;
+          radiusServiceProfileId?: string;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
@@ -5000,6 +5006,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (wifi7Enabled !== undefined) networkConfig.wifi7Enabled = wifi7Enabled;
         if (guestPortal !== undefined) networkConfig.guestPortal = guestPortal;
         if (portalServiceProfileId !== undefined) networkConfig.portalServiceProfileId = portalServiceProfileId;
+        if (radiusServiceProfileId !== undefined) networkConfig.radiusServiceProfileId = radiusServiceProfileId;
 
         const result = await createWifiNetworkWithRetry(
           token,
