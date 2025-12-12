@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryRadiusServerProfiles, getRadiusServerProfile, createRadiusServerProfileWithRetry, deleteRadiusServerProfileWithRetry, updateRadiusServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, queryGuestPasses, createGuestPassWithRetry, deleteGuestPassWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry } from './services/ruckusApiService';
+import { getRuckusJwtToken, getRuckusActivityDetails, createVenueWithRetry, updateVenueWithRetry, deleteVenueWithRetry, createApGroupWithRetry, addApToGroupWithRetry, removeApWithRetry, updateApGroupWithRetry, queryApGroups, deleteApGroupWithRetry, getVenueExternalAntennaSettings, getVenueAntennaTypeSettings, getApGroupExternalAntennaSettings, getApGroupAntennaTypeSettings, getVenueApModelBandModeSettings, getVenueRadioSettings, getApGroupApModelBandModeSettings, getApGroupRadioSettings, getApRadioSettings, getApClientAdmissionControlSettings, getApGroupClientAdmissionControlSettings, queryAPs, updateApWithRetrieval, queryDirectoryServerProfiles, getDirectoryServerProfile, createDirectoryServerProfileWithRetry, updateDirectoryServerProfileWithRetry, deleteDirectoryServerProfileWithRetry, queryRadiusServerProfiles, getRadiusServerProfile, createRadiusServerProfileWithRetry, deleteRadiusServerProfileWithRetry, updateRadiusServerProfileWithRetry, queryPortalServiceProfiles, getPortalServiceProfile, createPortalServiceProfileWithRetry, updatePortalServiceProfileWithRetry, deletePortalServiceProfileWithRetry, queryPrivilegeGroups, updatePrivilegeGroupSimple, queryCustomRoles, updateCustomRoleWithRetry, queryRoleFeatures, createCustomRole, deleteCustomRoleWithRetry, queryWifiNetworks, getWifiNetwork, createWifiNetworkWithRetry, activateWifiNetworkAtVenuesWithRetry, deactivateWifiNetworkAtVenuesWithRetry, deleteWifiNetworkWithRetry, queryGuestPasses, createGuestPassWithRetry, deleteGuestPassWithRetry, updateWifiNetworkPortalServiceProfileWithRetry, updateWifiNetworkRadiusServerProfileSettingsWithRetry, updateWifiNetworkWithRetry, queryClients } from './services/ruckusApiService';
 import { tokenService } from './services/tokenService';
 
 dotenv.config();
@@ -1919,6 +1919,50 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['networkId', 'guestPassId'],
+        },
+      },
+      {
+        name: 'query_clients',
+        description: 'Query wireless clients connected to RUCKUS One managed APs with filtering and pagination support. Returns client details including device info, connection status, AP info, and traffic statistics. Use filters like {"venueId": ["venue-id"]} to filter by venue, or {"networkInformation.ssid": ["ssid-name"]} to filter by SSID.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            filters: {
+              type: 'object',
+              description: 'Optional filters to apply (e.g., {"venueId": ["venue-id"]} or {"networkInformation.ssid": ["ssid-name"]})',
+            },
+            fields: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Fields to return (default: comprehensive set including modelName, deviceType, osType, username, hostname, macAddress, ipAddress, ipv6Address, connectedTime, venueInformation, apInformation, networkInformation, trafficStatus, etc.)',
+            },
+            searchString: {
+              type: 'string',
+              description: 'Search string to filter clients',
+            },
+            searchTargetFields: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Fields to search in (default: macAddress, mldMacAddress, ipAddress, username, hostname, osType, networkInformation.ssid, networkInformation.vni, networkInformation.vlan)',
+            },
+            page: {
+              type: 'number',
+              description: 'Page number (default: 1)',
+            },
+            pageSize: {
+              type: 'number',
+              description: 'Number of results per page (default: 10)',
+            },
+            sortField: {
+              type: 'string',
+              description: 'Field to sort by (default: "name")',
+            },
+            sortOrder: {
+              type: 'string',
+              description: 'Sort order - ASC or DESC (default: "ASC")',
+            },
+          },
+          required: [],
         },
       },
     ],
@@ -5601,6 +5645,76 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [{ type: 'text', text: errorMessage }],
           isError: true
+        };
+      }
+    }
+
+    case 'query_clients': {
+      try {
+        const {
+          filters = {},
+          fields,
+          searchString = '',
+          searchTargetFields,
+          page = 1,
+          pageSize = 10,
+          sortField = 'name',
+          sortOrder = 'ASC'
+        } = request.params.arguments as {
+          filters?: any;
+          fields?: string[];
+          searchString?: string;
+          searchTargetFields?: string[];
+          page?: number;
+          pageSize?: number;
+          sortField?: string;
+          sortOrder?: string;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await queryClients(
+          token,
+          process.env.RUCKUS_REGION,
+          filters,
+          fields,
+          searchString,
+          searchTargetFields,
+          page,
+          pageSize,
+          sortField,
+          sortOrder
+        );
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error('[MCP] Error querying clients:', error);
+
+        let errorMessage = `Error querying clients: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: errorMessage,
+            },
+          ],
+          isError: true,
         };
       }
     }

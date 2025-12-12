@@ -5394,3 +5394,55 @@ export async function deleteGuestPassWithRetry(
   };
 }
 
+export async function queryClients(
+  token: string,
+  region: string = '',
+  filters: any = {},
+  fields: string[] = [
+    'modelName', 'deviceType', 'osType', 'username', 'hostname',
+    'macAddress', 'ipAddress', 'ipv6Address', 'mldMacAddress', 'cpeMacAddress',
+    'connectedTime', 'lastUpdatedTime', 'venueInformation', 'apInformation',
+    'networkInformation', 'switchInformation', 'signalStatus', 'radioStatus',
+    'trafficStatus', 'authenticationStatus', 'band', 'identityId', 'identityName',
+    'identityGroupId', 'identityGroupName'
+  ],
+  searchString: string = '',
+  searchTargetFields: string[] = [
+    'macAddress', 'mldMacAddress', 'ipAddress', 'username', 'hostname',
+    'osType', 'networkInformation.ssid', 'networkInformation.vni', 'networkInformation.vlan'
+  ],
+  page: number = 1,
+  pageSize: number = 10,
+  sortField: string = 'name',
+  sortOrder: string = 'ASC'
+): Promise<any> {
+  const apiUrl = region && region.trim() !== ''
+    ? `https://api.${region}.ruckus.cloud/venues/aps/clients/query`
+    : `https://api.ruckus.cloud/venues/aps/clients/query`;
+
+  const payload = {
+    searchString,
+    searchTargetFields,
+    fields,
+    filters,
+    page,
+    pageSize,
+    defaultPageSize: 10,
+    total: 0,
+    sortField,
+    sortOrder
+  };
+
+  const response = await makeRuckusApiCall({
+    method: 'post',
+    url: apiUrl,
+    data: payload,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  }, 'Query clients');
+
+  return response.data;
+}
+
