@@ -4071,6 +4071,8 @@ export async function createWifiNetworkWithRetry(
     // Self Sign-In with Email specific options
     allowedEmailDomains?: string[];
     sessionDurationDays?: number;
+    // Guest and Self Sign-In shared options
+    maxDevices?: number;
   },
   region: string = "",
   maxRetries: number = 5,
@@ -4232,7 +4234,7 @@ export async function createWifiNetworkWithRetry(
       lockoutPeriod: 120,
       lockoutPeriodEnabled: false,
       macCredentialsDuration: 240,
-      maxDevices: 1,
+      maxDevices: networkConfig.maxDevices || 1,
       userSessionGracePeriod: 60,
       userSessionTimeout: 1440,
       walledGardens: [],
@@ -4253,7 +4255,7 @@ export async function createWifiNetworkWithRetry(
       lockoutPeriod: 120,
       lockoutPeriodEnabled: false,
       macCredentialsDuration: 240,
-      maxDevices: 1,
+      maxDevices: networkConfig.maxDevices || 1,
       userSessionGracePeriod: 60,
       userSessionTimeout: 1440,
       enableSmsLogin: false,

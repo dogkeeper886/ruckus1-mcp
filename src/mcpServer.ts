@@ -1735,6 +1735,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description:
                 "Session duration in days for type=selfSignIn (default: 12)",
             },
+            maxDevices: {
+              type: "number",
+              description:
+                "Maximum number of devices per user for guest/selfSignIn networks (default: 1)",
+            },
             vlanId: {
               type: "number",
               description: "VLAN ID for client traffic (default: 1)",
@@ -5391,6 +5396,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           radiusServiceProfileId,
           allowedEmailDomains,
           sessionDurationDays,
+          maxDevices,
           maxRetries = 5,
           pollIntervalMs = 2000,
         } = request.params.arguments as {
@@ -5420,6 +5426,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           radiusServiceProfileId?: string;
           allowedEmailDomains?: string[];
           sessionDurationDays?: number;
+          maxDevices?: number;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
@@ -5462,6 +5469,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           networkConfig.allowedEmailDomains = allowedEmailDomains;
         if (sessionDurationDays !== undefined)
           networkConfig.sessionDurationDays = sessionDurationDays;
+        if (maxDevices !== undefined) networkConfig.maxDevices = maxDevices;
 
         const result = await createWifiNetworkWithRetry(
           token,
