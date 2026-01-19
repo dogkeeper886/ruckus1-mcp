@@ -4068,6 +4068,10 @@ export async function createWifiNetworkWithRetry(
     portalServiceProfileId?: string;
     // Enterprise 802.1x specific options
     radiusServiceProfileId?: string;
+    accountingRadiusServiceProfileId?: string;
+    // Proxy settings for enterprise 802.1x (required for FQDN-based RADIUS)
+    enableAuthProxy?: boolean;
+    enableAccountingProxy?: boolean;
     // Self Sign-In with Email specific options
     allowedEmailDomains?: string[];
     sessionDurationDays?: number;
@@ -4337,7 +4341,43 @@ export async function createWifiNetworkWithRetry(
     }
   }
 
-  // Step 2.5: Associate RADIUS service profile for enterprise 802.1x networks
+  // Step 2.5: Set RADIUS server profile settings (MUST come before RADIUS profile association for FQDN-based RADIUS)
+  console.log("[RUCKUS] Configuring RADIUS settings...");
+  const radiusUrl = `${apiUrl}/${networkId}/radiusServerProfileSettings`;
+
+  // For enterprise networks with RADIUS, use provided proxy settings (required for FQDN-based RADIUS)
+  // For other network types, send empty object
+  const radiusPayload =
+    isEnterpriseType && networkConfig.radiusServiceProfileId
+      ? {
+          enableAccountingProxy: networkConfig.enableAccountingProxy ?? false,
+          enableAuthProxy: networkConfig.enableAuthProxy ?? false,
+        }
+      : {};
+
+  const radiusResponse = await makeRuckusApiCall(
+    {
+      method: "put",
+      url: radiusUrl,
+      data: radiusPayload,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Configure RADIUS settings",
+  );
+
+  const radiusData = radiusResponse.data;
+  const radiusRequestId = radiusData.requestId;
+
+  if (!radiusRequestId) {
+    console.warn(
+      "[RUCKUS] No requestId returned from RADIUS settings API (may be synchronous)",
+    );
+  }
+
+  // Step 3: Associate RADIUS service profile for enterprise 802.1x networks (AFTER proxy settings are configured)
   let radiusServiceProfileRequestId: string | undefined;
   if (isEnterpriseType && networkConfig.radiusServiceProfileId) {
     console.log("[RUCKUS] Associating RADIUS service profile for 802.1x...");
@@ -4364,33 +4404,34 @@ export async function createWifiNetworkWithRetry(
     }
   }
 
-  // Step 3: Set RADIUS server profile settings (for all network types)
-  console.log("[RUCKUS] Configuring RADIUS settings...");
-  const radiusUrl = `${apiUrl}/${networkId}/radiusServerProfileSettings`;
-
-  // Send empty object for all network types during creation
-  const radiusPayload = {};
-
-  const radiusResponse = await makeRuckusApiCall(
-    {
-      method: "put",
-      url: radiusUrl,
-      data: radiusPayload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    },
-    "Configure RADIUS settings",
-  );
-
-  const radiusData = radiusResponse.data;
-  const radiusRequestId = radiusData.requestId;
-
-  if (!radiusRequestId) {
-    console.warn(
-      "[RUCKUS] No requestId returned from RADIUS settings API (may be synchronous)",
+  // Step 4: Associate accounting RADIUS service profile for enterprise 802.1x networks
+  let accountingRadiusServiceProfileRequestId: string | undefined;
+  if (isEnterpriseType && networkConfig.accountingRadiusServiceProfileId) {
+    console.log(
+      "[RUCKUS] Associating accounting RADIUS service profile for 802.1x...",
     );
+    const accountingRadiusServiceUrl = `${apiUrl}/${networkId}/radiusServerProfiles/${networkConfig.accountingRadiusServiceProfileId}`;
+
+    const accountingRadiusServiceResponse = await makeRuckusApiCall(
+      {
+        method: "put",
+        url: accountingRadiusServiceUrl,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+      "Associate accounting RADIUS service profile",
+    );
+
+    accountingRadiusServiceProfileRequestId =
+      accountingRadiusServiceResponse.data.requestId;
+
+    if (!accountingRadiusServiceProfileRequestId) {
+      console.warn(
+        "[RUCKUS] No requestId returned from accounting RADIUS service profile association API (may be synchronous)",
+      );
+    }
   }
 
   // Poll all operations for completion
@@ -4404,6 +4445,14 @@ export async function createWifiNetworkWithRetry(
           {
             id: radiusServiceProfileRequestId,
             name: "Associate RADIUS service profile",
+          },
+        ]
+      : []),
+    ...(accountingRadiusServiceProfileRequestId
+      ? [
+          {
+            id: accountingRadiusServiceProfileRequestId,
+            name: "Associate accounting RADIUS service profile",
           },
         ]
       : []),
@@ -4429,6 +4478,7 @@ export async function createWifiNetworkWithRetry(
           createRequestId,
           portalRequestId,
           radiusServiceProfileRequestId,
+          accountingRadiusServiceProfileRequestId,
           radiusRequestId,
           status: "completed",
           message: "WiFi network created successfully",
@@ -4465,6 +4515,7 @@ export async function createWifiNetworkWithRetry(
               createRequestId,
               portalRequestId,
               radiusServiceProfileRequestId,
+              accountingRadiusServiceProfileRequestId,
               radiusRequestId,
               status: "failed",
               message: `${activity.name} failed`,
@@ -4490,6 +4541,7 @@ export async function createWifiNetworkWithRetry(
             createRequestId,
             portalRequestId,
             radiusServiceProfileRequestId,
+            accountingRadiusServiceProfileRequestId,
             radiusRequestId,
             status: "failed",
             message: `${activity.name} failed`,
@@ -4534,6 +4586,7 @@ export async function createWifiNetworkWithRetry(
           createRequestId,
           portalRequestId,
           radiusServiceProfileRequestId,
+          accountingRadiusServiceProfileRequestId,
           radiusRequestId,
           status: "timeout",
           message: "WiFi network creation status unknown - polling timeout",
@@ -4551,6 +4604,7 @@ export async function createWifiNetworkWithRetry(
     createRequestId,
     portalRequestId,
     radiusServiceProfileRequestId,
+    accountingRadiusServiceProfileRequestId,
     radiusRequestId,
     status: "timeout",
     message: "WiFi network creation status unknown - polling timeout",
