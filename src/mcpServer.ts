@@ -1673,7 +1673,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_wifi_network",
         description:
-          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires type=guest + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. FOR SELF SIGN-IN WITH EMAIL: Requires type=selfSignIn + portalServiceProfileId + wlanSecurity=None + allowedEmailDomains (array of allowed email domains). FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise.",
+          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires type=guest + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. FOR SELF SIGN-IN WITH EMAIL: Requires type=selfSignIn + portalServiceProfileId + wlanSecurity=None + allowedEmailDomains (array of allowed email domains). FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId (use query_radius_server_profiles to get ID of ACCOUNTING type profile), enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1723,6 +1723,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description:
                 "RADIUS authentication service profile ID (REQUIRED for type=enterprise, use query_radius_server_profiles to get ID of profile with type=AUTHENTICATION)",
+            },
+            accountingRadiusServiceProfileId: {
+              type: "string",
+              description:
+                "RADIUS accounting service profile ID (optional for type=enterprise, use query_radius_server_profiles to get ID of profile with type=ACCOUNTING)",
+            },
+            enableAuthProxy: {
+              type: "boolean",
+              description:
+                "Enable authentication proxy (required for FQDN-based RADIUS profiles, default: false)",
+            },
+            enableAccountingProxy: {
+              type: "boolean",
+              description:
+                "Enable accounting proxy (default: false)",
             },
             allowedEmailDomains: {
               type: "array",
@@ -5394,6 +5409,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           guestPortal,
           portalServiceProfileId,
           radiusServiceProfileId,
+          accountingRadiusServiceProfileId,
+          enableAuthProxy,
+          enableAccountingProxy,
           allowedEmailDomains,
           sessionDurationDays,
           maxDevices,
@@ -5424,6 +5442,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           guestPortal?: any;
           portalServiceProfileId?: string;
           radiusServiceProfileId?: string;
+          accountingRadiusServiceProfileId?: string;
+          enableAuthProxy?: boolean;
+          enableAccountingProxy?: boolean;
           allowedEmailDomains?: string[];
           sessionDurationDays?: number;
           maxDevices?: number;
@@ -5465,6 +5486,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           networkConfig.portalServiceProfileId = portalServiceProfileId;
         if (radiusServiceProfileId !== undefined)
           networkConfig.radiusServiceProfileId = radiusServiceProfileId;
+        if (accountingRadiusServiceProfileId !== undefined)
+          networkConfig.accountingRadiusServiceProfileId =
+            accountingRadiusServiceProfileId;
+        if (enableAuthProxy !== undefined)
+          networkConfig.enableAuthProxy = enableAuthProxy;
+        if (enableAccountingProxy !== undefined)
+          networkConfig.enableAccountingProxy = enableAccountingProxy;
         if (allowedEmailDomains !== undefined)
           networkConfig.allowedEmailDomains = allowedEmailDomains;
         if (sessionDurationDays !== undefined)
