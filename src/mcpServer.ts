@@ -1673,7 +1673,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_wifi_network",
         description:
-          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires type=guest + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. FOR SELF SIGN-IN WITH EMAIL: Requires type=selfSignIn + portalServiceProfileId + wlanSecurity=None + allowedEmailDomains (array of allowed email domains). FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId (use query_radius_server_profiles to get ID of ACCOUNTING type profile), enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy.",
+          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires type=guest + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. FOR SELF SIGN-IN WITH EMAIL: Requires type=selfSignIn + portalServiceProfileId + wlanSecurity=None + allowedEmailDomains (array of allowed email domains). FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId (use query_radius_server_profiles to get ID of ACCOUNTING type profile), enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId).",
         inputSchema: {
           type: "object",
           properties: {
@@ -1796,6 +1796,49 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             wifi7Enabled: {
               type: "boolean",
               description: "Enable WiFi 7 (802.11be) support (default: true)",
+            },
+            radiusOptions: {
+              type: "object",
+              description:
+                "RADIUS options for Enterprise 802.1x networks. Controls NAS ID configuration for RADIUS authentication.",
+              properties: {
+                nasIdType: {
+                  type: "string",
+                  enum: [
+                    "AP_GROUP_NAME",
+                    "BSSID",
+                    "VENUE_NAME",
+                    "AP_MAC",
+                    "USER",
+                  ],
+                  description:
+                    "NAS ID type sent to RADIUS server (default: AP_GROUP_NAME)",
+                },
+                userDefinedNasId: {
+                  type: "string",
+                  description:
+                    "Custom NAS ID value. REQUIRED when nasIdType is USER",
+                },
+                nasRequestTimeoutSec: {
+                  type: "number",
+                  description:
+                    "RADIUS request timeout in seconds (default: 3)",
+                },
+                nasMaxRetry: {
+                  type: "number",
+                  description: "Maximum RADIUS request retries (default: 2)",
+                },
+                nasReconnectPrimaryMin: {
+                  type: "number",
+                  description:
+                    "Minutes before reconnecting to primary RADIUS server (default: 5)",
+                },
+                calledStationIdType: {
+                  type: "string",
+                  enum: ["BSSID"],
+                  description: "Called Station ID type (default: BSSID)",
+                },
+              },
             },
             maxRetries: {
               type: "number",
@@ -5415,6 +5458,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           allowedEmailDomains,
           sessionDurationDays,
           maxDevices,
+          radiusOptions,
           maxRetries = 5,
           pollIntervalMs = 2000,
         } = request.params.arguments as {
@@ -5448,6 +5492,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           allowedEmailDomains?: string[];
           sessionDurationDays?: number;
           maxDevices?: number;
+          radiusOptions?: {
+            nasIdType?:
+              | "AP_GROUP_NAME"
+              | "BSSID"
+              | "VENUE_NAME"
+              | "AP_MAC"
+              | "USER";
+            userDefinedNasId?: string;
+            nasRequestTimeoutSec?: number;
+            nasMaxRetry?: number;
+            nasReconnectPrimaryMin?: number;
+            calledStationIdType?: "BSSID";
+          };
           maxRetries?: number;
           pollIntervalMs?: number;
         };
@@ -5498,6 +5555,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (sessionDurationDays !== undefined)
           networkConfig.sessionDurationDays = sessionDurationDays;
         if (maxDevices !== undefined) networkConfig.maxDevices = maxDevices;
+        if (radiusOptions !== undefined)
+          networkConfig.radiusOptions = radiusOptions;
 
         const result = await createWifiNetworkWithRetry(
           token,

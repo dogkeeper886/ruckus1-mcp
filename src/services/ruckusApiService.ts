@@ -4077,6 +4077,15 @@ export async function createWifiNetworkWithRetry(
     sessionDurationDays?: number;
     // Guest and Self Sign-In shared options
     maxDevices?: number;
+    // RADIUS options for Enterprise 802.1x (NAS ID configuration)
+    radiusOptions?: {
+      nasIdType?: "AP_GROUP_NAME" | "BSSID" | "VENUE_NAME" | "AP_MAC" | "USER";
+      userDefinedNasId?: string; // Required when nasIdType is "USER"
+      nasRequestTimeoutSec?: number;
+      nasMaxRetry?: number;
+      nasReconnectPrimaryMin?: number;
+      calledStationIdType?: "BSSID";
+    };
   },
   region: string = "",
   maxRetries: number = 5,
@@ -4224,6 +4233,39 @@ export async function createWifiNetworkWithRetry(
       rules: [],
     },
     applicationVisibilityEnabled: true,
+    // Add RADIUS options for Enterprise 802.1x networks
+    ...(isEnterpriseType && networkConfig.radiusOptions
+      ? {
+          radiusOptions: {
+            nasIdType: networkConfig.radiusOptions.nasIdType || "AP_GROUP_NAME",
+            ...(networkConfig.radiusOptions.nasIdType === "USER" &&
+            networkConfig.radiusOptions.userDefinedNasId
+              ? {
+                  userDefinedNasId:
+                    networkConfig.radiusOptions.userDefinedNasId,
+                }
+              : {}),
+            nasRequestTimeoutSec:
+              networkConfig.radiusOptions.nasRequestTimeoutSec ?? 3,
+            nasMaxRetry: networkConfig.radiusOptions.nasMaxRetry ?? 2,
+            nasReconnectPrimaryMin:
+              networkConfig.radiusOptions.nasReconnectPrimaryMin ?? 5,
+            calledStationIdType:
+              networkConfig.radiusOptions.calledStationIdType || "BSSID",
+          },
+        }
+      : isEnterpriseType
+        ? {
+            // Default RADIUS options for enterprise networks
+            radiusOptions: {
+              nasIdType: "AP_GROUP_NAME",
+              nasRequestTimeoutSec: 3,
+              nasMaxRetry: 2,
+              nasReconnectPrimaryMin: 5,
+              calledStationIdType: "BSSID",
+            },
+          }
+        : {}),
   };
 
   wlanConfig.advancedCustomization = wlanConfig.advancedCustomization;
