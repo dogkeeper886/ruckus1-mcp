@@ -424,17 +424,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "update_ruckus_ap_group",
         description:
-          "Update an AP group in a RUCKUS One venue with automatic status checking for async operations",
+          "Update an AP group in a RUCKUS One venue. By default, preserves existing APs in the group when updating (e.g., renaming). REQUIRED: venueId (use get_ruckus_venues) + apGroupId (use get_ruckus_ap_groups). To replace APs entirely, provide apSerialNumbers array. To clear all APs, set preserveExistingAps to false without providing apSerialNumbers.",
         inputSchema: {
           type: "object",
           properties: {
             venueId: {
               type: "string",
-              description: "ID of the venue containing the AP group",
+              description:
+                "ID of the venue containing the AP group (use get_ruckus_venues to get venue IDs)",
             },
             apGroupId: {
               type: "string",
-              description: "ID of the AP group to update",
+              description:
+                "ID of the AP group to update (use get_ruckus_ap_groups to get AP group IDs)",
             },
             name: {
               type: "string",
@@ -457,7 +459,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 required: ["serialNumber"],
               },
               description:
-                "Optional array of AP serial numbers to include in the group",
+                "Optional array of AP serial numbers to include in the group. If not provided and preserveExistingAps is true (default), existing APs will be preserved",
+            },
+            preserveExistingAps: {
+              type: "boolean",
+              description:
+                "Preserve existing APs in the group when updating. When true (default), if apSerialNumbers is not provided, existing APs will be retrieved and preserved. Set to false to explicitly clear all APs from the group",
             },
             maxRetries: {
               type: "number",
@@ -3168,6 +3175,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           name,
           description,
           apSerialNumbers,
+          preserveExistingAps = true,
           maxRetries = 5,
           pollIntervalMs = 2000,
         } = request.params.arguments as {
@@ -3176,6 +3184,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           name: string;
           description?: string;
           apSerialNumbers?: Array<{ serialNumber: string }>;
+          preserveExistingAps?: boolean;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
@@ -3194,6 +3203,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs,
+          preserveExistingAps,
         );
 
         return {
