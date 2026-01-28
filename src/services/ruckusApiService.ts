@@ -1078,7 +1078,7 @@ export async function getApGroupDetails(
   const apsResult = await queryAPs(
     token,
     region,
-    { apGroupId: { value: apGroupId, operator: "eq" } },
+    { apGroupId: [apGroupId] },
     ["serialNumber"],
     "",
     [],
@@ -1131,13 +1131,18 @@ export async function updateApGroupWithRetry(
     );
   }
 
+  // Convert from Array<{ serialNumber: string }> to string[] for API
+  const serialNumbersArray = (effectiveApSerialNumbers || []).map(
+    (ap) => ap.serialNumber,
+  );
+
   const payload = {
     name: apGroupData.name,
     venueId: venueId,
     ...(apGroupData.description !== undefined && {
       description: apGroupData.description,
     }),
-    apSerialNumbers: effectiveApSerialNumbers || [],
+    apSerialNumbers: serialNumbersArray,
   };
 
   const response = await makeRuckusApiCall(
