@@ -1065,6 +1065,39 @@ export async function addApToGroupWithRetry(
   };
 }
 
+/**
+ * Get AP group details including the list of APs currently in the group.
+ * Used by updateApGroupWithRetry to preserve existing APs during updates.
+ */
+export async function getApGroupDetails(
+  token: string,
+  apGroupId: string,
+  region: string = "",
+): Promise<{ apSerialNumbers: Array<{ serialNumber: string }> }> {
+  // Query APs filtered by apGroupId to get serial numbers
+  const apsResult = await queryAPs(
+    token,
+    region,
+    { apGroupId: { value: apGroupId, operator: "eq" } },
+    ["serialNumber"],
+    "",
+    [],
+    1,
+    10000, // Get all APs in group
+  );
+
+  const apSerialNumbers =
+    apsResult.data?.map((ap: any) => ({
+      serialNumber: ap.serialNumber,
+    })) || [];
+
+  console.log(
+    `[RUCKUS] Retrieved ${apSerialNumbers.length} APs from AP group ${apGroupId}`,
+  );
+
+  return { apSerialNumbers };
+}
+
 export async function updateApGroupWithRetry(
   token: string,
   venueId: string,
@@ -1077,11 +1110,26 @@ export async function updateApGroupWithRetry(
   region: string = "",
   maxRetries: number = 5,
   pollIntervalMs: number = 2000,
+  preserveExistingAps: boolean = true,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
       ? `https://api.${region}.ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}`
       : `https://api.ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}`;
+
+  // Step 0: Retrieve existing APs if not provided and preservation is enabled
+  let effectiveApSerialNumbers = apGroupData.apSerialNumbers;
+
+  if (effectiveApSerialNumbers === undefined && preserveExistingAps) {
+    console.log(
+      "[RUCKUS] Retrieving existing APs to preserve during update...",
+    );
+    const existingData = await getApGroupDetails(token, apGroupId, region);
+    effectiveApSerialNumbers = existingData.apSerialNumbers;
+    console.log(
+      `[RUCKUS] Found ${effectiveApSerialNumbers.length} existing APs to preserve`,
+    );
+  }
 
   const payload = {
     name: apGroupData.name,
@@ -1089,7 +1137,7 @@ export async function updateApGroupWithRetry(
     ...(apGroupData.description !== undefined && {
       description: apGroupData.description,
     }),
-    apSerialNumbers: apGroupData.apSerialNumbers || [],
+    apSerialNumbers: effectiveApSerialNumbers || [],
   };
 
   const response = await makeRuckusApiCall(
