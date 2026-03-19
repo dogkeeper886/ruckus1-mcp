@@ -1,0 +1,22 @@
+id: TC-INT-016
+name: Query guest passes returns results
+suite: integration
+story: STORY-010
+priority: 1
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query guest passes with default parameters
+    command: npx tsx cicd/tests/src/mcp-client.ts query_guest_passes '{}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify query_guest_passes returns a valid response.
+  - Tool returns successfully without errors
+  - Response contains content and text fields
+  - Confirms guest pass query endpoint is accessible

@@ -1,0 +1,22 @@
+id: TC-INT-014
+name: Query WiFi networks with default parameters
+suite: integration
+story: STORY-009
+priority: 1
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query all WiFi networks from RUCKUS One
+    command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify query_wifi_networks returns a WiFi network list with default parameters.
+  - Tool returns successfully without errors
+  - Response contains content and text fields indicating valid MCP response
+  - Confirms WiFi network query endpoint works with no filters

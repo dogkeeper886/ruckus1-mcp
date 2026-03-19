@@ -1,0 +1,22 @@
+id: TC-INT-010
+name: Query portal service profiles returns results
+suite: integration
+story: STORY-007
+priority: 1
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query portal service profiles with default parameters
+    command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify query_portal_service_profiles returns a valid response.
+  - Tool returns successfully without errors
+  - Response contains content and text fields
+  - Confirms portal service profile query endpoint is accessible

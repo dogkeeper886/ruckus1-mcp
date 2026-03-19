@@ -1,0 +1,23 @@
+id: TC-INT-007
+name: Query access points inventory
+suite: integration
+story: STORY-004
+priority: 1
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query all APs from RUCKUS One
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_aps '{}'
+    expectPatterns:
+      - "serialNumber"
+      - "name"
+      - "venueId"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify get_ruckus_aps returns the AP inventory list.
+  - Tool returns successfully without errors
+  - Response contains AP records with serialNumber, name, and venueId fields
+  - Confirms AP query endpoint works with default parameters

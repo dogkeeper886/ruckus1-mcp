@@ -1,0 +1,22 @@
+id: TC-INT-008
+name: Query directory server profiles returns results
+suite: integration
+story: STORY-005
+priority: 1
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query directory server profiles with default parameters
+    command: npx tsx cicd/tests/src/mcp-client.ts query_directory_server_profiles '{}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify query_directory_server_profiles returns a valid response.
+  - Tool returns successfully without errors
+  - Response contains content and text fields
+  - Confirms directory server profile query endpoint is accessible

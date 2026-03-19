@@ -1,0 +1,22 @@
+id: TC-INT-017
+name: Query clients returns results
+suite: integration
+story: STORY-011
+priority: 1
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query clients with default parameters
+    command: npx tsx cicd/tests/src/mcp-client.ts query_clients '{}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify query_clients returns a valid response.
+  - Tool returns successfully without errors
+  - Response contains content and text fields
+  - Confirms client query endpoint is accessible

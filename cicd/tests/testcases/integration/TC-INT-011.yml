@@ -1,0 +1,21 @@
+id: TC-INT-011
+name: Get user groups returns list of user groups
+suite: integration
+story: STORY-008
+priority: 1
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query all user groups
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_user_groups '{}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify get_ruckus_user_groups returns a valid response containing
+  user group data. The tool requires no parameters and should return
+  the list of user groups configured in RUCKUS One.

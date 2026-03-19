@@ -1,0 +1,22 @@
+id: TC-INT-013
+name: Query role features returns list of features
+suite: integration
+story: STORY-008
+priority: 1
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query all role features
+    command: npx tsx cicd/tests/src/mcp-client.ts query_role_features '{}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify query_role_features returns a valid response containing
+  role feature data. The tool requires no parameters and should return
+  the list of available role features that can be assigned to custom
+  roles in RUCKUS One.

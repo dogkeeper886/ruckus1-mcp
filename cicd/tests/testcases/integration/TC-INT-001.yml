@@ -1,0 +1,21 @@
+id: TC-INT-001
+name: Authenticate and obtain JWT token
+suite: integration
+story: STORY-001
+priority: 1
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Get auth token from RUCKUS One
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_auth_token '{}'
+    expectPatterns:
+      - "eyJ"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify get_ruckus_auth_token returns a valid JWT token.
+  - Tool returns successfully without errors
+  - Response contains a JWT token (starts with eyJ)
+  - Confirms OAuth2 client credentials grant flow works

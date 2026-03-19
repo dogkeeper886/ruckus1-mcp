@@ -1,0 +1,23 @@
+id: TC-INT-015
+name: Query WiFi networks with search string filtering
+suite: integration
+story: STORY-009
+priority: 2
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query WiFi networks with a search string filter
+    command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"searchString":"test","pageSize":5}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify query_wifi_networks supports search string filtering.
+  - Tool returns successfully without errors
+  - Response contains content and text fields indicating valid MCP response
+  - Search string and pageSize parameters are accepted without error
+  - Confirms WiFi network query supports filtering and pagination parameters

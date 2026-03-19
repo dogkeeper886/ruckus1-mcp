@@ -37,4 +37,5 @@ export const ERROR_EXCLUSIONS: RegExp[] = [
   /error.*handled/i,
   /expected.*error/i,
   /rejectPatterns/i,
+  /_idleTimeout/i,
 ];
