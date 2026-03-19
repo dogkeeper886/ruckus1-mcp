@@ -2,12 +2,160 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project Structure
+
+```
+src/
+├── mcpServer.ts                # MCP server entry point, tool registration + handlers
+├── services/
+│   ├── ruckusApiService.ts     # RUCKUS One API service layer (all API calls)
+│   └── tokenService.ts         # Token management service
+├── types/
+│   └── ruckusApi.ts            # TypeScript interfaces
+└── utils/
+    ├── config.ts               # Configuration utilities
+    ├── errorHandler.ts         # Error handling utilities
+    ├── validation.ts           # Input validation utilities
+    └── tokenCache.ts           # Token caching with expiry
+
+commands/                       # Slash command definitions (markdown)
+├── dev/                        # Dev flow commands
+├── ci/                         # CI/test flow commands
+└── utility/                    # Session summary, evolve
+
+docs/
+├── stories/                    # User story files (STORY-XXX.md)
+├── session_summaries/          # Session summaries (gitignored)
+└── evolve/                     # Evolve reports
+
+cicd/tests/
+├── src/                        # Test framework (TypeScript)
+│   ├── cli.ts                  # Test runner CLI
+│   ├── mcp-client.ts           # Lightweight MCP client for testing
+│   ├── executor.ts             # Test execution engine
+│   ├── loader.ts               # YAML test case loader
+│   ├── judge/                  # Simple + LLM judge
+│   └── reporter/               # Console + JSON reporters
+└── testcases/                  # YAML test definitions
+    ├── build/
+    ├── integration/
+    └── e2e/
+```
+
 ## Core Commands
 
 - **Build**: `npm run build` - Compiles TypeScript to JavaScript in `dist/`
 - **Run MCP Server**: `npm run mcp` - Starts the MCP server using ts-node
 - **Development**: `npm run dev` - Runs development server with ts-node (main focus is MCP)
 - **Production**: `npm start` - Runs the built MCP server from `dist/`
+
+## Development Flows
+
+### Dev Flow: User Input → Implementation
+
+Use these slash commands in sequence to go from idea to working code:
+
+```
+/dev-story [description]    → creates docs/stories/STORY-XXX.md
+/dev-tasks STORY-XXX        → breaks story into GitHub issues
+/dev-impl STORY-XXX         → implements tasks, closes issues
+```
+
+| Command | Trigger | What it does |
+|---------|---------|-------------|
+| `/dev-story` | User has a new feature idea or requirement | Creates a structured user story file with acceptance criteria |
+| `/dev-tasks` | A story file exists and needs to be broken down | Creates GitHub issues for each task, updates story status |
+| `/dev-impl` | Tasks exist and need implementation | Writes code following project patterns, builds, closes issues |
+
+### CI Flow: User Story → Test Cases → Run
+
+Use these slash commands to create and run tests:
+
+```
+/ci-testcase STORY-XXX      → creates cicd/tests/testcases/TC-*.yml
+/ci-run [STORY-XXX|TC-ID]   → executes tests against live RUCKUS One
+```
+
+| Command | Trigger | What it does |
+|---------|---------|-------------|
+| `/ci-testcase` | A story needs test coverage | Generates YAML test cases that call MCP tools via mcp-client.ts |
+| `/ci-run` | Test cases exist and need execution | Runs tests, applies simple/LLM judge, reports results |
+
+**Running tests from CLI (without slash command):**
+
+```bash
+cd cicd/tests
+npm test                      # Run all tests (simple judge)
+npm run test:integration      # Integration suite only
+npm run test:llm              # With LLM judge enabled
+npm run list                  # List available tests
+```
+
+### Improvement Flow: Session → Evolve
+
+Use these commands at end of session or periodically:
+
+```
+/session-summary              → saves session patterns to docs/session_summaries/
+/evolve                       → analyzes history, proposes improvements
+```
+
+| Command | Trigger | What it does |
+|---------|---------|-------------|
+| `/session-summary` | End of a work session | Records workflow patterns, friction points, feeds /evolve |
+| `/evolve` | Periodically, or when friction points accumulate | Analyzes issues + commits + session patterns, proposes actions |
+
+**Pipeline:** `/session-summary` → `patterns.md` → `/evolve` → actions
+
+## Adding a New MCP Tool
+
+**Always create a story first** — even if a GitHub issue already exists. The story file is the single source of truth that links tasks, implementation, and tests.
+
+1. **Create story:** `/dev-story` with the feature description
+2. **Create tasks:** `/dev-tasks STORY-XXX`
+3. **Implement:**
+   - Add service function to `src/services/ruckusApiService.ts` — follow existing patterns
+   - Register tool in `src/mcpServer.ts` (tool definition + handler case)
+   - Add types to `src/types/ruckusApi.ts` if needed
+4. **Build:** `npm run build`
+5. **Create tests:** `/ci-testcase STORY-XXX`
+6. **Run tests:** `cd cicd/tests && npm test`
+7. **Commit and push**
+
+### Test Case Pattern
+
+Test cases use `mcp-client.ts` to spawn the MCP server and call tools:
+
+```yaml
+id: TC-INT-XXX
+name: Descriptive test name
+suite: integration
+story: STORY-XXX
+priority: 1
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Call the tool
+    command: npx tsx cicd/tests/src/mcp-client.ts tool_name '{"arg":"value"}'
+    expectPatterns:
+      - "expected_field"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  What this test verifies in plain language.
+```
+
+**Important:** `mcp-client.ts` returns double-encoded JSON (the tool's JSON is inside a `text` field). Use bare strings in patterns (e.g., `networkId`, `venueId`) — not quoted forms like `'"networkId"'` which won't match the escaped output `\"networkId\"`.
+
+## Environment
+
+- **Credentials:** Set via `.env` file
+- **Required:** `RUCKUS_TENANT_ID`, `RUCKUS_CLIENT_ID`, `RUCKUS_CLIENT_SECRET`
+- **Optional:** `RUCKUS_REGION` (defaults to global)
+- **Build:** `npm run build` (TypeScript → dist/)
+- **Test deps:** `cd cicd/tests && npm install`
 
 ## Architecture Overview
 

@@ -101,3 +101,9 @@ temp/
 
 # Scripts directory (contains scraped data and utilities)
 scripts/
+
+# Test results
+cicd/results/
+
+# Session summaries (privacy-sensitive)
+docs/session_summaries/
