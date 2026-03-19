@@ -33,4 +33,4 @@ Full CRUD operations for RUCKUS One venues plus venue-level radio and antenna co
 - Implementation: complete
 - Tasks: complete
 - Test Issue: #6
-- Tests: TC-INT-003, TC-INT-004, TC-INT-005
+- Tests: PASS - TC-INT-003, TC-INT-004, TC-INT-005

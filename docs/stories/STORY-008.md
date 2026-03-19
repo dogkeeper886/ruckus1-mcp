@@ -32,4 +32,4 @@ Management of RBAC (Role-Based Access Control) in RUCKUS One including querying 
 - Implementation: complete
 - Tasks: complete
 - Test Issue: #12
-- Tests: TC-INT-011, TC-INT-012, TC-INT-013
+- Tests: PASS - TC-INT-011, TC-INT-012, TC-INT-013

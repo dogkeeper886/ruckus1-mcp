@@ -30,4 +30,4 @@ Full CRUD operations for directory server profiles including query with filterin
 - Implementation: complete
 - Tasks: complete
 - Test Issue: #9
-- Tests: TC-INT-008
+- Tests: PASS - TC-INT-008

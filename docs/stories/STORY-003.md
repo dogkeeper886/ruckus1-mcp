@@ -34,4 +34,4 @@ Full CRUD operations for AP groups plus group-level radio, antenna, band mode, a
 - Implementation: complete
 - Tasks: complete
 - Test Issue: #7
-- Tests: TC-INT-006
+- Tests: PASS - TC-INT-006

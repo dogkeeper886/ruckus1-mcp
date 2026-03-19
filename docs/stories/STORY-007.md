@@ -30,4 +30,4 @@ Full CRUD operations for portal service profiles including query with filtering/
 - Implementation: complete
 - Tasks: complete
 - Test Issue: #11
-- Tests: TC-INT-010
+- Tests: PASS - TC-INT-010
