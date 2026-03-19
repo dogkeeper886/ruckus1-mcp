@@ -107,3 +107,6 @@ cicd/results/
 
 # Session summaries (privacy-sensitive)
 docs/session_summaries/
+
+# Playwright MCP artifacts
+.playwright-mcp/
