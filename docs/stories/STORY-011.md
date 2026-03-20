@@ -21,10 +21,24 @@ Query connected wireless clients with filtering and pagination support. Provides
 - MCP tools: `query_clients`
 - API endpoints: Client query endpoint
 
+## Tool Parameters
+
+### `query_clients` (READ-ONLY)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| filters | object | no | - | Optional filters (e.g., {"venueId": ["venue-id"]}) |
+| fields | array | no | comprehensive set | Fields to return |
+| searchString | string | no | - | Search string to filter clients |
+| searchTargetFields | array | no | macAddress, ipAddress, username, hostname, etc. | Fields to search in |
+| page | number | no | 1 | Page number |
+| pageSize | number | no | 10 | Number of results per page |
+| sortField | string | no | "name" | Field to sort by |
+| sortOrder | string | no | "ASC" | Sort order - ASC or DESC |
+
 ## Status
 
 - Created: 2026-03-19
 - Implementation: complete
 - Tasks: complete
 - Test Issue: #15
-- Tests: PASS - TC-INT-017
+- Tests: PASS - TC-INT-017, TC-INT-112

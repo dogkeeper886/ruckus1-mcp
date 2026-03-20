@@ -29,10 +29,95 @@ Comprehensive WiFi network lifecycle management including CRUD operations, venue
 - MCP tools: `query_wifi_networks`, `get_wifi_network`, `create_wifi_network`, `update_wifi_network`, `delete_wifi_network`, `activate_wifi_network_at_venues`, `deactivate_wifi_network_at_venues`, `update_wifi_network_portal_service_profile`, `update_wifi_network_radius_server_profile_settings`
 - Uses advanced patterns: multi-step async, type-based conditional logic, retrieve-then-update for full config preservation, optional payload pattern, type-based early return
 
+## Tool Parameters
+
+### `query_wifi_networks` (READ-ONLY)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| filters | object | no | - | Optional filters to apply |
+| fields | array | no | comprehensive set | Fields to return |
+| searchString | string | no | - | Search string to filter WiFi networks |
+| searchTargetFields | array | no | ["name"] | Fields to search in |
+| page | number | no | 1 | Page number |
+| pageSize | number | no | 10 | Number of results per page |
+| sortField | string | no | "name" | Field to sort by |
+| sortOrder | string | no | "ASC" | Sort order - ASC or DESC |
+
+### `get_wifi_network` (READ-ONLY)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| networkId | string | yes | - | ID of the WiFi network to get |
+
+### `create_wifi_network` (CRUD - CREATE)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| name | string | yes | - | Name of the WiFi network (internal identifier) |
+| ssid | string | yes | - | SSID (network name visible to clients) |
+| type | string | yes | - | Network type: psk, enterprise, open, guest, or selfSignIn |
+| wlanSecurity | string | yes | - | WLAN security type: WPA2Personal, WPA2Enterprise, None, etc. |
+| passphrase | string | no | - | Network passphrase (required for type=psk, min 8 chars) |
+| portalServiceProfileId | string | no | - | Portal service profile ID (required for guest/selfSignIn) |
+| radiusServiceProfileId | string | no | - | RADIUS auth profile ID (required for enterprise) |
+| accountingRadiusServiceProfileId | string | no | - | RADIUS accounting profile ID |
+| enableAuthProxy | boolean | no | false | Enable authentication proxy |
+| enableAccountingProxy | boolean | no | false | Enable accounting proxy |
+| allowedEmailDomains | array | no | - | Allowed email domains for selfSignIn |
+| sessionDurationDays | number | no | 12 | Session duration in days for selfSignIn |
+| maxDevices | number | no | 1 | Max devices per user for guest/selfSignIn |
+| vlanId | number | no | 1 | VLAN ID for client traffic |
+| managementFrameProtection | string | no | "Disabled" | 802.11w setting |
+| maxClientsOnWlanPerRadio | number | no | 100 | Maximum clients per radio |
+| enableBandBalancing | boolean | no | true | Enable band balancing |
+| clientIsolation | boolean | no | false | Enable client isolation |
+| hideSsid | boolean | no | false | Hide SSID from broadcast |
+| enableFastRoaming | boolean | no | false | Enable 802.11r fast roaming |
+| mobilityDomainId | number | no | 1 | Mobility domain ID for fast roaming |
+| wifi6Enabled | boolean | no | true | Enable WiFi 6 (802.11ax) |
+| wifi7Enabled | boolean | no | true | Enable WiFi 7 (802.11be) |
+| guestPortal | object | no | - | Guest portal configuration object |
+| radiusOptions | object | no | - | RADIUS options for NAS ID configuration |
+
+### `update_wifi_network` (CRUD - UPDATE)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| networkId | string | yes | - | ID of the WiFi network to update |
+| networkConfig | object | yes | - | Full network configuration object |
+
+### `delete_wifi_network` (CRUD - DELETE)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| networkId | string | yes | - | ID of the WiFi network to delete |
+
+### `activate_wifi_network_at_venues` (CRUD - UPDATE)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| networkId | string | yes | - | ID of the WiFi network to activate |
+| venueConfigs | array | yes | - | Array of venue configurations (venueId, isAllApGroups, apGroups, allApGroupsRadio, allApGroupsRadioTypes, scheduler) |
+| portalServiceProfileId | string | no | - | Portal service profile ID (required for guest pass networks) |
+
+### `deactivate_wifi_network_at_venues` (CRUD - UPDATE)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| networkId | string | yes | - | ID of the WiFi network to deactivate |
+| venueIds | array | yes | - | Array of venue IDs to deactivate from |
+
+### `update_wifi_network_portal_service_profile` (CRUD - UPDATE)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| networkId | string | yes | - | ID of the WiFi network |
+| profileId | string | yes | - | ID of the portal service profile to associate |
+
+### `update_wifi_network_radius_server_profile_settings` (CRUD - UPDATE)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| networkId | string | yes | - | ID of the WiFi network |
+| enableAccountingProxy | boolean | no | false | Enable accounting proxy |
+| enableAuthProxy | boolean | no | false | Enable authentication proxy |
+
 ## Status
 
 - Created: 2026-03-19
 - Implementation: complete
 - Tasks: complete
 - Test Issue: #13
-- Tests: PASS - TC-INT-014, TC-INT-015
+- Tests: PASS - TC-INT-014, TC-INT-015, TC-INT-110, TC-INT-209, TC-INT-316

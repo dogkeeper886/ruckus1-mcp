@@ -24,10 +24,22 @@ Provides OAuth2 authentication using client credentials grant flow and activity 
 - MCP tools: `get_ruckus_auth_token`, `get_ruckus_activity_details`
 - API endpoints: OAuth2 token endpoint, Activity details endpoint
 
+## Tool Parameters
+
+### `get_ruckus_auth_token` (READ-ONLY)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| *(none)* | - | - | - | No parameters required |
+
+### `get_ruckus_activity_details` (READ-ONLY)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| activityId | string | yes | - | Activity ID (requestId) to get details for |
+
 ## Status
 
 - Created: 2026-03-19
 - Implementation: complete
 - Tasks: complete
 - Test Issue: #5
-- Tests: PASS - TC-INT-001, TC-INT-002
+- Tests: PASS - TC-INT-001, TC-INT-002, TC-INT-301

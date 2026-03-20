@@ -27,10 +27,67 @@ Full CRUD operations for RUCKUS One venues plus venue-level radio and antenna co
 - MCP tools: `get_ruckus_venues`, `create_ruckus_venue`, `delete_ruckus_venue`, `update_ruckus_venue`, `get_venue_external_antenna_settings`, `get_venue_antenna_type_settings`, `get_venue_ap_model_band_mode_settings`, `get_venue_radio_settings`
 - API endpoints: Venue CRUD endpoints, Venue settings endpoints
 
+## Tool Parameters
+
+### `get_ruckus_venues` (READ-ONLY)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| *(none)* | - | - | - | No parameters required |
+
+### `create_ruckus_venue` (CRUD - CREATE)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| name | string | yes | - | Name of the venue |
+| addressLine | string | yes | - | Street address of the venue |
+| city | string | yes | - | City where the venue is located |
+| country | string | yes | - | Country where the venue is located |
+| latitude | number | no | - | Latitude coordinate |
+| longitude | number | no | - | Longitude coordinate |
+| timezone | string | no | - | Timezone for the venue |
+
+### `delete_ruckus_venue` (CRUD - DELETE)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| venueId | string | yes | - | ID of the venue to delete |
+
+### `update_ruckus_venue` (CRUD - UPDATE)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| venueId | string | yes | - | ID of the venue to update |
+| name | string | yes | - | Name of the venue |
+| addressLine | string | yes | - | Street address of the venue |
+| city | string | yes | - | City where the venue is located |
+| country | string | yes | - | Country where the venue is located |
+| description | string | no | - | Description of the venue |
+| countryCode | string | no | - | Country code (e.g., "US") |
+| latitude | number | no | - | Latitude coordinate |
+| longitude | number | no | - | Longitude coordinate |
+| timezone | string | no | - | Timezone for the venue |
+
+### `get_venue_external_antenna_settings` (READ-ONLY)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| venueId | string | yes | - | ID of the venue |
+
+### `get_venue_antenna_type_settings` (READ-ONLY)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| venueId | string | yes | - | ID of the venue |
+
+### `get_venue_ap_model_band_mode_settings` (READ-ONLY)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| venueId | string | yes | - | ID of the venue |
+
+### `get_venue_radio_settings` (READ-ONLY)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| venueId | string | yes | - | ID of the venue |
+
 ## Status
 
 - Created: 2026-03-19
 - Implementation: complete
 - Tasks: complete
 - Test Issue: #6
-- Tests: PASS - TC-INT-003, TC-INT-004, TC-INT-005
+- Tests: PASS - TC-INT-003, TC-INT-004, TC-INT-005, TC-INT-102, TC-INT-201, TC-INT-302, TC-INT-303
