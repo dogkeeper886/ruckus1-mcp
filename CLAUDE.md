@@ -18,10 +18,7 @@ src/
     ├── validation.ts           # Input validation utilities
     └── tokenCache.ts           # Token caching with expiry
 
-commands/                       # Slash command definitions (markdown)
-├── dev/                        # Dev flow commands
-├── ci/                         # CI/test flow commands
-└── utility/                    # Session summary, evolve
+.claude/commands/                # Slash command definitions (markdown)
 
 docs/
 ├── stories/                    # User story files (STORY-XXX.md)
