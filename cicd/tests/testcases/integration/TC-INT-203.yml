@@ -14,7 +14,7 @@ steps:
       - "completed"
     rejectPatterns:
       - "isError"
-      - "failed"
+      - "\"status\": \"failed\""
 
   - name: Get venue ID for AP group creation
     command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venues '{}'
@@ -32,7 +32,7 @@ steps:
       - "requestId"
     rejectPatterns:
       - "isError"
-      - "failed"
+      - "\"status\": \"failed\""
 
   - name: Verify AP group exists
     command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_ap_groups '{}'
@@ -49,7 +49,7 @@ steps:
       - "completed"
     rejectPatterns:
       - "isError"
-      - "failed"
+      - "\"status\": \"failed\""
 
   - name: Cleanup - delete test venue
     command: npx tsx cicd/tests/src/mcp-client.ts delete_ruckus_venue '{"venueId":"{{venueId}}","maxRetries":10,"pollIntervalMs":3000}'

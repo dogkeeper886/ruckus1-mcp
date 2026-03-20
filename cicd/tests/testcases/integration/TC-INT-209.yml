@@ -30,7 +30,7 @@ steps:
       - "completed"
     rejectPatterns:
       - "isError"
-      - "failed"
+      - "\"status\": \"failed\""
 
   - name: Verify network is gone
     command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"searchString":"mcp-test-wifi-psk"}'

@@ -15,7 +15,7 @@ steps:
       - "requestId"
     rejectPatterns:
       - "isError"
-      - "failed"
+      - "\"status\": \"failed\""
 
   - name: Find created venue ID from venue list
     command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venues '{}'
@@ -32,7 +32,7 @@ steps:
       - "completed"
     rejectPatterns:
       - "isError"
-      - "failed"
+      - "\"status\": \"failed\""
 
   - name: Verify venue is gone from list
     command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venues '{}'

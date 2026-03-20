@@ -1,0 +1,46 @@
+id: TC-INT-205
+name: Portal service profile CRUD lifecycle - create, verify, delete
+suite: integration
+story: STORY-007
+priority: 1
+timeout: 120000
+dependencies:
+  - TC-INT-001
+
+steps:
+  - name: Create portal service profile
+    command: npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"name":"mcp-test-portal","content":{},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "requestId"
+    rejectPatterns:
+      - "isError"
+
+  - name: Find created profile and capture ID
+    command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{"searchString":"mcp-test-portal"}'
+    capture:
+      profileId: "content[serviceName=mcp-test-portal].id"
+    expectPatterns:
+      - "mcp-test-portal"
+    rejectPatterns:
+      - "isError"
+
+  - name: Delete portal service profile
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_portal_service_profile '{"profileId":"{{profileId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Verify profile is gone
+    command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{"searchString":"mcp-test-portal"}'
+    expectPatterns:
+      - "totalCount"
+    rejectPatterns:
+      - "mcp-test-portal"
+
+criteria: |
+  Full portal service profile CRUD lifecycle:
+  1. Create profile "mcp-test-portal" with minimal content
+  2. Query to find it and capture profileId
+  3. Delete using captured profileId
+  4. Verify it no longer appears in query results

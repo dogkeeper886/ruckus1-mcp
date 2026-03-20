@@ -1,0 +1,46 @@
+id: TC-INT-206
+name: RADIUS server profile CRUD lifecycle - create, verify, delete
+suite: integration
+story: STORY-006
+priority: 1
+timeout: 120000
+dependencies:
+  - TC-INT-001
+
+steps:
+  - name: Create RADIUS server profile
+    command: npx tsx cicd/tests/src/mcp-client.ts create_radius_server_profile '{"name":"mcp-test-radius","type":"AUTHENTICATION","enableSecondaryServer":false,"primary":{"port":1812,"sharedSecret":"TestSecret123","ip":"10.99.99.99"},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "content"
+    rejectPatterns:
+      - "isError"
+
+  - name: Find created profile and capture ID
+    command: npx tsx cicd/tests/src/mcp-client.ts query_radius_server_profiles '{"pageSize":100}'
+    capture:
+      profileId: "data[name=mcp-test-radius].id"
+    expectPatterns:
+      - "mcp-test-radius"
+    rejectPatterns:
+      - "isError"
+
+  - name: Delete RADIUS server profile
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_radius_server_profile '{"profileId":"{{profileId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Verify profile is gone
+    command: npx tsx cicd/tests/src/mcp-client.ts query_radius_server_profiles '{"pageSize":100}'
+    expectPatterns:
+      - "totalCount"
+    rejectPatterns:
+      - "mcp-test-radius"
+
+criteria: |
+  Full RADIUS server profile CRUD lifecycle:
+  1. Create AUTHENTICATION profile "mcp-test-radius" with primary server
+  2. Query to find it and capture profileId
+  3. Delete using captured profileId
+  4. Verify it no longer appears in query results
