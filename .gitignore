@@ -104,6 +104,7 @@ scripts/
 
 # Test results
 cicd/results/
+cicd/tests/results/
 
 # Session summaries (privacy-sensitive)
 docs/session_summaries/
