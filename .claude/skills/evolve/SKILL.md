@@ -1,6 +1,14 @@
+---
+name: evolve
+description: |
+  Analyze project history (issues, commits, session summaries) to detect patterns
+  and suggest improvements to CLAUDE.md, skills, and commands. Use periodically
+  or when friction points accumulate.
+disable-model-invocation: true
+---
+
 # Evolve — Self-Improvement Loop
 
-```
 Analyze project history to detect patterns and suggest improvements to CLAUDE.md, skills, and commands.
 
 Arguments: {{input}}
@@ -224,4 +232,3 @@ After applying actions (or if user chooses "save"), **always** save the report:
 2. **Update project memory** (if the project uses a memory system):
    - Record the report date, insight count, and key actions taken
    - Update "Patterns to Monitor" — carry forward unresolved items
-```

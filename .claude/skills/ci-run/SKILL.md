@@ -1,8 +1,15 @@
+---
+name: ci-run
+description: |
+  Execute test cases against a live RUCKUS One environment using MCP tools.
+  Use when the user wants to run tests, execute test cases, or verify MCP tool behavior.
+disable-model-invocation: true
+---
+
 # Run Test Cases
 
 Execute test cases against a live RUCKUS One environment using MCP tools.
 
-```
 {{input}}
 
 ## PURPOSE
@@ -71,4 +78,3 @@ If any test failed, show:
 ## OUTPUT
 
 Test results summary with pass/fail status for each test case.
-```

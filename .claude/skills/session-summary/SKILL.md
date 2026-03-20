@@ -1,9 +1,16 @@
+---
+name: session-summary
+description: |
+  Generate a privacy-safe summary of the current session to feed pattern detection
+  and workflow improvement. Use at the end of a work session.
+disable-model-invocation: true
+---
+
 # Session Summary — Privacy-Safe Session Recorder
 
-```
 Generate a privacy-safe summary of the current session to feed pattern detection and workflow improvement.
 
-Arguments: {{input}}
+Arguments: $ARGUMENTS
   - (empty)         Generate summary for the current session
   - --detail full   Include ticket/issue references (default: structural only)
   - review          Review and show aggregated patterns from past summaries
@@ -122,8 +129,10 @@ Present the following to the user for approval:
 Before presenting, verify the summary passes this checklist:
 - [ ] No real credentials, passwords, or API keys
 - [ ] No real tenant IDs (unless --detail full)
+- [ ] No real IP addresses or hostnames (except generic env names like "stage")
 - [ ] No real person names or email addresses
 - [ ] No specific network configuration data that could identify the deployment
+- [ ] No specific test data values that could identify the system under test
 
 ## Phase 4: Save (after user approval)
 
@@ -194,4 +203,3 @@ Session summaries are designed to be consumed by `/evolve`:
 - Friction points with 3+ occurrences become High-confidence insights
 - Improvement candidates feed directly into `/evolve` Phase 5
 - Pipeline: `/session-summary` → patterns.md → `/evolve` → actions
-```

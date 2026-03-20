@@ -1,3 +1,11 @@
+---
+name: add-tool
+description: |
+  Add a new MCP tool to the RUCKUS One server based on API logs. Use when the user
+  wants to add a new API endpoint, create a new tool, or implement a new RUCKUS API operation.
+disable-model-invocation: true
+---
+
 # Add New MCP Tool from API Log
 
 Add a new MCP tool to this server based on API logs, following the project's established patterns and guidelines.
@@ -243,11 +251,11 @@ Each parameter should also include tool references:
 - `'Portal service profile ID (use query_portal_service_profiles to get ID)'`
 
 **Common Issues to Avoid:**
-- ❌ Vague descriptions without tool references
-- ❌ Missing PREREQUISITE information for destructive operations
-- ❌ Not mentioning what tool to use to get required IDs
-- ❌ Unclear warnings about permanent actions
-- ❌ Missing context about batch vs single operations
+- Vague descriptions without tool references
+- Missing PREREQUISITE information for destructive operations
+- Not mentioning what tool to use to get required IDs
+- Unclear warnings about permanent actions
+- Missing context about batch vs single operations
 
 **Action:** Review and update tool description to ensure AI agents understand:
 1. What the tool does

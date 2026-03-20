@@ -1,9 +1,16 @@
+---
+name: dev-tasks
+description: |
+  Break a user story into implementable GitHub issues. Use when a story file exists
+  and needs to be broken down into tracked tasks.
+disable-model-invocation: true
+---
+
 # Break Story into GitHub Issues
 
 Read a user story and create GitHub issues for each task.
 
-```
-{{input}}
+Arguments: $ARGUMENTS
 
 ## PURPOSE
 
@@ -33,14 +40,20 @@ Common task types for this project:
 - Build and test
 - Update documentation
 
-### Step 3: Create GitHub Issues
+### Step 3: Check for Duplicates
+
+Before creating issues, query existing issues to avoid duplicates:
+- Run: `gh issue list --search "[STORY-XXX]" --state all`
+- If matching issues exist, report them and ask user how to proceed
+
+### Step 4: Create GitHub Issues
 
 For each task, run `gh issue create` with:
 - **Title**: `[STORY-XXX] Task description`
 - **Body**: Include acceptance criteria from the task breakdown
-- **Labels**: add relevant labels if they exist (e.g., `enhancement`, `bug`)
+- **Labels**: add relevant labels (e.g., `enhancement`, `bug`, `priority:high`)
 
-### Step 4: Update Story File
+### Step 5: Update Story File
 
 Update the story file's **Status** section:
 ```markdown
@@ -51,7 +64,7 @@ Update the story file's **Status** section:
 - Tests: none
 ```
 
-### Step 5: Report
+### Step 6: Report
 
 Show the user:
 - List of created issues with numbers and titles
@@ -63,4 +76,3 @@ Show the user:
 ## OUTPUT
 
 List of GitHub issue numbers created and their titles.
-```

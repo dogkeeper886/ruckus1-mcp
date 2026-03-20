@@ -18,7 +18,20 @@ src/
     ├── validation.ts           # Input validation utilities
     └── tokenCache.ts           # Token caching with expiry
 
-.claude/commands/                # Slash command definitions (markdown)
+.claude/skills/                  # Skill definitions (SKILL.md per directory)
+│   ├── add-tool/               # Add new MCP tool from API log
+│   ├── ci-run/                 # Execute test cases
+│   ├── ci-testcase/            # Generate test cases from stories
+│   ├── compare/                # Cross-repo drift detection
+│   ├── dev-create-pr/          # Create PR with issue linkage
+│   ├── dev-impl/               # Implement a task from story/issue
+│   ├── dev-merge/              # Merge PR and clean up
+│   ├── dev-review-pr/          # Review PR with MCP checklist
+│   ├── dev-story/              # Create user story
+│   ├── dev-tasks/              # Break story into GitHub issues
+│   ├── evolve/                 # Self-improvement loop
+│   ├── session-summary/        # Privacy-safe session recorder
+│   └── sync/                   # Cross-repo component sync
 
 docs/
 ├── stories/                    # User story files (STORY-XXX.md)
@@ -56,6 +69,9 @@ Use these slash commands in sequence to go from idea to working code:
 /dev-story [description]    → creates docs/stories/STORY-XXX.md
 /dev-tasks STORY-XXX        → breaks story into GitHub issues
 /dev-impl STORY-XXX         → implements tasks, closes issues
+/dev-create-pr [issue#]     → pushes branch, opens PR with issue linkage
+/dev-review-pr [PR#]        → reviews PR against MCP-specific checklist
+/dev-merge [PR#]            → merges PR, cleans up branches and labels
 ```
 
 | Command | Trigger | What it does |
@@ -63,6 +79,9 @@ Use these slash commands in sequence to go from idea to working code:
 | `/dev-story` | User has a new feature idea or requirement | Creates a structured user story file with acceptance criteria |
 | `/dev-tasks` | A story file exists and needs to be broken down | Creates GitHub issues for each task, updates story status |
 | `/dev-impl` | Tasks exist and need implementation | Writes code following project patterns, builds, closes issues |
+| `/dev-create-pr` | Implementation is done, ready for review | Pushes branch, creates PR with "Fixes #N", updates labels |
+| `/dev-review-pr` | PR exists and needs review | Reviews against MCP checklist, approves or requests changes |
+| `/dev-merge` | PR is approved and ready | Merges PR, deletes branch, updates story status |
 
 ### CI Flow: User Story → Test Cases → Run
 
@@ -103,6 +122,20 @@ Use these commands at end of session or periodically:
 | `/evolve` | Periodically, or when friction points accumulate | Analyzes issues + commits + session patterns, proposes actions |
 
 **Pipeline:** `/session-summary` → `patterns.md` → `/evolve` → actions
+
+### Cross-Repo Flow: Sync & Compare
+
+Use these commands to keep shared components in sync across repositories:
+
+```
+/compare /path/to/other-repo  → detects drift, generates comparison report
+/sync /path/to/other-repo     → pulls improvements, adapts to local context
+```
+
+| Command | Trigger | What it does |
+|---------|---------|-------------|
+| `/compare` | Want to see what's different between repos | Analyzes shared components by purpose, classifies drift |
+| `/sync` | Want to pull improvements from another repo | Adapts and applies changes with user approval |
 
 ## Adding a New MCP Tool
 

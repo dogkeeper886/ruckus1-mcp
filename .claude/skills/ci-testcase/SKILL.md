@@ -1,8 +1,15 @@
+---
+name: ci-testcase
+description: |
+  Generate YAML test cases from a user story that test MCP tools against live RUCKUS One.
+  Use when the user wants to create tests, generate test cases, or add test coverage for a story.
+disable-model-invocation: true
+---
+
 # Create Test Case from Story
 
 Generate a YAML test case file that tests a user story via MCP tools.
 
-```
 {{input}}
 
 ## PURPOSE
@@ -118,4 +125,3 @@ criteria: |
 ## OUTPUT
 
 Paths to created test case files.
-```

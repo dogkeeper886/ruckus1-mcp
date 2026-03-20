@@ -1,8 +1,15 @@
+---
+name: dev-story
+description: |
+  Create a structured user story file from user input. Use when the user has a new
+  feature idea, requirement, or wants to document a feature request.
+disable-model-invocation: true
+---
+
 # Create User Story
 
 Create a user story file from user input.
 
-```
 {{input}}
 
 ## PURPOSE
@@ -75,4 +82,3 @@ Show the user the created story and suggest next steps:
 ## OUTPUT
 
 The path to the created story file.
-```
