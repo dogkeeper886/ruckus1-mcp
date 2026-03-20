@@ -1,0 +1,21 @@
+id: TC-INT-110
+name: Query WiFi networks with multiple parameters
+suite: integration
+story: STORY-009
+priority: 2
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query WiFi networks with sort and pagination
+    command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"pageSize":5,"sortField":"name","sortOrder":"DESC"}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify query_wifi_networks accepts sort and pagination parameters.
+  - pageSize, sortField, sortOrder parameters work without error
+  - Response contains valid MCP content structure

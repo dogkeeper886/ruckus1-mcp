@@ -21,9 +21,83 @@ export class TestExecutor {
   private totalTests: number = 0;
   private currentTest: number = 0;
   private currentTestId: string | null = null;
+  private variables: Record<string, string> = {};
 
   constructor(config: RunConfig) {
     this.config = config;
+  }
+
+  private substituteVariables(command: string): string {
+    return command.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
+      const value = this.variables[varName];
+      if (value === undefined) {
+        this.progress(`    [WARN] Variable {{${varName}}} not found`);
+        return match;
+      }
+      return value;
+    });
+  }
+
+  /**
+   * Resolve a dot-notation path with optional array find syntax.
+   * Supports: "field", "nested.field", "data[name=foo].id"
+   * Array find on field: arrayField[key=value] finds first element where element.key === value
+   * Array find on root: $[key=value].field finds in top-level array
+   */
+  private resolvePath(obj: any, fieldPath: string): any {
+    const segments = fieldPath.match(/[^.]+/g) || [];
+    let current = obj;
+
+    for (const segment of segments) {
+      if (current === undefined || current === null) return undefined;
+
+      // Top-level array find: $[key=value]
+      const rootArrayMatch = segment.match(/^\$\[(\w+)=(.+)\]$/);
+      if (rootArrayMatch) {
+        const [, matchKey, matchValue] = rootArrayMatch;
+        if (!Array.isArray(current)) return undefined;
+        current = current.find((item: any) => String(item[matchKey]) === matchValue);
+        continue;
+      }
+
+      // Named array find: fieldName[key=value]
+      const arrayMatch = segment.match(/^(\w+)\[(\w+)=(.+)\]$/);
+      if (arrayMatch) {
+        const [, arrayField, matchKey, matchValue] = arrayMatch;
+        const arr = current[arrayField];
+        if (!Array.isArray(arr)) return undefined;
+        current = arr.find((item: any) => String(item[matchKey]) === matchValue);
+      } else {
+        current = current[segment];
+      }
+    }
+
+    return current;
+  }
+
+  private captureVariables(step: TestCase['steps'][0], result: StepResult): void {
+    if (!step.capture || result.exitCode !== 0) return;
+
+    try {
+      const mcpResponse = JSON.parse(result.stdout);
+      const innerText = mcpResponse?.content?.[0]?.text;
+      if (!innerText) return;
+
+      const toolResponse = JSON.parse(innerText);
+
+      for (const [varName, fieldPath] of Object.entries(step.capture)) {
+        const resolvedPath = this.substituteVariables(fieldPath);
+        const value = this.resolvePath(toolResponse, resolvedPath);
+        if (value !== undefined) {
+          this.variables[varName] = String(value);
+          this.progress(`    Captured: ${varName} = ${String(value).substring(0, 60)}`);
+        } else {
+          this.progress(`    [WARN] Capture field '${fieldPath}' not found in response`);
+        }
+      }
+    } catch (e) {
+      this.progress(`    [WARN] Failed to capture variables: ${e}`);
+    }
   }
 
   private progress(msg: string): void {
@@ -121,6 +195,7 @@ export class TestExecutor {
 
     this.currentTest++;
     this.currentTestId = testCase.id;
+    this.variables = {};
     this.progress(
       `[${timestamp}] [${this.currentTest}/${this.totalTests}] ${testCase.id}: ${testCase.name}`
     );
@@ -132,19 +207,24 @@ export class TestExecutor {
       this.progress(
         `  [${stepTimestamp}] Step ${i + 1}/${testCase.steps.length}: ${step.name}`
       );
+
+      const resolvedCommand = this.substituteVariables(step.command);
       const cmdPreview =
-        step.command.length > 80
-          ? step.command.substring(0, 80) + '...'
-          : step.command;
+        resolvedCommand.length > 80
+          ? resolvedCommand.substring(0, 80) + '...'
+          : resolvedCommand;
       this.progress(`    Command: ${cmdPreview}`);
 
-      const result = await this.executeStep(step, testCase.timeout);
+      const resolvedStep = { ...step, command: resolvedCommand };
+      const result = await this.executeStep(resolvedStep, testCase.timeout);
 
       result.patternMatches = this.checkPatterns(
         result,
         step.expectPatterns,
         step.rejectPatterns
       );
+
+      this.captureVariables(step, result);
 
       stepResults.push(result);
 

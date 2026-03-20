@@ -1,0 +1,21 @@
+id: TC-INT-109
+name: Query role features with category filter
+suite: integration
+story: STORY-008
+priority: 2
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query role features filtered by wifi category
+    command: npx tsx cicd/tests/src/mcp-client.ts query_role_features '{"category":"wifi","pageSize":10}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify query_role_features accepts category filter parameter.
+  - Category filter "wifi" is accepted without error
+  - Response contains role feature data

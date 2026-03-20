@@ -1,0 +1,20 @@
+id: TC-INT-318
+name: Create guest pass with invalid networkId returns error
+suite: integration
+story: STORY-010
+priority: 3
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Create guest pass with non-existent network
+    command: npx tsx cicd/tests/src/mcp-client.ts create_guest_pass '{"networkId":"00000000-0000-0000-0000-000000000000","name":"test-guest","expiration":{"duration":1,"unit":"Day","activationType":"Creation"},"maxDevices":1,"deliveryMethods":["PRINT"]}'
+    expectPatterns:
+      - "content"
+    rejectPatterns:
+      - "completed"
+
+criteria: |
+  Verify create_guest_pass handles invalid networkId gracefully.
+  - Tool does not crash with non-existent networkId
+  - Returns error, not "completed"

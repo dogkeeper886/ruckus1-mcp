@@ -8,6 +8,7 @@ export interface TestStep {
   timeout?: number;
   expectPatterns?: string[];
   rejectPatterns?: string[];
+  capture?: Record<string, string>;
 }
 
 export interface TestCase {

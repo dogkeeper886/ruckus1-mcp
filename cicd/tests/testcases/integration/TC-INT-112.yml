@@ -1,0 +1,21 @@
+id: TC-INT-112
+name: Query clients with filter and pagination
+suite: integration
+story: STORY-011
+priority: 2
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query clients with pagination parameters
+    command: npx tsx cicd/tests/src/mcp-client.ts query_clients '{"pageSize":5,"page":1,"sortField":"name","sortOrder":"ASC"}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify query_clients accepts filter and pagination parameters.
+  - pageSize, page, sortField, sortOrder parameters work without error
+  - Response contains valid MCP content structure

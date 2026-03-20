@@ -1,0 +1,20 @@
+id: TC-INT-307
+name: Update AP with invalid serial number returns error
+suite: integration
+story: STORY-004
+priority: 3
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Update AP with non-existent serial number
+    command: npx tsx cicd/tests/src/mcp-client.ts update_ruckus_ap '{"apSerialNumber":"INVALID000000","apName":"test-name"}'
+    expectPatterns:
+      - "content"
+    rejectPatterns:
+      - "completed"
+
+criteria: |
+  Verify update_ruckus_ap handles invalid serial number gracefully.
+  - Tool does not crash with non-existent serial number
+  - Returns error, not "completed"

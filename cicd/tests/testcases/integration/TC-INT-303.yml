@@ -1,0 +1,20 @@
+id: TC-INT-303
+name: Delete venue with invalid venueId returns error
+suite: integration
+story: STORY-002
+priority: 3
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Delete venue with non-existent ID
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_ruckus_venue '{"venueId":"00000000-0000-0000-0000-000000000000"}'
+    expectPatterns:
+      - "content"
+    rejectPatterns:
+      - "completed"
+
+criteria: |
+  Verify delete_ruckus_venue handles non-existent venue ID gracefully.
+  - Tool does not crash with invalid venueId
+  - Returns error or failure status, not "completed"

@@ -1,0 +1,21 @@
+id: TC-INT-103
+name: Query AP groups with pagination parameters
+suite: integration
+story: STORY-003
+priority: 2
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query AP groups with specific fields and page size
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_ap_groups '{"pageSize":5,"fields":["id","name"]}'
+    expectPatterns:
+      - "totalCount"
+      - "data"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify get_ruckus_ap_groups accepts pagination and field parameters.
+  - pageSize and fields parameters are accepted without error
+  - Response contains totalCount and data array

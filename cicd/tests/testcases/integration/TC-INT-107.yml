@@ -1,0 +1,21 @@
+id: TC-INT-107
+name: Query RADIUS server profiles with pagination
+suite: integration
+story: STORY-006
+priority: 2
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query RADIUS profiles with pagination
+    command: npx tsx cicd/tests/src/mcp-client.ts query_radius_server_profiles '{"pageSize":5,"page":1}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify query_radius_server_profiles accepts pagination parameters.
+  - pageSize and page parameters work without error
+  - Response contains valid MCP content structure

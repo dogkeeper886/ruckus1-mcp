@@ -1,0 +1,21 @@
+id: TC-INT-111
+name: Query guest passes with filter parameters
+suite: integration
+story: STORY-010
+priority: 2
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query guest passes with pagination and search
+    command: npx tsx cicd/tests/src/mcp-client.ts query_guest_passes '{"pageSize":5,"sortField":"name","sortOrder":"ASC"}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify query_guest_passes accepts filter and pagination parameters.
+  - pageSize, sortField, sortOrder parameters work without error
+  - Response contains valid MCP content structure

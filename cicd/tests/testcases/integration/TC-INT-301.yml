@@ -1,0 +1,19 @@
+id: TC-INT-301
+name: Activity details with invalid request ID returns error
+suite: integration
+story: STORY-001
+priority: 3
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query activity with completely invalid ID format
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_activity_details '{"activityId":"not-a-valid-uuid"}'
+    expectPatterns:
+      - "content"
+    rejectPatterns: []
+
+criteria: |
+  Verify get_ruckus_activity_details handles invalid request ID gracefully.
+  - Tool does not crash with invalid UUID format
+  - Returns a structured MCP response (may contain error details)

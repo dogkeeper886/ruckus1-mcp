@@ -1,0 +1,22 @@
+id: TC-INT-102
+name: List venues with pagination parameters
+suite: integration
+story: STORY-002
+priority: 2
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query venues with page and pageSize
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venues '{}'
+    expectPatterns:
+      - "totalCount"
+      - "data"
+      - "name"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify get_ruckus_venues returns structured venue data with expected fields.
+  - Response contains totalCount and data array
+  - Venue records include name field

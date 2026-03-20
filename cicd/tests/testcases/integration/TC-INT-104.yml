@@ -1,0 +1,21 @@
+id: TC-INT-104
+name: Query APs with search and pagination
+suite: integration
+story: STORY-004
+priority: 2
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Query APs with pagination parameters
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_aps '{"pageSize":5,"page":1}'
+    expectPatterns:
+      - "serialNumber"
+      - "name"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify get_ruckus_aps accepts pagination parameters.
+  - pageSize and page parameters work without error
+  - Response contains AP records with serialNumber and name

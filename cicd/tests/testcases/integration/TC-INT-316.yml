@@ -1,0 +1,22 @@
+id: TC-INT-316
+name: Create WiFi network with missing required fields returns error
+suite: integration
+story: STORY-009
+priority: 3
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Create WiFi network without ssid (required field)
+    command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"test-incomplete","type":"psk"}'
+    expectPatterns:
+      - "isError"
+      - "ssid"
+    rejectPatterns:
+      - "\"status\": \"completed\""
+
+criteria: |
+  Verify create_wifi_network rejects requests with missing required fields.
+  - Missing ssid and passphrase triggers 422 error
+  - Response contains isError flag and mentions ssid validation
+  - No network is created

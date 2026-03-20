@@ -1,0 +1,47 @@
+id: TC-INT-208
+name: Custom role CRUD lifecycle - create, verify, delete
+suite: integration
+story: STORY-008
+priority: 1
+timeout: 120000
+dependencies:
+  - TC-INT-001
+
+steps:
+  - name: Create custom role with valid wifi feature
+    command: npx tsx cicd/tests/src/mcp-client.ts create_custom_role '{"name":"mcp-test-custom-role","features":["wifi-r"],"preDefinedRole":"READ_ONLY"}'
+    expectPatterns:
+      - "content"
+      - "text"
+    rejectPatterns:
+      - "isError"
+
+  - name: Verify role exists and capture roleId
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_roles '{}'
+    capture:
+      roleId: "$[name=mcp-test-custom-role].id"
+    expectPatterns:
+      - "mcp-test-custom-role"
+    rejectPatterns:
+      - "isError"
+
+  - name: Delete custom role
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_custom_role '{"roleId":"{{roleId}}"}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Verify role is gone
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_roles '{}'
+    expectPatterns:
+      - "content"
+    rejectPatterns:
+      - "mcp-test-custom-role"
+
+criteria: |
+  Full custom role CRUD lifecycle:
+  1. Create role "mcp-test-custom-role" with wifi-r feature
+  2. Verify role appears in roles list and capture its ID
+  3. Delete the role using captured roleId
+  4. Verify the role is gone from the list
