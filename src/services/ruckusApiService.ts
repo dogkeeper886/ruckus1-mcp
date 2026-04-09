@@ -306,6 +306,29 @@ export async function getApRadioSettings(
   return response.data;
 }
 
+export async function getApPassword(
+  token: string,
+  venueId: string,
+  apSerial: string,
+  region: string = "",
+): Promise<any> {
+  const url = `https://api.${region ? region + "." : ""}ruckus.cloud/venues/${venueId}/aps/${apSerial}/passwords`;
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "get",
+      url,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Get AP password",
+  );
+
+  return response.data;
+}
+
 export async function getApClientAdmissionControlSettings(
   token: string,
   venueId: string,

@@ -66,6 +66,7 @@ import {
   updateWifiNetworkRadiusServerProfileSettingsWithRetry,
   updateWifiNetworkWithRetry,
   queryClients,
+  getApPassword,
 } from "./services/ruckusApiService";
 import { tokenService } from "./services/tokenService";
 
@@ -2295,6 +2296,27 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: [],
+        },
+      },
+      {
+        name: "get_ap_password",
+        description:
+          "Get AP admin password from RUCKUS One. The password rotates daily. REQUIRED: venueId (use get_ruckus_venues to get venue ID) + apSerial (use get_ruckus_aps to get AP serial number).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            venueId: {
+              type: "string",
+              description:
+                "ID of the venue where the AP is located (use get_ruckus_venues to get venue ID)",
+            },
+            apSerial: {
+              type: "string",
+              description:
+                "Serial number of the AP (use get_ruckus_aps to get AP serial number)",
+            },
+          },
+          required: ["venueId", "apSerial"],
         },
       },
     ],
@@ -6243,6 +6265,54 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error("[MCP] Error querying clients:", error);
 
         let errorMessage = `Error querying clients: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case "get_ap_password": {
+      try {
+        const { venueId, apSerial } = request.params.arguments as {
+          venueId: string;
+          apSerial: string;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await getApPassword(
+          token,
+          venueId,
+          apSerial,
+          process.env.RUCKUS_REGION,
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("[MCP] Error getting AP password:", error);
+        let errorMessage = `Error getting AP password: ${error}`;
 
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
