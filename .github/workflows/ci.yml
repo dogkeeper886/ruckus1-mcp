@@ -21,9 +21,11 @@ jobs:
         run: cd cicd/tests && npm install
 
       - name: Run integration tests
-        run: cd cicd/tests && npx tsx src/cli.ts run --no-llm --format console
+        run: cd cicd/tests && npx tsx src/cli.ts run --format console
         env:
           RUCKUS_TENANT_ID: ${{ secrets.RUCKUS_TENANT_ID }}
           RUCKUS_CLIENT_ID: ${{ secrets.RUCKUS_CLIENT_ID }}
           RUCKUS_CLIENT_SECRET: ${{ secrets.RUCKUS_CLIENT_SECRET }}
           RUCKUS_REGION: ${{ secrets.RUCKUS_REGION }}
+          LLM_JUDGE_URL: ${{ vars.LLM_JUDGE_URL }}
+          LLM_JUDGE_MODEL: ${{ vars.LLM_JUDGE_MODEL }}
