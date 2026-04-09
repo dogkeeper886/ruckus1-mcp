@@ -2,31 +2,92 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      judge_mode:
+        description: 'Judge mode'
+        type: choice
+        options:
+          - simple
+          - both
+        default: simple
 
 jobs:
-  build-and-test:
-    runs-on: self-hosted
+  build:
+    uses: ./.github/workflows/build.yml
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  test-auth:
+    needs: build
+    uses: ./.github/workflows/test-auth.yml
+    with:
+      judge_mode: ${{ inputs.judge_mode }}
+    secrets: inherit
 
-      - name: Install dependencies
-        run: npm install
+  test-venues:
+    needs: build
+    uses: ./.github/workflows/test-venues.yml
+    with:
+      judge_mode: ${{ inputs.judge_mode }}
+    secrets: inherit
 
-      - name: Build
-        run: npm run build
+  test-ap-groups:
+    needs: build
+    uses: ./.github/workflows/test-ap-groups.yml
+    with:
+      judge_mode: ${{ inputs.judge_mode }}
+    secrets: inherit
 
-      - name: Install test dependencies
-        run: cd cicd/tests && npm install
+  test-aps:
+    needs: build
+    uses: ./.github/workflows/test-aps.yml
+    with:
+      judge_mode: ${{ inputs.judge_mode }}
+    secrets: inherit
 
-      - name: Run integration tests
-        run: cd cicd/tests && npx tsx src/cli.ts run --format console
-        env:
-          RUCKUS_TENANT_ID: ${{ secrets.RUCKUS_TENANT_ID }}
-          RUCKUS_CLIENT_ID: ${{ secrets.RUCKUS_CLIENT_ID }}
-          RUCKUS_CLIENT_SECRET: ${{ secrets.RUCKUS_CLIENT_SECRET }}
-          RUCKUS_REGION: ${{ secrets.RUCKUS_REGION }}
-          LLM_JUDGE_URL: ${{ vars.LLM_JUDGE_URL }}
-          LLM_JUDGE_MODEL: ${{ vars.LLM_JUDGE_MODEL }}
-          TEST_AP_SERIAL: ${{ secrets.TEST_AP_SERIAL }}
+  test-directory-server:
+    needs: build
+    uses: ./.github/workflows/test-directory-server.yml
+    with:
+      judge_mode: ${{ inputs.judge_mode }}
+    secrets: inherit
+
+  test-radius-server:
+    needs: build
+    uses: ./.github/workflows/test-radius-server.yml
+    with:
+      judge_mode: ${{ inputs.judge_mode }}
+    secrets: inherit
+
+  test-portal-service:
+    needs: build
+    uses: ./.github/workflows/test-portal-service.yml
+    with:
+      judge_mode: ${{ inputs.judge_mode }}
+    secrets: inherit
+
+  test-roles:
+    needs: build
+    uses: ./.github/workflows/test-roles.yml
+    with:
+      judge_mode: ${{ inputs.judge_mode }}
+    secrets: inherit
+
+  test-wifi-networks:
+    needs: build
+    uses: ./.github/workflows/test-wifi-networks.yml
+    with:
+      judge_mode: ${{ inputs.judge_mode }}
+    secrets: inherit
+
+  test-guest-passes:
+    needs: build
+    uses: ./.github/workflows/test-guest-passes.yml
+    with:
+      judge_mode: ${{ inputs.judge_mode }}
+    secrets: inherit
+
+  test-clients:
+    needs: build
+    uses: ./.github/workflows/test-clients.yml
+    with:
+      judge_mode: ${{ inputs.judge_mode }}
+    secrets: inherit

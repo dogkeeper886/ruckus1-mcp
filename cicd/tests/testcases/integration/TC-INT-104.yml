@@ -1,6 +1,7 @@
 id: TC-INT-104
 name: Query APs with search and pagination
 suite: integration
+tags: [aps]
 story: STORY-004
 priority: 2
 timeout: 30000

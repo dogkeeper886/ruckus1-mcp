@@ -1,6 +1,7 @@
 id: TC-INT-008
 name: Query directory server profiles returns results
 suite: integration
+tags: [directory-server]
 story: STORY-005
 priority: 1
 timeout: 30000

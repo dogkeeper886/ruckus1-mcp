@@ -28,6 +28,7 @@ program
   .command('run')
   .description('Run test cases')
   .option('-s, --suite <suite>', 'Run only tests from this suite')
+  .option('-t, --tag <tag>', 'Run only tests with this tag (e.g., aps, venues, wifi-networks)')
   .option('-i, --id <id>', 'Run only the test with this ID')
   .option('--dry-run', 'Show what would run without executing', false)
   .option('--no-llm', 'Skip LLM judging (simple judge only)')
@@ -52,6 +53,7 @@ program
 
     const config: RunConfig = {
       suite: options.suite,
+      tag: options.tag,
       testId: options.id,
       dryRun: options.dryRun,
       noLlm: !options.llm,
@@ -80,6 +82,10 @@ program
 
     if (config.suite) {
       filteredTestCases = filteredTestCases.filter((tc) => tc.suite === config.suite);
+    }
+
+    if (config.tag) {
+      filteredTestCases = filteredTestCases.filter((tc) => tc.tags?.includes(config.tag!));
     }
 
     if (config.testId) {

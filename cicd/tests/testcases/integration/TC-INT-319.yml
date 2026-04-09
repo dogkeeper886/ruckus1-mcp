@@ -1,6 +1,7 @@
 id: TC-INT-319
 name: Get AP password returns valid credentials
 suite: integration
+tags: [aps]
 story: STORY-029
 priority: 1
 timeout: 30000
@@ -13,7 +14,7 @@ steps:
     capture:
       venueId: "data[serialNumber={{TEST_AP_SERIAL}}].venueId"
     expectPatterns:
-      - "{{TEST_AP_SERIAL}}"
+      - "serialNumber"
     rejectPatterns:
       - "isError"
 

@@ -1,6 +1,7 @@
 id: TC-INT-106
 name: Query directory server profiles with search
 suite: integration
+tags: [directory-server]
 story: STORY-005
 priority: 2
 timeout: 30000

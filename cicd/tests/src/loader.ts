@@ -180,6 +180,7 @@ export class TestLoader {
       id: raw.id as string,
       name: raw.name as string,
       suite: raw.suite as string,
+      tags: Array.isArray(raw.tags) ? raw.tags : undefined,
       priority: typeof raw.priority === 'number' ? raw.priority : 1,
       timeout: typeof raw.timeout === 'number' ? raw.timeout : CONFIG.defaultTimeout,
       dependencies: Array.isArray(raw.dependencies) ? raw.dependencies : [],

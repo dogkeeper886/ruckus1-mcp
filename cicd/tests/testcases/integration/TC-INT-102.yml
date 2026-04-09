@@ -1,6 +1,7 @@
 id: TC-INT-102
 name: List venues with pagination parameters
 suite: integration
+tags: [venues]
 story: STORY-002
 priority: 2
 timeout: 30000

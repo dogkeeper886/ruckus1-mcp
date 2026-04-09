@@ -1,6 +1,7 @@
 id: TC-INT-010
 name: Query portal service profiles returns results
 suite: integration
+tags: [portal-service]
 story: STORY-007
 priority: 1
 timeout: 30000

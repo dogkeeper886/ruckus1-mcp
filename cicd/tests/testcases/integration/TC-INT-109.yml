@@ -1,6 +1,7 @@
 id: TC-INT-109
 name: Query role features with category filter
 suite: integration
+tags: [roles]
 story: STORY-008
 priority: 2
 timeout: 30000

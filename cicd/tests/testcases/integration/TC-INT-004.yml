@@ -1,6 +1,7 @@
 id: TC-INT-004
 name: Get venue radio settings responds without error
 suite: integration
+tags: [venues]
 story: STORY-002
 priority: 2
 timeout: 30000
