@@ -1,0 +1,25 @@
+id: TC-INT-319
+name: Get AP password returns valid credentials
+suite: integration
+story: STORY-029
+priority: 1
+timeout: 30000
+dependencies:
+  - TC-INT-001
+
+steps:
+  - name: Get AP password for test AP
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ap_password '{"venueId":"c9009fa95a444863a9e7b64eaae242ae","apSerial":"272009001232"}'
+    expectPatterns:
+      - "apPassword"
+      - "updatedTime"
+      - "expireTime"
+    rejectPatterns:
+      - "isError"
+
+criteria: |
+  Verify get_ap_password returns AP admin credentials.
+  - Tool returns successfully without errors
+  - Response contains apPassword, updatedTime, and expireTime fields
+  - Confirms AP password retrieval endpoint is accessible
+  - Related to issue #29
