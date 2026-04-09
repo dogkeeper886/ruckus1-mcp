@@ -12,7 +12,7 @@ export const CONFIG = {
   defaultStepTimeout: 30000,
 
   llm: {
-    defaultUrl: process.env.LLM_JUDGE_URL || 'http://localhost:11434',
+    defaultUrl: process.env.LLM_JUDGE_URL || 'http://localhost:11435',
     defaultModel: process.env.LLM_JUDGE_MODEL || 'gemma3:12b-judge',
     timeout: 300000,
     stdoutLimit: 1000,
