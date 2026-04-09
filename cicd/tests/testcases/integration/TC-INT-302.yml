@@ -1,6 +1,7 @@
 id: TC-INT-302
 name: Create venue with missing required fields returns error
 suite: integration
+tags: [venues]
 story: STORY-002
 priority: 3
 timeout: 30000

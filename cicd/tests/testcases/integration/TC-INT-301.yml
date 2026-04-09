@@ -1,6 +1,7 @@
 id: TC-INT-301
 name: Activity details with invalid request ID returns error
 suite: integration
+tags: [auth]
 story: STORY-001
 priority: 3
 timeout: 30000

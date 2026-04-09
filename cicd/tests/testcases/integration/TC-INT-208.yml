@@ -1,6 +1,7 @@
 id: TC-INT-208
 name: Custom role CRUD lifecycle - create, verify, delete
 suite: integration
+tags: [roles]
 story: STORY-008
 priority: 1
 timeout: 120000

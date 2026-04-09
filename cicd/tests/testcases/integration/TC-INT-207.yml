@@ -1,6 +1,7 @@
 id: TC-INT-207
 name: Directory server profile CRUD lifecycle - create, verify, delete
 suite: integration
+tags: [directory-server]
 story: STORY-005
 priority: 1
 timeout: 120000

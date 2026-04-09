@@ -1,6 +1,7 @@
 id: TC-INT-303
 name: Delete venue with invalid venueId returns error
 suite: integration
+tags: [venues]
 story: STORY-002
 priority: 3
 timeout: 30000

@@ -1,6 +1,7 @@
 id: TC-INT-203
 name: AP group CRUD lifecycle - create, verify, delete
 suite: integration
+tags: [ap-groups]
 story: STORY-003
 priority: 1
 timeout: 300000

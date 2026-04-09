@@ -15,6 +15,7 @@ export interface TestCase {
   id: string;
   name: string;
   suite: string;
+  tags?: string[];
   priority: number;
   timeout: number;
   dependencies: string[];
@@ -99,6 +100,7 @@ export interface TestSummary {
 
 export interface RunConfig {
   suite?: string;
+  tag?: string;
   testId?: string;
   dryRun: boolean;
   noLlm: boolean;

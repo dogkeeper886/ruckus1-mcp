@@ -1,6 +1,7 @@
 id: TC-INT-318
 name: Create guest pass with invalid networkId returns error
 suite: integration
+tags: [guest-passes]
 story: STORY-010
 priority: 3
 timeout: 30000

@@ -1,6 +1,7 @@
 id: TC-INT-112
 name: Query clients with filter and pagination
 suite: integration
+tags: [clients]
 story: STORY-011
 priority: 2
 timeout: 30000

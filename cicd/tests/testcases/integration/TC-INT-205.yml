@@ -1,6 +1,7 @@
 id: TC-INT-205
 name: Portal service profile CRUD lifecycle - create, verify, delete
 suite: integration
+tags: [portal-service]
 story: STORY-007
 priority: 1
 timeout: 120000

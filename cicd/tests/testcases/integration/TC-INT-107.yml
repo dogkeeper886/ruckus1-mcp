@@ -1,6 +1,7 @@
 id: TC-INT-107
 name: Query RADIUS server profiles with pagination
 suite: integration
+tags: [radius-server]
 story: STORY-006
 priority: 2
 timeout: 30000

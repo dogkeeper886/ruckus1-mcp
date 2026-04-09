@@ -1,6 +1,7 @@
 id: TC-INT-307
 name: Update AP with invalid serial number returns error
 suite: integration
+tags: [aps]
 story: STORY-004
 priority: 3
 timeout: 30000

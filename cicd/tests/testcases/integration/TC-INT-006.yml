@@ -1,6 +1,7 @@
 id: TC-INT-006
 name: Get AP groups returns list
 suite: integration
+tags: [ap-groups]
 story: STORY-003
 priority: 1
 timeout: 30000

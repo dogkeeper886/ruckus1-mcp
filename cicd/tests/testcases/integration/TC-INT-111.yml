@@ -1,6 +1,7 @@
 id: TC-INT-111
 name: Query guest passes with filter parameters
 suite: integration
+tags: [guest-passes]
 story: STORY-010
 priority: 2
 timeout: 30000

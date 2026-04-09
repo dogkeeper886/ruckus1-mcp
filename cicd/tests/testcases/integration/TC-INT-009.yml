@@ -1,6 +1,7 @@
 id: TC-INT-009
 name: Query RADIUS server profiles returns results
 suite: integration
+tags: [radius-server]
 story: STORY-006
 priority: 1
 timeout: 30000

@@ -1,6 +1,7 @@
 id: TC-INT-001
 name: Authenticate and obtain JWT token
 suite: integration
+tags: [auth]
 story: STORY-001
 priority: 1
 timeout: 30000

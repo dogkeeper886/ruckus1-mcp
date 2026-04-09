@@ -1,6 +1,7 @@
 id: TC-INT-201
 name: Venue CRUD lifecycle - create, verify, delete
 suite: integration
+tags: [venues]
 story: STORY-002
 priority: 1
 timeout: 180000
