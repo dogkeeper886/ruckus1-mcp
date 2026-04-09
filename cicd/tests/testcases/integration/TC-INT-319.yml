@@ -8,8 +8,17 @@ dependencies:
   - TC-INT-001
 
 steps:
+  - name: Query AP to get venue ID
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_aps '{"searchString":"{{TEST_AP_SERIAL}}"}'
+    capture:
+      venueId: "data[serialNumber={{TEST_AP_SERIAL}}].venueId"
+    expectPatterns:
+      - "{{TEST_AP_SERIAL}}"
+    rejectPatterns:
+      - "isError"
+
   - name: Get AP password for test AP
-    command: npx tsx cicd/tests/src/mcp-client.ts get_ap_password '{"venueId":"c9009fa95a444863a9e7b64eaae242ae","apSerial":"272009001232"}'
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ap_password '{"venueId":"{{venueId}}","apSerial":"{{TEST_AP_SERIAL}}"}'
     expectPatterns:
       - "apPassword"
       - "updatedTime"
@@ -19,7 +28,7 @@ steps:
 
 criteria: |
   Verify get_ap_password returns AP admin credentials.
-  - Tool returns successfully without errors
+  - Step 1: Query AP by serial to discover its current venue
+  - Step 2: Get password using discovered venueId
   - Response contains apPassword, updatedTime, and expireTime fields
-  - Confirms AP password retrieval endpoint is accessible
   - Related to issue #29

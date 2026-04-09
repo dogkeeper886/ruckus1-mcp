@@ -29,3 +29,4 @@ jobs:
           RUCKUS_REGION: ${{ secrets.RUCKUS_REGION }}
           LLM_JUDGE_URL: ${{ vars.LLM_JUDGE_URL }}
           LLM_JUDGE_MODEL: ${{ vars.LLM_JUDGE_MODEL }}
+          TEST_AP_SERIAL: ${{ secrets.TEST_AP_SERIAL }}
