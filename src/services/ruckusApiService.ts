@@ -4162,6 +4162,9 @@ export async function createWifiNetworkWithRetry(
       nasReconnectPrimaryMin?: number;
       calledStationIdType?: "BSSID";
     };
+    // OWE Transition options (for type=open only)
+    oweEnabled?: boolean;
+    oweTransitionEnabled?: boolean;
   },
   region: string = "",
   maxRetries: number = 5,
@@ -4177,6 +4180,10 @@ export async function createWifiNetworkWithRetry(
   const isSelfSignInType = networkConfig.type === "selfSignIn";
   const isGuestOrSelfSignIn = isGuestType || isSelfSignInType;
   const isEnterpriseType = networkConfig.type === "enterprise";
+  const isOweTransition =
+    networkConfig.type === "open" &&
+    networkConfig.oweEnabled === true &&
+    networkConfig.oweTransitionEnabled === true;
 
   // Map types for RUCKUS API: 'enterprise' -> 'aaa', 'selfSignIn' -> 'guest'
   const apiType = isEnterpriseType
@@ -4194,10 +4201,18 @@ export async function createWifiNetworkWithRetry(
     hotspot20Settings: {},
   };
 
+  // Add OWE Transition flag to base payload
+  if (isOweTransition) {
+    basePayload.enableOweTransition = true;
+  }
+
   // Build WLAN configuration
   const wlanConfig: any = {
     ssid: networkConfig.ssid,
-    wlanSecurity: networkConfig.wlanSecurity,
+    // OWE Transition uses "OWETransition" as wlanSecurity value
+    wlanSecurity: isOweTransition
+      ? "OWETransition"
+      : networkConfig.wlanSecurity,
     enable: true,
     vlanId: networkConfig.vlanId || 1,
   };
@@ -4212,7 +4227,8 @@ export async function createWifiNetworkWithRetry(
     wlanConfig.bypassCPUsingMacAddressAuthentication = true;
     wlanConfig.bypassCNA = false;
     wlanConfig.macAddressAuthentication = false;
-  } else {
+  } else if (!isOweTransition) {
+    // OWE Transition does not include managementFrameProtection in the payload
     wlanConfig.managementFrameProtection =
       networkConfig.managementFrameProtection || "Disabled";
   }
@@ -4229,7 +4245,7 @@ export async function createWifiNetworkWithRetry(
     clientIsolation:
       networkConfig.clientIsolation !== undefined
         ? networkConfig.clientIsolation
-        : isGuestOrSelfSignIn
+        : isGuestOrSelfSignIn || isOweTransition
           ? true
           : false,
     clientIsolationOptions: {
@@ -4958,8 +4974,10 @@ export async function activateWifiNetworkAtVenuesWithRetry(
   }));
 
   // Merge full network config with venues array
+  // Remove read-only fields that the API rejects on PUT (e.g., OWE Transition fields)
+  const { owePairNetworkId, isOweMaster, ...writableConfig } = networkConfig;
   const updatePayload = {
-    ...networkConfig,
+    ...writableConfig,
     venues: venuesArray,
     id: networkId,
   };
@@ -5958,8 +5976,10 @@ export async function deactivateWifiNetworkAtVenuesWithRetry(
       ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}`
       : `https://api.ruckus.cloud/wifiNetworks/${networkId}`;
 
+  // Remove read-only fields that the API rejects on PUT (e.g., OWE Transition fields)
+  const { owePairNetworkId: _owe1, isOweMaster: _owe2, ...writableNetworkConfig } = networkConfig;
   const updateNetworkPayload = {
-    ...networkConfig,
+    ...writableNetworkConfig,
     venues: [],
     id: networkId,
   };
