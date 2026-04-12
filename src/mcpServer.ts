@@ -1681,7 +1681,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_wifi_network",
         description:
-          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires type=guest + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. FOR SELF SIGN-IN WITH EMAIL: Requires type=selfSignIn + portalServiceProfileId + wlanSecurity=None + allowedEmailDomains (array of allowed email domains). FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId (use query_radius_server_profiles to get ID of ACCOUNTING type profile), enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId).",
+          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires type=guest + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. FOR SELF SIGN-IN WITH EMAIL: Requires type=selfSignIn + portalServiceProfileId + wlanSecurity=None + allowedEmailDomains (array of allowed email domains). FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId (use query_radius_server_profiles to get ID of ACCOUNTING type profile), enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId). FOR OWE TRANSITION: Requires type=open + wlanSecurity=Open + oweEnabled=true + oweTransitionEnabled=true. Creates a dual-network pair: OWE-encrypted primary + Open companion with '-owe-tr' suffix. The companion network is managed automatically by the backend.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1804,6 +1804,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             wifi7Enabled: {
               type: "boolean",
               description: "Enable WiFi 7 (802.11be) support (default: true)",
+            },
+            oweEnabled: {
+              type: "boolean",
+              description:
+                "Enable OWE (Opportunistic Wireless Encryption) on Open networks. Requires type=open (default: false)",
+            },
+            oweTransitionEnabled: {
+              type: "boolean",
+              description:
+                "Enable OWE Transition mode, which creates a dual-network pair (OWE primary + Open companion with '-owe-tr' suffix). Requires oweEnabled=true and type=open (default: false)",
             },
             radiusOptions: {
               type: "object",
@@ -5481,6 +5491,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           mobilityDomainId,
           wifi6Enabled,
           wifi7Enabled,
+          oweEnabled,
+          oweTransitionEnabled,
           guestPortal,
           portalServiceProfileId,
           radiusServiceProfileId,
@@ -5515,6 +5527,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           mobilityDomainId?: number;
           wifi6Enabled?: boolean;
           wifi7Enabled?: boolean;
+          oweEnabled?: boolean;
+          oweTransitionEnabled?: boolean;
           guestPortal?: any;
           portalServiceProfileId?: string;
           radiusServiceProfileId?: string;
@@ -5570,6 +5584,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           networkConfig.wifi6Enabled = wifi6Enabled;
         if (wifi7Enabled !== undefined)
           networkConfig.wifi7Enabled = wifi7Enabled;
+        if (oweEnabled !== undefined) networkConfig.oweEnabled = oweEnabled;
+        if (oweTransitionEnabled !== undefined)
+          networkConfig.oweTransitionEnabled = oweTransitionEnabled;
         if (guestPortal !== undefined) networkConfig.guestPortal = guestPortal;
         if (portalServiceProfileId !== undefined)
           networkConfig.portalServiceProfileId = portalServiceProfileId;
