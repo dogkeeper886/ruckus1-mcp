@@ -4119,13 +4119,14 @@ export async function createWifiNetworkWithRetry(
   networkConfig: {
     name: string;
     ssid: string;
-    type: "psk" | "enterprise" | "open" | "guest" | "selfSignIn";
+    type: "psk" | "enterprise" | "open" | "guest" | "selfSignIn" | "dpsk";
     passphrase?: string;
     wlanSecurity:
       | "WPA2Personal"
       | "WPA3Personal"
       | "WPA2Enterprise"
       | "WPA3Enterprise"
+      | "WPA23Mixed"
       | "Open"
       | "None";
     vlanId?: number;
@@ -4165,6 +4166,8 @@ export async function createWifiNetworkWithRetry(
     // OWE Transition options (for type=open only)
     oweEnabled?: boolean;
     oweTransitionEnabled?: boolean;
+    // DPSK/DSAE specific options
+    dpskServiceId?: string;
   },
   region: string = "",
   maxRetries: number = 5,
@@ -4184,6 +4187,9 @@ export async function createWifiNetworkWithRetry(
     networkConfig.type === "open" &&
     networkConfig.oweEnabled === true &&
     networkConfig.oweTransitionEnabled === true;
+  const isDsaeType =
+    networkConfig.type === "dpsk" &&
+    networkConfig.wlanSecurity === "WPA23Mixed";
 
   // Map types for RUCKUS API: 'enterprise' -> 'aaa', 'selfSignIn' -> 'guest'
   const apiType = isEnterpriseType
@@ -4204,6 +4210,12 @@ export async function createWifiNetworkWithRetry(
   // Add OWE Transition flag to base payload
   if (isOweTransition) {
     basePayload.enableOweTransition = true;
+  }
+
+  // Add DSAE (DPSK WPA2/WPA3-Mixed) flags to base payload
+  if (isDsaeType) {
+    basePayload.dpskWlanSecurity = "WPA23Mixed";
+    basePayload.useDpskService = true;
   }
 
   // Build WLAN configuration
@@ -4568,6 +4580,33 @@ export async function createWifiNetworkWithRetry(
     }
   }
 
+  // Step 5: Associate DPSK service for DPSK/DSAE networks
+  let dpskServiceRequestId: string | undefined;
+  if (isDsaeType && networkConfig.dpskServiceId) {
+    console.log("[RUCKUS] Associating DPSK service...");
+    const dpskServiceUrl = `${apiUrl}/${networkId}/dpskServices/${networkConfig.dpskServiceId}`;
+
+    const dpskServiceResponse = await makeRuckusApiCall(
+      {
+        method: "put",
+        url: dpskServiceUrl,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+      "Associate DPSK service",
+    );
+
+    dpskServiceRequestId = dpskServiceResponse.data.requestId;
+
+    if (!dpskServiceRequestId) {
+      console.warn(
+        "[RUCKUS] No requestId returned from DPSK service association API (may be synchronous)",
+      );
+    }
+  }
+
   // Poll all operations for completion
   const requestIds = [
     { id: createRequestId, name: "Create WiFi network" },
@@ -4592,6 +4631,9 @@ export async function createWifiNetworkWithRetry(
       : []),
     ...(radiusRequestId
       ? [{ id: radiusRequestId, name: "Configure RADIUS settings" }]
+      : []),
+    ...(dpskServiceRequestId
+      ? [{ id: dpskServiceRequestId, name: "Associate DPSK service" }]
       : []),
   ];
 
@@ -4975,7 +5017,7 @@ export async function activateWifiNetworkAtVenuesWithRetry(
 
   // Merge full network config with venues array
   // Remove read-only fields that the API rejects on PUT (e.g., OWE Transition fields)
-  const { owePairNetworkId, isOweMaster, ...writableConfig } = networkConfig;
+  const { owePairNetworkId, isOweMaster, dsaeOnboardNetwork, ...writableConfig } = networkConfig;
   const updatePayload = {
     ...writableConfig,
     venues: venuesArray,
@@ -5977,7 +6019,7 @@ export async function deactivateWifiNetworkAtVenuesWithRetry(
       : `https://api.ruckus.cloud/wifiNetworks/${networkId}`;
 
   // Remove read-only fields that the API rejects on PUT (e.g., OWE Transition fields)
-  const { owePairNetworkId: _owe1, isOweMaster: _owe2, ...writableNetworkConfig } = networkConfig;
+  const { owePairNetworkId: _owe1, isOweMaster: _owe2, dsaeOnboardNetwork: _dsae1, ...writableNetworkConfig } = networkConfig;
   const updateNetworkPayload = {
     ...writableNetworkConfig,
     venues: [],

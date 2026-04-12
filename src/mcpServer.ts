@@ -1687,7 +1687,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_wifi_network",
         description:
-          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires type=guest + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. FOR SELF SIGN-IN WITH EMAIL: Requires type=selfSignIn + portalServiceProfileId + wlanSecurity=None + allowedEmailDomains (array of allowed email domains). FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId (use query_radius_server_profiles to get ID of ACCOUNTING type profile), enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId). FOR OWE TRANSITION: Requires type=open + wlanSecurity=Open + oweEnabled=true + oweTransitionEnabled=true. Creates a dual-network pair: OWE-encrypted primary + Open companion with '-owe-tr' suffix. The companion network is managed automatically by the backend.",
+          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires type=guest + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. FOR SELF SIGN-IN WITH EMAIL: Requires type=selfSignIn + portalServiceProfileId + wlanSecurity=None + allowedEmailDomains (array of allowed email domains). FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId (use query_radius_server_profiles to get ID of ACCOUNTING type profile), enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId). FOR OWE TRANSITION: Requires type=open + wlanSecurity=Open + oweEnabled=true + oweTransitionEnabled=true. Creates a dual-network pair: OWE-encrypted primary + Open companion with '-owe-tr' suffix. The companion network is managed automatically by the backend. FOR DSAE (DPSK WPA2/WPA3-Mixed): Requires type=dpsk + wlanSecurity=WPA23Mixed + dpskServiceId (use query_dpsk_services to get ID). Creates a dual-network pair: WPA2/WPA3-Mixed primary + WPA2 onboard companion with '-dpsk3-wpa2' suffix.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1703,7 +1703,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description:
                 "Network type: psk (WPA2 Personal), enterprise (802.1x with RADIUS), open (no security), guest (Guest Pass portal), or selfSignIn (Self Sign-In with Email)",
-              enum: ["psk", "enterprise", "open", "guest", "selfSignIn"],
+              enum: ["psk", "enterprise", "open", "guest", "selfSignIn", "dpsk"],
             },
             passphrase: {
               type: "string",
@@ -1719,6 +1719,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 "WPA3Personal",
                 "WPA2Enterprise",
                 "WPA3Enterprise",
+                "WPA23Mixed",
                 "Open",
                 "None",
               ],
@@ -1820,6 +1821,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "boolean",
               description:
                 "Enable OWE Transition mode, which creates a dual-network pair (OWE primary + Open companion with '-owe-tr' suffix). Requires oweEnabled=true and type=open (default: false)",
+            },
+            dpskServiceId: {
+              type: "string",
+              description:
+                "DPSK service ID (REQUIRED for type=dpsk/DSAE networks, use query_dpsk_services to get ID)",
             },
             radiusOptions: {
               type: "object",
@@ -5686,6 +5692,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           wifi7Enabled,
           oweEnabled,
           oweTransitionEnabled,
+          dpskServiceId,
           guestPortal,
           portalServiceProfileId,
           radiusServiceProfileId,
@@ -5701,13 +5708,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         } = request.params.arguments as {
           name: string;
           ssid: string;
-          type: "psk" | "enterprise" | "open" | "guest" | "selfSignIn";
+          type: "psk" | "enterprise" | "open" | "guest" | "selfSignIn" | "dpsk";
           passphrase?: string;
           wlanSecurity:
             | "WPA2Personal"
             | "WPA3Personal"
             | "WPA2Enterprise"
             | "WPA3Enterprise"
+            | "WPA23Mixed"
             | "Open"
             | "None";
           vlanId?: number;
@@ -5722,6 +5730,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           wifi7Enabled?: boolean;
           oweEnabled?: boolean;
           oweTransitionEnabled?: boolean;
+          dpskServiceId?: string;
           guestPortal?: any;
           portalServiceProfileId?: string;
           radiusServiceProfileId?: string;
@@ -5780,6 +5789,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (oweEnabled !== undefined) networkConfig.oweEnabled = oweEnabled;
         if (oweTransitionEnabled !== undefined)
           networkConfig.oweTransitionEnabled = oweTransitionEnabled;
+        if (dpskServiceId !== undefined)
+          networkConfig.dpskServiceId = dpskServiceId;
         if (guestPortal !== undefined) networkConfig.guestPortal = guestPortal;
         if (portalServiceProfileId !== undefined)
           networkConfig.portalServiceProfileId = portalServiceProfileId;
