@@ -1,0 +1,150 @@
+id: TC-INT-323
+name: DSAE WiFi network lifecycle - create, activate, deactivate, delete
+suite: integration
+tags: [wifi-networks, dsae, dpsk-services, identity-groups]
+story: STORY-012
+priority: 1
+timeout: 360000
+dependencies:
+  - TC-INT-001
+
+steps:
+  - name: Create identity group for DSAE
+    command: npx tsx cicd/tests/src/mcp-client.ts create_identity_group '{"name":"mcp-test-idgroup-dsae-ci","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Capture identity group ID
+    command: npx tsx cicd/tests/src/mcp-client.ts query_identity_groups '{"keyword":"mcp-test-idgroup-dsae-ci"}'
+    capture:
+      identityGroupId: "content[name=mcp-test-idgroup-dsae-ci].id"
+    expectPatterns:
+      - "mcp-test-idgroup-dsae-ci"
+    rejectPatterns:
+      - "isError"
+
+  - name: Create DPSK service for DSAE
+    command: npx tsx cicd/tests/src/mcp-client.ts create_dpsk_service '{"identityGroupId":"{{identityGroupId}}","name":"mcp-test-dpsk-dsae-ci","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Capture DPSK service ID
+    command: npx tsx cicd/tests/src/mcp-client.ts query_dpsk_services '{}'
+    capture:
+      dpskServiceId: "content[name=mcp-test-dpsk-dsae-ci].id"
+    expectPatterns:
+      - "mcp-test-dpsk-dsae-ci"
+    rejectPatterns:
+      - "isError"
+
+  - name: Create test venue for DSAE activation
+    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"name":"mcp-test-venue-dsae","addressLine":"Taipei","city":"Taipei","country":"Taiwan","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Capture venue ID
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venues '{}'
+    capture:
+      venueId: "data[name=mcp-test-venue-dsae].id"
+    expectPatterns:
+      - "mcp-test-venue-dsae"
+    rejectPatterns:
+      - "isError"
+
+  - name: Create DSAE WiFi network
+    command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-dsae-ci","ssid":"MCP-Test-DSAE-CI","type":"dpsk","wlanSecurity":"WPA23Mixed","dpskServiceId":"{{dpskServiceId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "networkId"
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Verify dual-network pair created with DSAE fields
+    command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"searchString":"mcp-test-dsae-ci"}'
+    capture:
+      networkId: "data[name=mcp-test-dsae-ci].id"
+    expectPatterns:
+      - "mcp-test-dsae-ci"
+      - "WPA23Mixed"
+      - "dsaeOnboardNetwork"
+      - "dpsk3-wpa2"
+    rejectPatterns:
+      - "isError"
+
+  - name: Activate DSAE network at venue
+    command: npx tsx cicd/tests/src/mcp-client.ts activate_wifi_network_at_venues '{"networkId":"{{networkId}}","venueConfigs":[{"venueId":"{{venueId}}","isAllApGroups":true,"allApGroupsRadio":"Both","allApGroupsRadioTypes":["2.4-GHz","5-GHz","6-GHz"],"scheduler":{"type":"ALWAYS_ON"}}],"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+      - "dsaeOnboardNetwork"
+
+  - name: Deactivate DSAE network from venue
+    command: npx tsx cicd/tests/src/mcp-client.ts deactivate_wifi_network_at_venues '{"networkId":"{{networkId}}","venueIds":["{{venueId}}"],"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Delete DSAE WiFi network
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_wifi_network '{"networkId":"{{networkId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Verify DSAE network and companion are gone
+    command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"searchString":"mcp-test-dsae-ci"}'
+    expectPatterns:
+      - "content"
+    rejectPatterns:
+      - "mcp-test-dsae-ci"
+
+  - name: Delete DPSK service
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_dpsk_service '{"dpskServiceId":"{{dpskServiceId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Delete identity group
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_identity_group '{"identityGroupId":"{{identityGroupId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Delete test venue
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_ruckus_venue '{"venueId":"{{venueId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+criteria: |
+  Full DSAE WiFi network lifecycle with all dependencies:
+  1. Create identity group (prerequisite for DPSK service)
+  2. Create DPSK service under identity group
+  3. Create test venue for activation
+  4. Create DSAE network (type=dpsk, wlanSecurity=WPA23Mixed, dpskServiceId)
+  5. Verify dual-network pair (primary + -dpsk3-wpa2 companion)
+  6. Activate at venue - verify no 422 errors from read-only fields
+  7. Deactivate from venue
+  8. Delete network, verify both primary and companion removed
+  9. Clean up: DPSK service, identity group, venue
