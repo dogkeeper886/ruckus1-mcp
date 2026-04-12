@@ -67,6 +67,9 @@ import {
   updateWifiNetworkWithRetry,
   queryClients,
   getApPassword,
+  createIdentityGroupWithRetry,
+  queryIdentityGroups,
+  deleteIdentityGroupWithRetry,
 } from "./services/ruckusApiService";
 import { tokenService } from "./services/tokenService";
 
@@ -2327,6 +2330,95 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["venueId", "apSerial"],
+        },
+      },
+      {
+        name: "create_identity_group",
+        description:
+          "Create a new identity group in RUCKUS One. Identity groups are required for creating DPSK services. REQUIRED: name (unique identity group name). Optional: autoCleanupEnabled (default: true).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "Name of the identity group (must be unique)",
+            },
+            autoCleanupEnabled: {
+              type: "boolean",
+              description:
+                "Enable automatic identity cleanup (default: true)",
+            },
+            maxRetries: {
+              type: "number",
+              description:
+                "Maximum number of retry attempts for async polling (default: 5)",
+            },
+            pollIntervalMs: {
+              type: "number",
+              description:
+                "Polling interval in milliseconds (default: 2000)",
+            },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "query_identity_groups",
+        description:
+          "Query identity groups from RUCKUS One with keyword search and pagination support. Use this to find identity group IDs needed for creating DPSK services.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            keyword: {
+              type: "string",
+              description:
+                "Keyword to search identity groups by name (optional)",
+            },
+            page: {
+              type: "number",
+              description: "Page number (default: 1)",
+            },
+            pageSize: {
+              type: "number",
+              description: "Number of results per page (default: 10000)",
+            },
+            sortField: {
+              type: "string",
+              description: 'Field to sort by (default: "name")',
+            },
+            sortOrder: {
+              type: "string",
+              description:
+                'Sort order - ASC or DESC (default: "ASC")',
+            },
+          },
+          required: [],
+        },
+      },
+      {
+        name: "delete_identity_group",
+        description:
+          "Permanently delete an identity group from RUCKUS One. This cannot be undone. PREREQUISITE: Identity group must not be in use by any DPSK service. REQUIRED: identityGroupId (use query_identity_groups to get ID).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            identityGroupId: {
+              type: "string",
+              description:
+                "ID of the identity group to delete (use query_identity_groups to find ID)",
+            },
+            maxRetries: {
+              type: "number",
+              description:
+                "Maximum number of retry attempts for async polling (default: 5)",
+            },
+            pollIntervalMs: {
+              type: "number",
+              description:
+                "Polling interval in milliseconds (default: 2000)",
+            },
+          },
+          required: ["identityGroupId"],
         },
       },
     ],
@@ -6330,6 +6422,181 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       } catch (error: any) {
         console.error("[MCP] Error getting AP password:", error);
         let errorMessage = `Error getting AP password: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case "create_identity_group": {
+      try {
+        const {
+          name: groupName,
+          autoCleanupEnabled = true,
+          maxRetries = 5,
+          pollIntervalMs = 2000,
+        } = request.params.arguments as {
+          name: string;
+          autoCleanupEnabled?: boolean;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await createIdentityGroupWithRetry(
+          token,
+          groupName,
+          autoCleanupEnabled,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("[MCP] Error creating identity group:", error);
+
+        let errorMessage = `Error creating identity group: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case "query_identity_groups": {
+      try {
+        const {
+          keyword = "",
+          page = 1,
+          pageSize = 10000,
+          sortField = "name",
+          sortOrder = "ASC",
+        } = request.params.arguments as {
+          keyword?: string;
+          page?: number;
+          pageSize?: number;
+          sortField?: string;
+          sortOrder?: string;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await queryIdentityGroups(
+          token,
+          process.env.RUCKUS_REGION,
+          keyword,
+          page,
+          pageSize,
+          sortField,
+          sortOrder,
+        );
+
+        console.log("[MCP] Query identity groups response:", result);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("[MCP] Error querying identity groups:", error);
+
+        let errorMessage = `Error querying identity groups: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case "delete_identity_group": {
+      try {
+        const {
+          identityGroupId,
+          maxRetries = 5,
+          pollIntervalMs = 2000,
+        } = request.params.arguments as {
+          identityGroupId: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await deleteIdentityGroupWithRetry(
+          token,
+          identityGroupId,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("[MCP] Error deleting identity group:", error);
+
+        let errorMessage = `Error deleting identity group: ${error}`;
 
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
