@@ -6960,3 +6960,207 @@ export async function deleteIdentityGroupWithRetry(
     message: "Identity group deletion status unknown - polling timeout",
   };
 }
+
+// ==================== DPSK Service Operations ====================
+
+export async function createDpskServiceWithRetry(
+  token: string,
+  identityGroupId: string,
+  name: string,
+  passphraseFormat: string = "MOST_SECURED",
+  passphraseLength: number = 18,
+  autoNotificationsEnabled: boolean = false,
+  expirationType: string | null = null,
+  region: string = "",
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000,
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/identityGroups/${identityGroupId}/dpskServices`
+      : `https://api.ruckus.cloud/identityGroups/${identityGroupId}/dpskServices`;
+
+  const payload: any = {
+    name,
+    passphraseFormat,
+    passphraseLength,
+    autoNotificationsEnabled,
+    expirationType,
+  };
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "post",
+      url: apiUrl,
+      data: payload,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Create DPSK service",
+  );
+
+  const createResponse = response.data;
+  const activityId = createResponse.requestId;
+
+  if (!activityId) {
+    return {
+      ...createResponse,
+      status: "completed",
+      message: "DPSK service created successfully (synchronous operation)",
+    };
+  }
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(
+      `[RUCKUS] Polling DPSK service creation attempt ${attempt}/${maxRetries}...`,
+    );
+    const activityDetails = await getRuckusActivityDetails(
+      token,
+      activityId,
+      region,
+    );
+
+    if (
+      activityDetails.status === "COMPLETED" ||
+      activityDetails.status === "SUCCESS"
+    ) {
+      return {
+        ...createResponse,
+        activityDetails,
+        status: "completed",
+        message: "DPSK service created successfully",
+      };
+    }
+
+    if (activityDetails.status === "FAIL") {
+      return {
+        ...createResponse,
+        activityDetails,
+        status: "failed",
+        message: "DPSK service creation failed",
+        error:
+          activityDetails.error ||
+          activityDetails.message ||
+          "Operation failed",
+      };
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  return {
+    ...createResponse,
+    status: "timeout",
+    message: "DPSK service creation status unknown - polling timeout",
+  };
+}
+
+export async function queryDpskServices(
+  token: string,
+  region: string = "",
+  page: number = 0,
+  pageSize: number = 10000,
+  sortField: string = "name",
+  sortOrder: string = "asc",
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/dpskServices?size=${pageSize}&page=${page}&sort=${sortField},${sortOrder}`
+      : `https://api.ruckus.cloud/dpskServices?size=${pageSize}&page=${page}&sort=${sortField},${sortOrder}`;
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "get",
+      url: apiUrl,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Query DPSK services",
+  );
+
+  return response.data;
+}
+
+export async function deleteDpskServiceWithRetry(
+  token: string,
+  dpskServiceId: string,
+  region: string = "",
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000,
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/dpskServices/${dpskServiceId}`
+      : `https://api.ruckus.cloud/dpskServices/${dpskServiceId}`;
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "delete",
+      url: apiUrl,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Delete DPSK service",
+  );
+
+  const deleteResponse = response.data;
+  const activityId = deleteResponse.requestId;
+
+  if (!activityId) {
+    return {
+      ...deleteResponse,
+      status: "completed",
+      message: "DPSK service deleted successfully (synchronous operation)",
+    };
+  }
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(
+      `[RUCKUS] Polling DPSK service deletion attempt ${attempt}/${maxRetries}...`,
+    );
+    const activityDetails = await getRuckusActivityDetails(
+      token,
+      activityId,
+      region,
+    );
+
+    if (
+      activityDetails.status === "COMPLETED" ||
+      activityDetails.status === "SUCCESS"
+    ) {
+      return {
+        ...deleteResponse,
+        activityDetails,
+        status: "completed",
+        message: "DPSK service deleted successfully",
+      };
+    }
+
+    if (activityDetails.status === "FAIL") {
+      return {
+        ...deleteResponse,
+        activityDetails,
+        status: "failed",
+        message: "DPSK service deletion failed",
+        error:
+          activityDetails.error ||
+          activityDetails.message ||
+          "Operation failed",
+      };
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  return {
+    ...deleteResponse,
+    status: "timeout",
+    message: "DPSK service deletion status unknown - polling timeout",
+  };
+}

@@ -70,6 +70,9 @@ import {
   createIdentityGroupWithRetry,
   queryIdentityGroups,
   deleteIdentityGroupWithRetry,
+  createDpskServiceWithRetry,
+  queryDpskServices,
+  deleteDpskServiceWithRetry,
 } from "./services/ruckusApiService";
 import { tokenService } from "./services/tokenService";
 
@@ -2419,6 +2422,104 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["identityGroupId"],
+        },
+      },
+      {
+        name: "create_dpsk_service",
+        description:
+          "Create a new DPSK service under an identity group in RUCKUS One. DPSK services are required for creating DPSK/DSAE WiFi networks. REQUIRED: identityGroupId (use query_identity_groups to get ID) + name (unique service name). Optional: passphraseFormat (default: MOST_SECURED), passphraseLength (default: 18).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            identityGroupId: {
+              type: "string",
+              description:
+                "ID of the identity group to create the DPSK service under (use query_identity_groups to find ID)",
+            },
+            name: {
+              type: "string",
+              description: "Name of the DPSK service (must be unique)",
+            },
+            passphraseFormat: {
+              type: "string",
+              description:
+                "Passphrase format: MOST_SECURED (letters, numbers, symbols), SECURED (letters and numbers), or NUMBERS_ONLY (default: MOST_SECURED)",
+              enum: ["MOST_SECURED", "SECURED", "NUMBERS_ONLY"],
+            },
+            passphraseLength: {
+              type: "number",
+              description: "Passphrase length in characters (default: 18)",
+            },
+            autoNotificationsEnabled: {
+              type: "boolean",
+              description:
+                "Enable auto-send DPSK info notifications (default: false)",
+            },
+            maxRetries: {
+              type: "number",
+              description:
+                "Maximum number of retry attempts for async polling (default: 5)",
+            },
+            pollIntervalMs: {
+              type: "number",
+              description:
+                "Polling interval in milliseconds (default: 2000)",
+            },
+          },
+          required: ["identityGroupId", "name"],
+        },
+      },
+      {
+        name: "query_dpsk_services",
+        description:
+          "Query DPSK services from RUCKUS One with pagination support. Use this to find DPSK service IDs needed for creating DPSK/DSAE WiFi networks.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            page: {
+              type: "number",
+              description: "Page number, zero-based (default: 0)",
+            },
+            pageSize: {
+              type: "number",
+              description: "Number of results per page (default: 10000)",
+            },
+            sortField: {
+              type: "string",
+              description: 'Field to sort by (default: "name")',
+            },
+            sortOrder: {
+              type: "string",
+              description: 'Sort order - asc or desc (default: "asc")',
+            },
+          },
+          required: [],
+        },
+      },
+      {
+        name: "delete_dpsk_service",
+        description:
+          "Permanently delete a DPSK service from RUCKUS One. This cannot be undone. PREREQUISITE: DPSK service must not be in use by any WiFi network. REQUIRED: dpskServiceId (use query_dpsk_services to get ID).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            dpskServiceId: {
+              type: "string",
+              description:
+                "ID of the DPSK service to delete (use query_dpsk_services to find ID)",
+            },
+            maxRetries: {
+              type: "number",
+              description:
+                "Maximum number of retry attempts for async polling (default: 5)",
+            },
+            pollIntervalMs: {
+              type: "number",
+              description:
+                "Polling interval in milliseconds (default: 2000)",
+            },
+          },
+          required: ["dpskServiceId"],
         },
       },
     ],
@@ -6597,6 +6698,188 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error("[MCP] Error deleting identity group:", error);
 
         let errorMessage = `Error deleting identity group: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case "create_dpsk_service": {
+      try {
+        const {
+          identityGroupId,
+          name: serviceName,
+          passphraseFormat = "MOST_SECURED",
+          passphraseLength = 18,
+          autoNotificationsEnabled = false,
+          maxRetries = 5,
+          pollIntervalMs = 2000,
+        } = request.params.arguments as {
+          identityGroupId: string;
+          name: string;
+          passphraseFormat?: string;
+          passphraseLength?: number;
+          autoNotificationsEnabled?: boolean;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await createDpskServiceWithRetry(
+          token,
+          identityGroupId,
+          serviceName,
+          passphraseFormat,
+          passphraseLength,
+          autoNotificationsEnabled,
+          null,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("[MCP] Error creating DPSK service:", error);
+
+        let errorMessage = `Error creating DPSK service: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case "query_dpsk_services": {
+      try {
+        const {
+          page = 0,
+          pageSize = 10000,
+          sortField = "name",
+          sortOrder = "asc",
+        } = request.params.arguments as {
+          page?: number;
+          pageSize?: number;
+          sortField?: string;
+          sortOrder?: string;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await queryDpskServices(
+          token,
+          process.env.RUCKUS_REGION,
+          page,
+          pageSize,
+          sortField,
+          sortOrder,
+        );
+
+        console.log("[MCP] Query DPSK services response:", result);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("[MCP] Error querying DPSK services:", error);
+
+        let errorMessage = `Error querying DPSK services: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case "delete_dpsk_service": {
+      try {
+        const {
+          dpskServiceId,
+          maxRetries = 5,
+          pollIntervalMs = 2000,
+        } = request.params.arguments as {
+          dpskServiceId: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await deleteDpskServiceWithRetry(
+          token,
+          dpskServiceId,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("[MCP] Error deleting DPSK service:", error);
+
+        let errorMessage = `Error deleting DPSK service: ${error}`;
 
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
