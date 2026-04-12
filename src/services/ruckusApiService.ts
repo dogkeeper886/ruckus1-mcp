@@ -4974,8 +4974,10 @@ export async function activateWifiNetworkAtVenuesWithRetry(
   }));
 
   // Merge full network config with venues array
+  // Remove read-only fields that the API rejects on PUT (e.g., OWE Transition fields)
+  const { owePairNetworkId, isOweMaster, ...writableConfig } = networkConfig;
   const updatePayload = {
-    ...networkConfig,
+    ...writableConfig,
     venues: venuesArray,
     id: networkId,
   };
@@ -5974,8 +5976,10 @@ export async function deactivateWifiNetworkAtVenuesWithRetry(
       ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}`
       : `https://api.ruckus.cloud/wifiNetworks/${networkId}`;
 
+  // Remove read-only fields that the API rejects on PUT (e.g., OWE Transition fields)
+  const { owePairNetworkId: _owe1, isOweMaster: _owe2, ...writableNetworkConfig } = networkConfig;
   const updateNetworkPayload = {
-    ...networkConfig,
+    ...writableNetworkConfig,
     venues: [],
     id: networkId,
   };
