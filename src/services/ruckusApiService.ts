@@ -6750,3 +6750,213 @@ export async function queryClients(
 
   return response.data;
 }
+
+// ==================== Identity Group Operations ====================
+
+export async function createIdentityGroupWithRetry(
+  token: string,
+  name: string,
+  autoCleanupEnabled: boolean = true,
+  region: string = "",
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000,
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/identityGroups`
+      : "https://api.ruckus.cloud/identityGroups";
+
+  const payload = {
+    name,
+    autoCleanupEnabled,
+  };
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "post",
+      url: apiUrl,
+      data: payload,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Create identity group",
+  );
+
+  const createResponse = response.data;
+  const activityId = createResponse.requestId;
+
+  if (!activityId) {
+    return {
+      ...createResponse,
+      status: "completed",
+      message: "Identity group created successfully (synchronous operation)",
+    };
+  }
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(
+      `[RUCKUS] Polling identity group creation attempt ${attempt}/${maxRetries}...`,
+    );
+    const activityDetails = await getRuckusActivityDetails(
+      token,
+      activityId,
+      region,
+    );
+
+    if (
+      activityDetails.status === "COMPLETED" ||
+      activityDetails.status === "SUCCESS"
+    ) {
+      return {
+        ...createResponse,
+        activityDetails,
+        status: "completed",
+        message: "Identity group created successfully",
+      };
+    }
+
+    if (activityDetails.status === "FAIL") {
+      return {
+        ...createResponse,
+        activityDetails,
+        status: "failed",
+        message: "Identity group creation failed",
+        error:
+          activityDetails.error ||
+          activityDetails.message ||
+          "Operation failed",
+      };
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  return {
+    ...createResponse,
+    status: "timeout",
+    message: "Identity group creation status unknown - polling timeout",
+  };
+}
+
+export async function queryIdentityGroups(
+  token: string,
+  region: string = "",
+  keyword: string = "",
+  page: number = 1,
+  pageSize: number = 10000,
+  sortField: string = "name",
+  sortOrder: string = "ASC",
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/identityGroups/query?size=${pageSize}&page=${page - 1}&sort=${sortField},${sortOrder.toLowerCase()}`
+      : `https://api.ruckus.cloud/identityGroups/query?size=${pageSize}&page=${page - 1}&sort=${sortField},${sortOrder.toLowerCase()}`;
+
+  const payload: any = {
+    page,
+    pageSize,
+    sortField,
+    sortOrder,
+  };
+
+  if (keyword && keyword.trim() !== "") {
+    payload.keyword = keyword;
+  }
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "post",
+      url: apiUrl,
+      data: payload,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Query identity groups",
+  );
+
+  return response.data;
+}
+
+export async function deleteIdentityGroupWithRetry(
+  token: string,
+  identityGroupId: string,
+  region: string = "",
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000,
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/identityGroups/${identityGroupId}`
+      : `https://api.ruckus.cloud/identityGroups/${identityGroupId}`;
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "delete",
+      url: apiUrl,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Delete identity group",
+  );
+
+  const deleteResponse = response.data;
+  const activityId = deleteResponse.requestId;
+
+  if (!activityId) {
+    return {
+      ...deleteResponse,
+      status: "completed",
+      message: "Identity group deleted successfully (synchronous operation)",
+    };
+  }
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(
+      `[RUCKUS] Polling identity group deletion attempt ${attempt}/${maxRetries}...`,
+    );
+    const activityDetails = await getRuckusActivityDetails(
+      token,
+      activityId,
+      region,
+    );
+
+    if (
+      activityDetails.status === "COMPLETED" ||
+      activityDetails.status === "SUCCESS"
+    ) {
+      return {
+        ...deleteResponse,
+        activityDetails,
+        status: "completed",
+        message: "Identity group deleted successfully",
+      };
+    }
+
+    if (activityDetails.status === "FAIL") {
+      return {
+        ...deleteResponse,
+        activityDetails,
+        status: "failed",
+        message: "Identity group deletion failed",
+        error:
+          activityDetails.error ||
+          activityDetails.message ||
+          "Operation failed",
+      };
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  return {
+    ...deleteResponse,
+    status: "timeout",
+    message: "Identity group deletion status unknown - polling timeout",
+  };
+}
