@@ -7206,3 +7206,118 @@ export async function deleteDpskServiceWithRetry(
     message: "DPSK service deletion status unknown - polling timeout",
   };
 }
+
+// ==================== Venue WiFi Network Settings Operations ====================
+
+export async function getVenueWifiNetworkSettings(
+  token: string,
+  venueId: string,
+  wifiNetworkId: string,
+  region: string = "",
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/venues/${venueId}/wifiNetworks/${wifiNetworkId}/settings`
+      : `https://api.ruckus.cloud/venues/${venueId}/wifiNetworks/${wifiNetworkId}/settings`;
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "get",
+      url: apiUrl,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.ruckus.v1+json",
+        "Content-Type": "application/json",
+      },
+    },
+    "Get venue WiFi network settings",
+  );
+
+  return response.data;
+}
+
+export async function updateVenueWifiNetworkSettingsWithRetry(
+  token: string,
+  venueId: string,
+  wifiNetworkId: string,
+  settings: any,
+  region: string = "",
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000,
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/venues/${venueId}/wifiNetworks/${wifiNetworkId}/settings`
+      : `https://api.ruckus.cloud/venues/${venueId}/wifiNetworks/${wifiNetworkId}/settings`;
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "put",
+      url: apiUrl,
+      data: settings,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.ruckus.v1+json",
+        "Content-Type": "application/vnd.ruckus.v1+json",
+      },
+    },
+    "Update venue WiFi network settings",
+  );
+
+  const updateResponse = response.data;
+  const activityId = updateResponse.requestId;
+
+  if (!activityId) {
+    return {
+      ...updateResponse,
+      status: "completed",
+      message:
+        "Venue WiFi network settings updated successfully (synchronous operation)",
+    };
+  }
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(
+      `[RUCKUS] Polling venue WiFi network settings update attempt ${attempt}/${maxRetries}...`,
+    );
+    const activityDetails = await getRuckusActivityDetails(
+      token,
+      activityId,
+      region,
+    );
+
+    if (
+      activityDetails.status === "COMPLETED" ||
+      activityDetails.status === "SUCCESS"
+    ) {
+      return {
+        ...updateResponse,
+        activityDetails,
+        status: "completed",
+        message: "Venue WiFi network settings updated successfully",
+      };
+    }
+
+    if (activityDetails.status === "FAIL") {
+      return {
+        ...updateResponse,
+        activityDetails,
+        status: "failed",
+        message: "Venue WiFi network settings update failed",
+        error:
+          activityDetails.error ||
+          activityDetails.message ||
+          "Operation failed",
+      };
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  return {
+    ...updateResponse,
+    status: "timeout",
+    message:
+      "Venue WiFi network settings update status unknown - polling timeout",
+  };
+}

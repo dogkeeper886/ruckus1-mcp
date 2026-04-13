@@ -73,6 +73,8 @@ import {
   createDpskServiceWithRetry,
   queryDpskServices,
   deleteDpskServiceWithRetry,
+  getVenueWifiNetworkSettings,
+  updateVenueWifiNetworkSettingsWithRetry,
 } from "./services/ruckusApiService";
 import { tokenService } from "./services/tokenService";
 
@@ -2526,6 +2528,63 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["dpskServiceId"],
+        },
+      },
+      {
+        name: "get_venue_wifi_network_settings",
+        description:
+          "Get venue-level WiFi network settings including scheduler configuration. REQUIRED: venueId (use get_ruckus_venues to get venue ID) + wifiNetworkId (use query_wifi_networks to get network ID). The network must be activated at the venue.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            venueId: {
+              type: "string",
+              description:
+                "ID of the venue (use get_ruckus_venues to get venue ID)",
+            },
+            wifiNetworkId: {
+              type: "string",
+              description:
+                "ID of the WiFi network (use query_wifi_networks to get network ID)",
+            },
+          },
+          required: ["venueId", "wifiNetworkId"],
+        },
+      },
+      {
+        name: "update_venue_wifi_network_settings",
+        description:
+          "Update venue-level WiFi network settings including scheduler configuration. The settings object is passed directly as the request body. REQUIRED: venueId (use get_ruckus_venues to get venue ID) + wifiNetworkId (use query_wifi_networks to get network ID) + settings (JSON object). FOR ALWAYS_ON: Use scheduler {type: 'ALWAYS_ON'}. FOR CUSTOM SCHEDULE: Use scheduler {type: 'CUSTOM', mon: '96-char string', tue: '...', ...} where each char is 1 (on) or 0 (off) per 15-min slot. FOR BASIC SCHEDULE: Use scheduler {type: 'CUSTOM', customType: 'BASIC', repeatRule: 'NO_REPEAT', startDate: 'YYYY-MM-DD', allDay: true}.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            venueId: {
+              type: "string",
+              description:
+                "ID of the venue (use get_ruckus_venues to get venue ID)",
+            },
+            wifiNetworkId: {
+              type: "string",
+              description:
+                "ID of the WiFi network (use query_wifi_networks to get network ID)",
+            },
+            settings: {
+              type: "object",
+              description:
+                "Settings object passed directly as the request body. Must include scheduler configuration and may include other venue-level network settings (apGroups, radios, etc.)",
+            },
+            maxRetries: {
+              type: "number",
+              description:
+                "Maximum number of retry attempts for async polling (default: 5)",
+            },
+            pollIntervalMs: {
+              type: "number",
+              description:
+                "Polling interval in milliseconds (default: 2000)",
+            },
+          },
+          required: ["venueId", "wifiNetworkId", "settings"],
         },
       },
     ],
@@ -6891,6 +6950,123 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error("[MCP] Error deleting DPSK service:", error);
 
         let errorMessage = `Error deleting DPSK service: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case "get_venue_wifi_network_settings": {
+      try {
+        const { venueId, wifiNetworkId } = request.params.arguments as {
+          venueId: string;
+          wifiNetworkId: string;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await getVenueWifiNetworkSettings(
+          token,
+          venueId,
+          wifiNetworkId,
+          process.env.RUCKUS_REGION,
+        );
+
+        console.log("[MCP] Get venue WiFi network settings response:", result);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error(
+          "[MCP] Error getting venue WiFi network settings:",
+          error,
+        );
+
+        let errorMessage = `Error getting venue WiFi network settings: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case "update_venue_wifi_network_settings": {
+      try {
+        const {
+          venueId,
+          wifiNetworkId,
+          settings,
+          maxRetries = 5,
+          pollIntervalMs = 2000,
+        } = request.params.arguments as {
+          venueId: string;
+          wifiNetworkId: string;
+          settings: any;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await updateVenueWifiNetworkSettingsWithRetry(
+          token,
+          venueId,
+          wifiNetworkId,
+          settings,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error(
+          "[MCP] Error updating venue WiFi network settings:",
+          error,
+        );
+
+        let errorMessage = `Error updating venue WiFi network settings: ${error}`;
 
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;
