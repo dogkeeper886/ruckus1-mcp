@@ -1,0 +1,50 @@
+id: TC-INT-321
+name: Identity Group lifecycle - create, query, delete
+suite: integration
+tags: [identity-groups]
+story: STORY-012
+priority: 1
+timeout: 120000
+dependencies:
+  - TC-INT-001
+
+steps:
+  - name: Create identity group
+    command: npx tsx cicd/tests/src/mcp-client.ts create_identity_group '{"name":"mcp-test-idgroup-ci","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+      - "requestId"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Query identity groups and capture ID
+    command: npx tsx cicd/tests/src/mcp-client.ts query_identity_groups '{"keyword":"mcp-test-idgroup-ci"}'
+    capture:
+      identityGroupId: "content[name=mcp-test-idgroup-ci].id"
+    expectPatterns:
+      - "mcp-test-idgroup-ci"
+    rejectPatterns:
+      - "isError"
+
+  - name: Delete identity group
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_identity_group '{"identityGroupId":"{{identityGroupId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Verify identity group is gone
+    command: npx tsx cicd/tests/src/mcp-client.ts query_identity_groups '{"keyword":"mcp-test-idgroup-ci"}'
+    expectPatterns:
+      - "totalElements"
+    rejectPatterns:
+      - "mcp-test-idgroup-ci"
+
+criteria: |
+  Full Identity Group lifecycle:
+  1. Create identity group with name and autoCleanupEnabled
+  2. Query with keyword to verify it exists and capture ID
+  3. Delete using captured ID
+  4. Verify it no longer appears in query results
