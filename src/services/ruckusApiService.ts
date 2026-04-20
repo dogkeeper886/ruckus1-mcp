@@ -4168,6 +4168,13 @@ export async function createWifiNetworkWithRetry(
     oweTransitionEnabled?: boolean;
     // DPSK/DSAE specific options
     dpskServiceId?: string;
+    // Self Sign-In temporary connection (pre-OTP limited access)
+    temporaryConnectionEnabled?: boolean;
+    temporaryConnection?: {
+      duration?: number;
+      maxDownloadRate?: number;
+      maxUploadRate?: number;
+    };
   },
   region: string = "",
   maxRetries: number = 5,
@@ -4419,6 +4426,12 @@ export async function createWifiNetworkWithRetry(
         duration: sessionDurationDays,
         unit: "DAY",
       },
+      ...(networkConfig.temporaryConnectionEnabled !== undefined
+        ? { temporaryConnectionEnabled: networkConfig.temporaryConnectionEnabled }
+        : {}),
+      ...(networkConfig.temporaryConnection !== undefined
+        ? { temporaryConnection: networkConfig.temporaryConnection }
+        : {}),
     };
     basePayload.allowSign = ["enableEmailLogin"];
     basePayload.allowedDomainsCheckbox = allowedDomains.length > 0;

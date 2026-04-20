@@ -22,6 +22,7 @@ Comprehensive WiFi network lifecycle management including CRUD operations, venue
 - [x] Associate portal service profiles with networks
 - [x] Configure RADIUS server profile settings (auth proxy, accounting proxy)
 - [x] Support maxDevices parameter for guest/selfSignIn networks
+- [x] Support Captive Portal Temporary Connection (`temporaryConnectionEnabled`, `temporaryConnection` with duration/maxDownloadRate/maxUploadRate) for Self Sign-In networks — ACX-105619 (issue #55)
 
 ## Technical Notes
 
@@ -76,6 +77,8 @@ Comprehensive WiFi network lifecycle management including CRUD operations, venue
 | wifi7Enabled | boolean | no | true | Enable WiFi 7 (802.11be) |
 | guestPortal | object | no | - | Guest portal configuration object |
 | radiusOptions | object | no | - | RADIUS options for NAS ID configuration |
+| temporaryConnectionEnabled | boolean | no | false | Enable temporary pre-OTP access for Self Sign-In (only type=selfSignIn) |
+| temporaryConnection | object | no | - | Temporary connection settings: duration (1-15 min), maxDownloadRate (1000/2000/5000/-1 kbps), maxUploadRate (256/512/1000/-1 kbps) |
 
 ### `update_wifi_network` (CRUD - UPDATE)
 | Parameter | Type | Required | Default | Description |
@@ -121,3 +124,4 @@ Comprehensive WiFi network lifecycle management including CRUD operations, venue
 - Tasks: complete
 - Test Issue: #13
 - Tests: PASS - TC-INT-014, TC-INT-015, TC-INT-110, TC-INT-209, TC-INT-316
+- Temporary Connection (issue #55): implemented 2026-04-20; TC-INT-326

@@ -1674,7 +1674,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "get_wifi_network",
-        description: "Get detailed information for a specific WiFi network",
+        description:
+          "Get detailed information for a specific WiFi network. Returns the full configuration including nested objects like guestPortal (with temporaryConnectionEnabled / temporaryConnection for Self Sign-In networks), radiusOptions, etc. This tool is a pass-through; all fields the R1 API returns are preserved.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1689,7 +1690,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_wifi_network",
         description:
-          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires type=guest + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. FOR SELF SIGN-IN WITH EMAIL: Requires type=selfSignIn + portalServiceProfileId + wlanSecurity=None + allowedEmailDomains (array of allowed email domains). FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId (use query_radius_server_profiles to get ID of ACCOUNTING type profile), enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId). FOR OWE TRANSITION: Requires type=open + wlanSecurity=Open + oweEnabled=true + oweTransitionEnabled=true. Creates a dual-network pair: OWE-encrypted primary + Open companion with '-owe-tr' suffix. The companion network is managed automatically by the backend. FOR DSAE (DPSK WPA2/WPA3-Mixed): Requires type=dpsk + wlanSecurity=WPA23Mixed + dpskServiceId (use query_dpsk_services to get ID). Creates a dual-network pair: WPA2/WPA3-Mixed primary + WPA2 onboard companion with '-dpsk3-wpa2' suffix.",
+          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires type=guest + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. FOR SELF SIGN-IN WITH EMAIL: Requires type=selfSignIn + portalServiceProfileId + wlanSecurity=None + allowedEmailDomains (array of allowed email domains). Optional temporaryConnectionEnabled + temporaryConnection to grant pre-OTP limited internet access (Self Sign-In only). FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId (use query_radius_server_profiles to get ID of ACCOUNTING type profile), enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId). FOR OWE TRANSITION: Requires type=open + wlanSecurity=Open + oweEnabled=true + oweTransitionEnabled=true. Creates a dual-network pair: OWE-encrypted primary + Open companion with '-owe-tr' suffix. The companion network is managed automatically by the backend. FOR DSAE (DPSK WPA2/WPA3-Mixed): Requires type=dpsk + wlanSecurity=WPA23Mixed + dpskServiceId (use query_dpsk_services to get ID). Creates a dual-network pair: WPA2/WPA3-Mixed primary + WPA2 onboard companion with '-dpsk3-wpa2' suffix.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1828,6 +1829,37 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description:
                 "DPSK service ID (REQUIRED for type=dpsk/DSAE networks, use query_dpsk_services to get ID)",
+            },
+            temporaryConnectionEnabled: {
+              type: "boolean",
+              description:
+                "Enable temporary internet access for Self Sign-In guests before OTP verification (only for type=selfSignIn, default: false). When true, temporaryConnection must also be provided.",
+            },
+            temporaryConnection: {
+              type: "object",
+              description:
+                "Temporary connection settings for Self Sign-In guests (only for type=selfSignIn; required when temporaryConnectionEnabled=true). Lets visitors receive limited internet access before OTP verification.",
+              properties: {
+                duration: {
+                  type: "integer",
+                  description:
+                    "Session duration in minutes. Valid range: 1-15 (default: 5).",
+                  minimum: 1,
+                  maximum: 15,
+                },
+                maxDownloadRate: {
+                  type: "integer",
+                  description:
+                    "Max download rate in kbps. Valid: 1000, 2000, 5000, or -1 (Unlimited). Default: 1000.",
+                  enum: [1000, 2000, 5000, -1],
+                },
+                maxUploadRate: {
+                  type: "integer",
+                  description:
+                    "Max upload rate in kbps. Valid: 256, 512, 1000, or -1 (Unlimited). Default: 256.",
+                  enum: [256, 512, 1000, -1],
+                },
+              },
             },
             radiusOptions: {
               type: "object",
@@ -2032,7 +2064,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "update_wifi_network",
-        description: "Update a WiFi network with full configuration object",
+        description:
+          "Update a WiFi network with a full configuration object. The networkConfig is passed to R1 verbatim as the PUT body. For Self Sign-In networks, you can toggle temporary pre-OTP internet access by including `guestPortal.temporaryConnectionEnabled` (boolean) and `guestPortal.temporaryConnection` (object with duration 1-15 min, maxDownloadRate in {1000,2000,5000,-1}, maxUploadRate in {256,512,1000,-1}) inside networkConfig.",
         inputSchema: {
           type: "object",
           properties: {
@@ -5915,6 +5948,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           oweEnabled,
           oweTransitionEnabled,
           dpskServiceId,
+          temporaryConnectionEnabled,
+          temporaryConnection,
           guestPortal,
           portalServiceProfileId,
           radiusServiceProfileId,
@@ -5953,6 +5988,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           oweEnabled?: boolean;
           oweTransitionEnabled?: boolean;
           dpskServiceId?: string;
+          temporaryConnectionEnabled?: boolean;
+          temporaryConnection?: {
+            duration?: number;
+            maxDownloadRate?: number;
+            maxUploadRate?: number;
+          };
           guestPortal?: any;
           portalServiceProfileId?: string;
           radiusServiceProfileId?: string;
@@ -6013,6 +6054,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           networkConfig.oweTransitionEnabled = oweTransitionEnabled;
         if (dpskServiceId !== undefined)
           networkConfig.dpskServiceId = dpskServiceId;
+        if (temporaryConnectionEnabled !== undefined)
+          networkConfig.temporaryConnectionEnabled = temporaryConnectionEnabled;
+        if (temporaryConnection !== undefined)
+          networkConfig.temporaryConnection = temporaryConnection;
         if (guestPortal !== undefined) networkConfig.guestPortal = guestPortal;
         if (portalServiceProfileId !== undefined)
           networkConfig.portalServiceProfileId = portalServiceProfileId;
