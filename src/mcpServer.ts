@@ -7292,60 +7292,71 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const dayKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
         let scheduler: Record<string, any>;
 
-        if (mode === "ALWAYS_ON") {
-          scheduler = { type: "ALWAYS_ON" };
-        } else if (mode === "LEGACY_CUSTOM") {
-          scheduler = { type: "CUSTOM" };
-          if (legacyCustom) {
-            for (const day of dayKeys) {
-              if (legacyCustom[day] !== undefined) {
-                scheduler[day] = legacyCustom[day];
+        switch (mode) {
+          case "ALWAYS_ON": {
+            scheduler = { type: "ALWAYS_ON" };
+            break;
+          }
+          case "LEGACY_CUSTOM": {
+            scheduler = { type: "CUSTOM" };
+            if (legacyCustom) {
+              for (const day of dayKeys) {
+                if (legacyCustom[day] !== undefined) {
+                  scheduler[day] = legacyCustom[day];
+                }
               }
             }
+            break;
           }
-        } else if (mode === "BASIC") {
-          if (!basic || !basic.repeatRule || !basic.startDate) {
-            throw new Error(
-              "mode=BASIC requires basic.repeatRule and basic.startDate",
-            );
-          }
-          scheduler = {
-            type: "CUSTOM",
-            customType: "BASIC",
-            repeatRule: basic.repeatRule,
-            startDate: basic.startDate,
-          };
-          if (basic.endDate !== undefined) scheduler.endDate = basic.endDate;
-          if (basic.allDay !== undefined) scheduler.allDay = basic.allDay;
-          if (basic.fromTime !== undefined) scheduler.fromTime = basic.fromTime;
-          if (basic.toTime !== undefined) scheduler.toTime = basic.toTime;
-          if (basic.weeklyRepeatDays !== undefined)
-            scheduler.weeklyRepeatDays = basic.weeklyRepeatDays;
-          if (basic.monthlyRepeatRule !== undefined)
-            scheduler.monthlyRepeatRule = basic.monthlyRepeatRule;
-        } else if (mode === "ADVANCED") {
-          if (!advanced || !advanced.repeatRule || !advanced.startDate) {
-            throw new Error(
-              "mode=ADVANCED requires advanced.repeatRule and advanced.startDate",
-            );
-          }
-          scheduler = {
-            type: "CUSTOM",
-            customType: "ADVANCED",
-            repeatRule: advanced.repeatRule,
-            startDate: advanced.startDate,
-          };
-          if (advanced.endDate !== undefined)
-            scheduler.endDate = advanced.endDate;
-          for (const day of dayKeys) {
-            if (advanced[day] !== undefined) {
-              scheduler[day] = advanced[day];
+          case "BASIC": {
+            if (!basic || !basic.repeatRule || !basic.startDate) {
+              throw new Error(
+                "mode=BASIC requires basic.repeatRule and basic.startDate",
+              );
             }
+            scheduler = {
+              type: "CUSTOM",
+              customType: "BASIC",
+              repeatRule: basic.repeatRule,
+              startDate: basic.startDate,
+            };
+            if (basic.endDate !== undefined) scheduler.endDate = basic.endDate;
+            if (basic.allDay !== undefined) scheduler.allDay = basic.allDay;
+            if (basic.fromTime !== undefined) scheduler.fromTime = basic.fromTime;
+            if (basic.toTime !== undefined) scheduler.toTime = basic.toTime;
+            if (basic.weeklyRepeatDays !== undefined)
+              scheduler.weeklyRepeatDays = basic.weeklyRepeatDays;
+            if (basic.monthlyRepeatRule !== undefined)
+              scheduler.monthlyRepeatRule = basic.monthlyRepeatRule;
+            break;
           }
-        } else {
-          throw new Error(
-            `Unknown mode: ${mode}. Expected ALWAYS_ON, LEGACY_CUSTOM, BASIC, or ADVANCED.`,
-          );
+          case "ADVANCED": {
+            if (!advanced || !advanced.repeatRule || !advanced.startDate) {
+              throw new Error(
+                "mode=ADVANCED requires advanced.repeatRule and advanced.startDate",
+              );
+            }
+            scheduler = {
+              type: "CUSTOM",
+              customType: "ADVANCED",
+              repeatRule: advanced.repeatRule,
+              startDate: advanced.startDate,
+            };
+            if (advanced.endDate !== undefined)
+              scheduler.endDate = advanced.endDate;
+            for (const day of dayKeys) {
+              if (advanced[day] !== undefined) {
+                scheduler[day] = advanced[day];
+              }
+            }
+            break;
+          }
+          default: {
+            const _exhaustive: never = mode;
+            throw new Error(
+              `Unknown mode: ${_exhaustive}. Expected ALWAYS_ON, LEGACY_CUSTOM, BASIC, or ADVANCED.`,
+            );
+          }
         }
 
         return {
