@@ -2,7 +2,7 @@ id: TC-INT-324
 name: Venue WiFi network settings lifecycle - get and update scheduler
 suite: integration
 tags: [wifi-networks, scheduler, venue-settings]
-story: STORY-012
+story: STORY-013
 priority: 1
 timeout: 300000
 dependencies:
