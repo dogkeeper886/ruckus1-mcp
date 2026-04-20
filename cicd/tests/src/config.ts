@@ -15,6 +15,7 @@ export const CONFIG = {
     defaultUrl: process.env.LLM_JUDGE_URL || 'http://localhost:11435',
     defaultModel: process.env.LLM_JUDGE_MODEL || 'gemma3:12b-judge',
     timeout: 300000,
+    numCtx: parseInt(process.env.LLM_JUDGE_NUM_CTX || '', 10) || 8192,
     stdoutLimit: 1000,
     stderrLimit: 500,
     logsLimit: 3000,
