@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 # Add New MCP Tool from API Log
 
-Add a new MCP tool to this server based on API logs, following the project's established patterns and guidelines.
+Add a new MCP tool to this server based on API logs, following the patterns in `.claude/rules/mcp-tool-patterns.md` (code templates) and `.claude/rules/tool-descriptions.md` (tool-description conventions).
 
 ## Process Overview
 
@@ -24,18 +24,15 @@ This command guides you through a systematic process to:
 ## Phase 1: Understand the Project
 
 ### Study Project Guidelines
-- Read the project's CLAUDE.md file to understand architectural patterns
-- Identify the distinction between operation types (read-only vs async)
-- Review parameter ordering conventions
-- Understand error handling patterns
-- Note any specific naming conventions
+- Read `CLAUDE.md` for the high-level architecture and commands.
+- Read `.claude/rules/mcp-tool-patterns.md` for concrete templates (read-only, async, polling, pure-builder, advanced async patterns). This rule file auto-loads when editing `src/`, but open it explicitly at the start of this workflow.
+- Read `.claude/rules/tool-descriptions.md` for the tool-description writing conventions (PREREQUISITE / REQUIRED / FOR X:).
+- Identify the distinction between operation types (read-only vs async vs pure-builder).
 
 ### Study Existing Implementation
-- Search for similar existing tools in the services layer
-- Examine how existing tools are registered in the MCP server
-- Review how existing tools handle errors
-- Identify polling and retry patterns for async operations
-- Find examples of read-only operations
+- Search for similar existing tools in `src/services/ruckusApiService.ts`.
+- Examine how existing tools are registered and handled in `src/mcpServer.ts`.
+- Review how existing tools handle errors, polling, and retries.
 
 **Action:** Use file search tools to locate similar implementations before writing any code.
 
@@ -223,46 +220,9 @@ If the API log is incomplete:
 
 ## Phase 9.5: Tool Description Review
 
-### Review Tool Description for AI Agent Clarity
+Apply the conventions in `.claude/rules/tool-descriptions.md` (Description Structure, examples by operation type, parameter-description rules, anti-patterns, review checklist). That rule file auto-loads when editing `src/mcpServer.ts`.
 
-Before finalizing, ensure the tool description is clear and actionable for AI agents:
-
-**Description Structure:**
-- Start with clear action and purpose
-- Include PREREQUISITE if applicable (with tool reference)
-- Include REQUIRED section listing all required parameters
-- Provide tool references for obtaining IDs (e.g., "use query_wifi_networks to get network ID")
-- Mention special conditions or warnings
-- Clarify single vs batch operations if applicable
-
-**Good Description Pattern:**
-```
-[Action verb] [what it does]. [Additional context]. PREREQUISITE: [condition] (use [tool_name]). REQUIRED: [param1] (use [tool_name] to get [param1]) + [param2] (use [tool_name] to get [param2]). [Special notes].
-```
-
-**Examples of Good Descriptions:**
-- `'Permanently delete a WiFi network from RUCKUS One. This removes the network globally and cannot be undone. PREREQUISITE: Network must be deactivated from all venues first (use deactivate_wifi_network_at_venues). REQUIRED: networkId (use query_wifi_networks to get network ID).'`
-- `'Activate an existing WiFi network at one or more venues. This is a batch operation that activates the network at specified venues in a single call. The network must already be created using create_wifi_network. REQUIRED: networkId (use query_wifi_networks to get network ID) + venueConfigs array (use get_ruckus_venues to get venue IDs). FOR GUEST PASS NETWORKS: Must provide portalServiceProfileId (use query_portal_service_profiles to get ID). FOR PSK NETWORKS: Do not provide portalServiceProfileId. Can activate at a single venue or multiple venues.'`
-
-**Parameter Descriptions:**
-Each parameter should also include tool references:
-- `'ID of the WiFi network to delete (use query_wifi_networks to find network ID)'`
-- `'Array of venue IDs (use get_ruckus_venues to get venue IDs)'`
-- `'Portal service profile ID (use query_portal_service_profiles to get ID)'`
-
-**Common Issues to Avoid:**
-- Vague descriptions without tool references
-- Missing PREREQUISITE information for destructive operations
-- Not mentioning what tool to use to get required IDs
-- Unclear warnings about permanent actions
-- Missing context about batch vs single operations
-
-**Action:** Review and update tool description to ensure AI agents understand:
-1. What the tool does
-2. What prerequisites must be met
-3. How to obtain all required parameters
-4. What special conditions apply
-5. What the operation's scope is (single/batch, permanent/reversible)
+**Action:** Walk the "Review Checklist" at the bottom of `.claude/rules/tool-descriptions.md` against every new/modified tool definition before finalizing.
 
 ---
 
