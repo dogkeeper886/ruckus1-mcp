@@ -28,7 +28,7 @@ steps:
       - "customType"
 
   - name: Build BASIC scheduler
-    command: npx tsx cicd/tests/src/mcp-client.ts build_wifi_scheduler_config '{"mode":"BASIC","basic":{"repeatRule":"WEEKLY","startDate":"2026-04-20","allDay":true,"weeklyRepeatDays":["MON","TUE","WED","THU","FRI"]}}'
+    command: npx tsx cicd/tests/src/mcp-client.ts build_wifi_scheduler_config '{"mode":"BASIC","basic":{"repeatRule":"WEEKLY","startDate":"2026-04-20","allDay":true,"weeklyRepeatDays":["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY"]}}'
     expectPatterns:
       - "BASIC"
       - "WEEKLY"
@@ -94,7 +94,7 @@ steps:
       - "isError"
 
   - name: Activate network with BASIC new-format scheduler
-    command: npx tsx cicd/tests/src/mcp-client.ts activate_wifi_network_at_venues '{"networkId":"{{networkId}}","venueConfigs":[{"venueId":"{{venueId}}","isAllApGroups":true,"allApGroupsRadio":"Both","allApGroupsRadioTypes":["2.4-GHz","5-GHz","6-GHz"],"scheduler":{"type":"CUSTOM","customType":"BASIC","repeatRule":"WEEKLY","startDate":"2026-04-20","allDay":true,"weeklyRepeatDays":["MON","TUE","WED","THU","FRI"]}}],"maxRetries":10,"pollIntervalMs":3000}'
+    command: npx tsx cicd/tests/src/mcp-client.ts activate_wifi_network_at_venues '{"networkId":"{{networkId}}","venueConfigs":[{"venueId":"{{venueId}}","isAllApGroups":true,"allApGroupsRadio":"Both","allApGroupsRadioTypes":["2.4-GHz","5-GHz","6-GHz"],"scheduler":{"type":"CUSTOM","customType":"BASIC","repeatRule":"WEEKLY","startDate":"2026-04-20","allDay":true,"weeklyRepeatDays":["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY"]}}],"maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "completed"
     rejectPatterns:

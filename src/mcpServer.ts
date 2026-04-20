@@ -2675,17 +2675,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                   items: {
                     type: "string",
                     enum: [
-                      "MON",
-                      "TUE",
-                      "WED",
-                      "THU",
-                      "FRI",
-                      "SAT",
-                      "SUN",
+                      "MONDAY",
+                      "TUESDAY",
+                      "WEDNESDAY",
+                      "THURSDAY",
+                      "FRIDAY",
+                      "SATURDAY",
+                      "SUNDAY",
                     ],
                   },
                   description:
-                    "Only with repeatRule=WEEKLY. Days of the week the schedule is active.",
+                    "Only with repeatRule=WEEKLY. Days of the week the schedule is active. Values follow java.time.DayOfWeek (MONDAY..SUNDAY, uppercase).",
                 },
                 monthlyRepeatRule: {
                   type: "string",
