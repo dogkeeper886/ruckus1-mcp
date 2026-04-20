@@ -10,18 +10,18 @@ dependencies:
 
 steps:
   - name: Create portal service profile
-    command: npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"name":"mcp-test-portal","content":{},"maxRetries":10,"pollIntervalMs":3000}'
+    command: npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"name":"mcp-test-portal-205","content":{},"maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "requestId"
     rejectPatterns:
       - "isError"
 
   - name: Find created profile and capture ID
-    command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{"searchString":"mcp-test-portal"}'
+    command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{"searchString":"mcp-test-portal-205"}'
     capture:
-      profileId: "content[serviceName=mcp-test-portal].id"
+      profileId: "content[serviceName=mcp-test-portal-205].id"
     expectPatterns:
-      - "mcp-test-portal"
+      - "mcp-test-portal-205"
     rejectPatterns:
       - "isError"
 
@@ -33,15 +33,15 @@ steps:
       - "isError"
 
   - name: Verify profile is gone
-    command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{"searchString":"mcp-test-portal"}'
+    command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{"searchString":"mcp-test-portal-205"}'
     expectPatterns:
       - "totalCount"
     rejectPatterns:
-      - "mcp-test-portal"
+      - "mcp-test-portal-205"
 
 criteria: |
   Full portal service profile CRUD lifecycle:
-  1. Create profile "mcp-test-portal" with minimal content
+  1. Create profile "mcp-test-portal-205" with minimal content
   2. Query to find it and capture profileId
   3. Delete using captured profileId
   4. Verify it no longer appears in query results
