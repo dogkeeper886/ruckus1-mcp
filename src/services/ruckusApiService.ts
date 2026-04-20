@@ -4798,7 +4798,7 @@ export async function activateWifiNetworkAtVenuesWithRetry(
     allApGroupsRadio: "Both" | "2.4GHz" | "5GHz" | "6GHz";
     allApGroupsRadioTypes: string[];
     scheduler: {
-      type: "ALWAYS_ON" | "SCHEDULED";
+      type: "ALWAYS_ON" | "CUSTOM";
       [key: string]: any;
     };
   }>,
@@ -5339,7 +5339,7 @@ export async function activateWifiNetworkAtVenueWithRetry(
     allApGroupsRadio: "Both" | "2.4GHz" | "5GHz" | "6GHz";
     allApGroupsRadioTypes: string[];
     scheduler: {
-      type: "ALWAYS_ON" | "SCHEDULED";
+      type: "ALWAYS_ON" | "CUSTOM";
       [key: string]: any;
     };
   },

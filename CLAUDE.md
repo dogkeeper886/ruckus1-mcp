@@ -224,6 +224,7 @@ Before writing ANY code:
 
 **READ-ONLY Operations** (GET, Query): Use existing read-only patterns
 **ASYNC Operations** (Create, Delete, Update): Use retry pattern with polling
+**PURE BUILDER Operations** (no API call): See "Pure Builder Tool Pattern" below. Rare — use only when the goal is to help an AI agent correctly shape a config that will be passed to another tool.
 
 ### Step 2A: Read-Only Operations Template (Query/GET operations)
 For operations like directory server profiles, AP queries, activity details:
@@ -427,6 +428,27 @@ return { status: 'timeout', ... };
 ```
 
 **Guideline:** Use Pattern B for new code. Either pattern is acceptable when modifying existing functions.
+
+### Pure Builder Tool Pattern (no API call)
+
+**When to use:** When an AI agent needs to construct a complex or discriminated-union config (e.g., a scheduler with multiple valid shapes) that will be passed as input to another tool. The agent can't reliably form such configs from a flat schema, and JSON Schema `oneOf` rendering across MCP clients is inconsistent.
+
+**When NOT to use:**
+- Never for anything that talks to RUCKUS — that's a Read-Only or Async Operation.
+- Never as a thin wrapper that merely renames fields. The builder should resolve a real discovery problem (multiple valid shapes, mode-dependent field sets, etc.).
+- Not for simple transformations the caller can do themselves.
+
+**Precedent:** `build_wifi_scheduler_config` (src/mcpServer.ts) — builds one of four scheduler shapes (ALWAYS_ON, LEGACY_CUSTOM, BASIC, ADVANCED) chosen by a `mode` discriminator. The agent calls it, then passes the returned JSON as `scheduler` to `activate_wifi_network_at_venues` or as `settings.scheduler` to `update_venue_wifi_network_settings`.
+
+**Shape:**
+- Tool name: `build_*` prefix (clearly signals "no side effect").
+- First input: a `mode` enum (the discriminator).
+- Other inputs: one nested object per mode, each with only the fields valid for that mode. Agent fills the matching group; others are ignored.
+- Output: `content[0].text = JSON.stringify(result, null, 2)` — a ready-to-use object.
+- No service-layer function, no RUCKUS call, no token, no polling.
+- Handler lives entirely in `src/mcpServer.ts`.
+- Validate required inputs for the selected mode and throw a clear error; let RUCKUS validate wire-level combinations.
+- Update the description of downstream tools that accept the builder's output to tell agents to call the builder first.
 
 ### Step 3A: MCP Registration Template - Read-Only Operations
 ```typescript

@@ -1,0 +1,167 @@
+id: TC-INT-325
+name: WiFi scheduler builder + new-format scheduler round-trip
+suite: integration
+tags: [wifi-networks, scheduler, venue-settings, builder]
+story: STORY-012
+priority: 1
+timeout: 300000
+dependencies:
+  - TC-INT-001
+
+steps:
+  - name: Build ALWAYS_ON scheduler
+    command: npx tsx cicd/tests/src/mcp-client.ts build_wifi_scheduler_config '{"mode":"ALWAYS_ON"}'
+    expectPatterns:
+      - "ALWAYS_ON"
+    rejectPatterns:
+      - "isError"
+      - "CUSTOM"
+
+  - name: Build LEGACY_CUSTOM scheduler
+    command: npx tsx cicd/tests/src/mcp-client.ts build_wifi_scheduler_config '{"mode":"LEGACY_CUSTOM","legacyCustom":{"mon":"111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000","sun":"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}}'
+    expectPatterns:
+      - "CUSTOM"
+      - "mon"
+      - "sun"
+    rejectPatterns:
+      - "isError"
+      - "customType"
+
+  - name: Build BASIC scheduler
+    command: npx tsx cicd/tests/src/mcp-client.ts build_wifi_scheduler_config '{"mode":"BASIC","basic":{"repeatRule":"WEEKLY","startDate":"2026-04-20","allDay":true,"weeklyRepeatDays":["MON","TUE","WED","THU","FRI"]}}'
+    expectPatterns:
+      - "BASIC"
+      - "WEEKLY"
+      - "2026-04-20"
+      - "allDay"
+      - "weeklyRepeatDays"
+    rejectPatterns:
+      - "isError"
+
+  - name: Build ADVANCED scheduler
+    command: npx tsx cicd/tests/src/mcp-client.ts build_wifi_scheduler_config '{"mode":"ADVANCED","advanced":{"repeatRule":"WEEKLY","startDate":"2026-04-20","mon":"111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000","sun":"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}}'
+    expectPatterns:
+      - "ADVANCED"
+      - "WEEKLY"
+      - "2026-04-20"
+      - "mon"
+    rejectPatterns:
+      - "isError"
+
+  - name: Builder rejects BASIC mode missing required fields
+    command: npx tsx cicd/tests/src/mcp-client.ts build_wifi_scheduler_config '{"mode":"BASIC"}'
+    expectPatterns:
+      - "Error building scheduler config"
+      - "repeatRule"
+      - "startDate"
+    rejectPatterns:
+      - "customType"
+
+  - name: Create test venue
+    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"name":"mcp-test-venue-sched-new","addressLine":"Taipei","city":"Taipei","country":"Taiwan","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+      - "requestId"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Capture venue ID
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venues '{}'
+    capture:
+      venueId: "data[name=mcp-test-venue-sched-new].id"
+    expectPatterns:
+      - "mcp-test-venue-sched-new"
+    rejectPatterns:
+      - "isError"
+
+  - name: Create PSK WiFi network
+    command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-wifi-sched-new","ssid":"MCP-Test-Sched-New","type":"psk","passphrase":"TestPass1234!","wlanSecurity":"WPA2Personal","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "networkId"
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Capture network ID
+    command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"searchString":"mcp-test-wifi-sched-new"}'
+    capture:
+      networkId: "data[name=mcp-test-wifi-sched-new].id"
+    expectPatterns:
+      - "mcp-test-wifi-sched-new"
+    rejectPatterns:
+      - "isError"
+
+  - name: Activate network with BASIC new-format scheduler
+    command: npx tsx cicd/tests/src/mcp-client.ts activate_wifi_network_at_venues '{"networkId":"{{networkId}}","venueConfigs":[{"venueId":"{{venueId}}","isAllApGroups":true,"allApGroupsRadio":"Both","allApGroupsRadioTypes":["2.4-GHz","5-GHz","6-GHz"],"scheduler":{"type":"CUSTOM","customType":"BASIC","repeatRule":"WEEKLY","startDate":"2026-04-20","allDay":true,"weeklyRepeatDays":["MON","TUE","WED","THU","FRI"]}}],"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: GET settings - verify BASIC new-format fields round-trip
+    command: npx tsx cicd/tests/src/mcp-client.ts get_venue_wifi_network_settings '{"venueId":"{{venueId}}","wifiNetworkId":"{{networkId}}"}'
+    expectPatterns:
+      - "CUSTOM"
+      - "customType"
+      - "BASIC"
+      - "repeatRule"
+      - "WEEKLY"
+      - "startDate"
+      - "2026-04-20"
+      - "allDay"
+    rejectPatterns:
+      - "isError"
+
+  - name: Update to ADVANCED new-format scheduler
+    command: npx tsx cicd/tests/src/mcp-client.ts update_venue_wifi_network_settings '{"venueId":"{{venueId}}","wifiNetworkId":"{{networkId}}","settings":{"scheduler":{"type":"CUSTOM","customType":"ADVANCED","repeatRule":"WEEKLY","startDate":"2026-04-20","mon":"111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000","tue":"111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000","wed":"111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000","thu":"111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000","fri":"111111111111111111111111111111111111111111111111000000000000000000000000000000000000000000000000","sat":"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","sun":"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: GET settings - verify ADVANCED new-format fields round-trip
+    command: npx tsx cicd/tests/src/mcp-client.ts get_venue_wifi_network_settings '{"venueId":"{{venueId}}","wifiNetworkId":"{{networkId}}"}'
+    expectPatterns:
+      - "ADVANCED"
+      - "customType"
+      - "repeatRule"
+      - "startDate"
+      - "mon"
+    rejectPatterns:
+      - "isError"
+
+  - name: Deactivate network from venue
+    command: npx tsx cicd/tests/src/mcp-client.ts deactivate_wifi_network_at_venues '{"networkId":"{{networkId}}","venueIds":["{{venueId}}"],"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Delete WiFi network
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_wifi_network '{"networkId":"{{networkId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Delete test venue
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_ruckus_venue '{"venueId":"{{venueId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+criteria: |
+  Verifies the build_wifi_scheduler_config builder tool and new-format scheduler end-to-end:
+  1. Builder produces correctly-shaped output for ALWAYS_ON, LEGACY_CUSTOM, BASIC, and ADVANCED modes
+  2. Builder rejects BASIC mode when required fields (repeatRule, startDate) are missing
+  3. Activation accepts a BASIC new-format scheduler and the new fields round-trip through GET
+  4. Update path accepts an ADVANCED new-format scheduler and the new fields round-trip through GET
+  5. Cleanup: deactivate, delete network, delete venue

@@ -1935,13 +1935,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                   scheduler: {
                     type: "object",
                     description:
-                      'Network schedule configuration. Use {type: "ALWAYS_ON"} for 24/7 availability',
+                      'Network schedule configuration. Recommended: call build_wifi_scheduler_config first and pass its returned JSON here verbatim — it produces the correct shape for every supported mode (ALWAYS_ON, LEGACY_CUSTOM bitmasks, BASIC, ADVANCED). The R1 API accepts four valid shapes under this field: (1) {type: "ALWAYS_ON"}. (2) Legacy CUSTOM: {type: "CUSTOM", mon..sun: 96-char 0/1 bitmasks}. (3) BASIC: {type: "CUSTOM", customType: "BASIC", repeatRule, startDate, optional endDate/allDay/fromTime/toTime/weeklyRepeatDays/monthlyRepeatRule}. (4) ADVANCED: {type: "CUSTOM", customType: "ADVANCED", repeatRule, startDate, optional endDate, mon..sun bitmasks}. Only "type" is required by this schema; additional fields pass through to R1.',
                     properties: {
                       type: {
                         type: "string",
                         description:
-                          "Schedule type: ALWAYS_ON (24/7) or SCHEDULED (custom schedule)",
-                        enum: ["ALWAYS_ON", "SCHEDULED"],
+                          "Schedule type: ALWAYS_ON (24/7) or CUSTOM (any custom schedule — legacy bitmask, BASIC, or ADVANCED). Use build_wifi_scheduler_config to form the full object.",
+                        enum: ["ALWAYS_ON", "CUSTOM"],
                       },
                     },
                     required: ["type"],
@@ -2585,6 +2585,169 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["venueId", "wifiNetworkId", "settings"],
+        },
+      },
+      {
+        name: "build_wifi_scheduler_config",
+        description:
+          "Build a correctly-shaped scheduler config object. PURE BUILDER — does NOT call the RUCKUS API. Pass the returned JSON as the 'scheduler' field of each entry in activate_wifi_network_at_venues.venueConfigs, or as 'settings.scheduler' in update_venue_wifi_network_settings. REQUIRED: mode. Pick ONE mode and fill the matching nested object; the other mode objects are ignored. MODE REFERENCE: ALWAYS_ON (24/7, no options). LEGACY_CUSTOM (per-day 96-char bitmasks only, no dates or recurrence). BASIC (new format, user-friendly recurring schedule with time windows). ADVANCED (new format, per-day bitmasks with start/end dates and repeatRule).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            mode: {
+              type: "string",
+              enum: ["ALWAYS_ON", "LEGACY_CUSTOM", "BASIC", "ADVANCED"],
+              description:
+                "Which scheduler shape to build. Only the matching nested object (legacyCustom / basic / advanced) is read; others are ignored. ALWAYS_ON needs no nested object.",
+            },
+            legacyCustom: {
+              type: "object",
+              description:
+                "Used only when mode=LEGACY_CUSTOM. Each day is a 96-character string of 0s and 1s — one character per 15-minute slot across 24 hours (1=on, 0=off). Omitted days default to the R1 backend behavior.",
+              properties: {
+                mon: {
+                  type: "string",
+                  description: "Monday 96-char bitmask",
+                },
+                tue: {
+                  type: "string",
+                  description: "Tuesday 96-char bitmask",
+                },
+                wed: {
+                  type: "string",
+                  description: "Wednesday 96-char bitmask",
+                },
+                thu: {
+                  type: "string",
+                  description: "Thursday 96-char bitmask",
+                },
+                fri: {
+                  type: "string",
+                  description: "Friday 96-char bitmask",
+                },
+                sat: {
+                  type: "string",
+                  description: "Saturday 96-char bitmask",
+                },
+                sun: {
+                  type: "string",
+                  description: "Sunday 96-char bitmask",
+                },
+              },
+            },
+            basic: {
+              type: "object",
+              description:
+                "Used only when mode=BASIC. Human-friendly recurring schedule with optional time window. REQUIRED inside: repeatRule, startDate. allDay=true and fromTime/toTime are mutually exclusive — set one or the other. weeklyRepeatDays is only meaningful when repeatRule=WEEKLY; monthlyRepeatRule only when repeatRule=MONTHLY.",
+              properties: {
+                repeatRule: {
+                  type: "string",
+                  enum: ["NO_REPEAT", "WEEKLY", "MONTHLY"],
+                  description: "How the schedule repeats.",
+                },
+                startDate: {
+                  type: "string",
+                  description:
+                    "First active date. Format: YYYY-MM-DD (e.g., 2026-04-20).",
+                },
+                endDate: {
+                  type: "string",
+                  description:
+                    "Last active date (optional). Format: YYYY-MM-DD.",
+                },
+                allDay: {
+                  type: "boolean",
+                  description:
+                    "If true, schedule applies 24 hours on active days. Do NOT also set fromTime/toTime.",
+                },
+                fromTime: {
+                  type: "string",
+                  description:
+                    "Start-of-window time in HH:mm (24h). Required when allDay is false or omitted. Do NOT set when allDay=true.",
+                },
+                toTime: {
+                  type: "string",
+                  description:
+                    "End-of-window time in HH:mm (24h). Required when allDay is false or omitted. Do NOT set when allDay=true.",
+                },
+                weeklyRepeatDays: {
+                  type: "array",
+                  items: {
+                    type: "string",
+                    enum: [
+                      "MON",
+                      "TUE",
+                      "WED",
+                      "THU",
+                      "FRI",
+                      "SAT",
+                      "SUN",
+                    ],
+                  },
+                  description:
+                    "Only with repeatRule=WEEKLY. Days of the week the schedule is active.",
+                },
+                monthlyRepeatRule: {
+                  type: "string",
+                  description:
+                    "Only with repeatRule=MONTHLY. Monthly recurrence descriptor as defined by R1 (e.g., day-of-month or ordinal-weekday rule).",
+                },
+              },
+              required: ["repeatRule", "startDate"],
+            },
+            advanced: {
+              type: "object",
+              description:
+                "Used only when mode=ADVANCED. Per-day 96-char bitmasks with recurrence metadata. REQUIRED inside: repeatRule, startDate. Any of mon..sun can be omitted; omitted days default to the R1 backend behavior.",
+              properties: {
+                repeatRule: {
+                  type: "string",
+                  enum: ["NO_REPEAT", "WEEKLY"],
+                  description:
+                    "How the schedule repeats. ADVANCED typically supports NO_REPEAT or WEEKLY.",
+                },
+                startDate: {
+                  type: "string",
+                  description: "First active date. Format: YYYY-MM-DD.",
+                },
+                endDate: {
+                  type: "string",
+                  description:
+                    "Last active date (optional). Format: YYYY-MM-DD.",
+                },
+                mon: {
+                  type: "string",
+                  description: "Monday 96-char bitmask",
+                },
+                tue: {
+                  type: "string",
+                  description: "Tuesday 96-char bitmask",
+                },
+                wed: {
+                  type: "string",
+                  description: "Wednesday 96-char bitmask",
+                },
+                thu: {
+                  type: "string",
+                  description: "Thursday 96-char bitmask",
+                },
+                fri: {
+                  type: "string",
+                  description: "Friday 96-char bitmask",
+                },
+                sat: {
+                  type: "string",
+                  description: "Saturday 96-char bitmask",
+                },
+                sun: {
+                  type: "string",
+                  description: "Sunday 96-char bitmask",
+                },
+              },
+              required: ["repeatRule", "startDate"],
+            },
+          },
+          required: ["mode"],
         },
       },
     ],
@@ -5928,7 +6091,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             allApGroupsRadio: "Both" | "2.4GHz" | "5GHz" | "6GHz";
             allApGroupsRadioTypes: string[];
             scheduler: {
-              type: "ALWAYS_ON" | "SCHEDULED";
+              type: "ALWAYS_ON" | "CUSTOM";
               [key: string]: any;
             };
           }>;
@@ -7081,6 +7244,124 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: errorMessage,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case "build_wifi_scheduler_config": {
+      try {
+        const { mode, legacyCustom, basic, advanced } = request.params
+          .arguments as {
+          mode: "ALWAYS_ON" | "LEGACY_CUSTOM" | "BASIC" | "ADVANCED";
+          legacyCustom?: {
+            mon?: string;
+            tue?: string;
+            wed?: string;
+            thu?: string;
+            fri?: string;
+            sat?: string;
+            sun?: string;
+          };
+          basic?: {
+            repeatRule?: string;
+            startDate?: string;
+            endDate?: string;
+            allDay?: boolean;
+            fromTime?: string;
+            toTime?: string;
+            weeklyRepeatDays?: string[];
+            monthlyRepeatRule?: string;
+          };
+          advanced?: {
+            repeatRule?: string;
+            startDate?: string;
+            endDate?: string;
+            mon?: string;
+            tue?: string;
+            wed?: string;
+            thu?: string;
+            fri?: string;
+            sat?: string;
+            sun?: string;
+          };
+        };
+
+        const dayKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+        let scheduler: Record<string, any>;
+
+        if (mode === "ALWAYS_ON") {
+          scheduler = { type: "ALWAYS_ON" };
+        } else if (mode === "LEGACY_CUSTOM") {
+          scheduler = { type: "CUSTOM" };
+          if (legacyCustom) {
+            for (const day of dayKeys) {
+              if (legacyCustom[day] !== undefined) {
+                scheduler[day] = legacyCustom[day];
+              }
+            }
+          }
+        } else if (mode === "BASIC") {
+          if (!basic || !basic.repeatRule || !basic.startDate) {
+            throw new Error(
+              "mode=BASIC requires basic.repeatRule and basic.startDate",
+            );
+          }
+          scheduler = {
+            type: "CUSTOM",
+            customType: "BASIC",
+            repeatRule: basic.repeatRule,
+            startDate: basic.startDate,
+          };
+          if (basic.endDate !== undefined) scheduler.endDate = basic.endDate;
+          if (basic.allDay !== undefined) scheduler.allDay = basic.allDay;
+          if (basic.fromTime !== undefined) scheduler.fromTime = basic.fromTime;
+          if (basic.toTime !== undefined) scheduler.toTime = basic.toTime;
+          if (basic.weeklyRepeatDays !== undefined)
+            scheduler.weeklyRepeatDays = basic.weeklyRepeatDays;
+          if (basic.monthlyRepeatRule !== undefined)
+            scheduler.monthlyRepeatRule = basic.monthlyRepeatRule;
+        } else if (mode === "ADVANCED") {
+          if (!advanced || !advanced.repeatRule || !advanced.startDate) {
+            throw new Error(
+              "mode=ADVANCED requires advanced.repeatRule and advanced.startDate",
+            );
+          }
+          scheduler = {
+            type: "CUSTOM",
+            customType: "ADVANCED",
+            repeatRule: advanced.repeatRule,
+            startDate: advanced.startDate,
+          };
+          if (advanced.endDate !== undefined)
+            scheduler.endDate = advanced.endDate;
+          for (const day of dayKeys) {
+            if (advanced[day] !== undefined) {
+              scheduler[day] = advanced[day];
+            }
+          }
+        } else {
+          throw new Error(
+            `Unknown mode: ${mode}. Expected ALWAYS_ON, LEGACY_CUSTOM, BASIC, or ADVANCED.`,
+          );
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(scheduler, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error building scheduler config: ${error.message || error}`,
             },
           ],
           isError: true,
