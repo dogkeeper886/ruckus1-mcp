@@ -40,7 +40,7 @@ steps:
     expectPatterns:
       - "totalCount"
     rejectPatterns:
-      - "mcp-test-venue-crud"
+      - "{{venueId}}"
 
 criteria: |
   Full venue CRUD lifecycle:

@@ -37,7 +37,7 @@ steps:
     expectPatterns:
       - "totalCount"
     rejectPatterns:
-      - "mcp-test-portal"
+      - "{{profileId}}"
 
 criteria: |
   Full portal service profile CRUD lifecycle:

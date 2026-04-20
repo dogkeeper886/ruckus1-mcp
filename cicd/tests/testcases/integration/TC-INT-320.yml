@@ -40,6 +40,7 @@ steps:
     command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"searchString":"mcp-test-wifi-owe"}'
     capture:
       networkId: "data[name=mcp-test-wifi-owe].id"
+      companionId: "data[name=mcp-test-wifi-owe-owe-tr].id"
     expectPatterns:
       - "mcp-test-wifi-owe"
       - "mcp-test-wifi-owe-owe-tr"
@@ -80,7 +81,8 @@ steps:
     expectPatterns:
       - "content"
     rejectPatterns:
-      - "mcp-test-wifi-owe"
+      - "{{networkId}}"
+      - "{{companionId}}"
 
   - name: Delete test venue
     command: npx tsx cicd/tests/src/mcp-client.ts delete_ruckus_venue '{"venueId":"{{venueId}}","maxRetries":10,"pollIntervalMs":3000}'

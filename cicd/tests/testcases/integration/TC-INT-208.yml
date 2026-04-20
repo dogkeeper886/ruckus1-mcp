@@ -38,7 +38,7 @@ steps:
     expectPatterns:
       - "content"
     rejectPatterns:
-      - "mcp-test-custom-role"
+      - "{{roleId}}"
 
 criteria: |
   Full custom role CRUD lifecycle:

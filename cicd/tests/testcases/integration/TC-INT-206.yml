@@ -37,7 +37,7 @@ steps:
     expectPatterns:
       - "totalCount"
     rejectPatterns:
-      - "mcp-test-radius"
+      - "{{profileId}}"
 
 criteria: |
   Full RADIUS server profile CRUD lifecycle:

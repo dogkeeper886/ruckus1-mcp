@@ -40,7 +40,7 @@ steps:
     expectPatterns:
       - "totalElements"
     rejectPatterns:
-      - "mcp-test-idgroup-ci"
+      - "{{identityGroupId}}"
 
 criteria: |
   Full Identity Group lifecycle:
