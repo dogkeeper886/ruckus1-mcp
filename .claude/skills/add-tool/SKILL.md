@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 # Add New MCP Tool from API Log
 
-Add a new MCP tool to this server based on API logs, following the project's established patterns and guidelines.
+Add a new MCP tool to this server based on API logs, following the patterns in `.claude/rules/mcp-tool-patterns.md` (code templates) and `.claude/rules/tool-descriptions.md` (tool-description conventions).
 
 ## Process Overview
 

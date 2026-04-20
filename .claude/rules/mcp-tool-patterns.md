@@ -29,7 +29,7 @@ export async function queryYourResource(
   searchString: string = '',
   searchTargetFields: string[] = ['name'],
   page: number = 1,
-  pageSize: number = 10,       // Or 10000 for internal tools
+  pageSize: number = 10,       // Or 10000 for internal tools (e.g. queryVenues uses 10000 to return all venues in one call)
   sortField: string = 'name',
   sortOrder: string = 'ASC'
 ): Promise<any> {
@@ -501,7 +501,12 @@ if (isEnterpriseType) {
 - [ ] Determined operation type (read-only vs async vs builder).
 - [ ] Picked a similar existing tool to copy from (read-only: `queryApGroups` / `getRuckusActivityDetails`; async: `createVenueWithRetry`).
 - [ ] Parameter order, defaults, and error handling match the pattern.
-- [ ] For async: evaluated the 6 advanced patterns — applied where relevant.
+- [ ] For async: checked which advanced patterns apply:
+  - [ ] Multi-step operation with conditional steps? (pattern 1 / 5)
+  - [ ] Type-based conditional logic in the payload? (pattern 4)
+  - [ ] Full config preservation required (retrieve-then-update)? (pattern 2)
+  - [ ] Optional payload / empty body support needed? (pattern 3)
+  - [ ] Type-based early return for completely different flows? (pattern 6)
 
 ## Activity Status Values
 
