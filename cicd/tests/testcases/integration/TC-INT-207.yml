@@ -37,7 +37,7 @@ steps:
     expectPatterns:
       - "totalCount"
     rejectPatterns:
-      - "mcp-test-ldap"
+      - "{{profileId}}"
 
 criteria: |
   Full directory server profile CRUD lifecycle:

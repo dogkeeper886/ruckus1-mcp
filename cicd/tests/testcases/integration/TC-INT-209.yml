@@ -38,7 +38,7 @@ steps:
     expectPatterns:
       - "content"
     rejectPatterns:
-      - "mcp-test-wifi-psk"
+      - "{{networkId}}"
 
 criteria: |
   Full PSK WiFi network lifecycle:
