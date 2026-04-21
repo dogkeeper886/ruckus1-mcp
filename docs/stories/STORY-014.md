@@ -69,5 +69,6 @@ Today the only workaround is: create an Email Self Sign-In via the tool, then fl
 
 - Created: 2026-04-21
 - Tasks: #67 (implementation), #68 (tests)
-- Implementation: pending
-- Tests: pending
+- PR: #69 (2026-04-21) — verified 5/5 integration tests pass on live dev tenant
+- Implementation: in review
+- Tests: in review
