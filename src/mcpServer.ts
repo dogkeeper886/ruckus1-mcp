@@ -75,6 +75,9 @@ import {
   deleteDpskServiceWithRetry,
   getVenueWifiNetworkSettings,
   updateVenueWifiNetworkSettingsWithRetry,
+  getSmsProvider,
+  createSmsProviderWithRetry,
+  deleteSmsProvider,
 } from "./services/ruckusApiService";
 import { tokenService } from "./services/tokenService";
 
@@ -2651,6 +2654,87 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["venueId", "wifiNetworkId", "settings"],
+        },
+      },
+      {
+        name: "get_sms_provider",
+        description:
+          "Get the tenant's SMS Brand and Provider Setup — the singleton configuration used by Self Sign-In networks to deliver SMS / WhatsApp OTPs. Returns a combined { brand, twilio } object from GET /notifications/sms (brandName, provider, threshold, ruckusOneUsed) and GET /notifications/sms/providers/twilios (accountSid, authToken, fromNumber, enableWhatsapp, authTemplateSid). All Twilio fields are null when no provider is configured.",
+        inputSchema: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+      {
+        name: "create_sms_provider",
+        description:
+          "Configure the tenant's Twilio SMS provider for Self Sign-In OTP delivery. This is an UPSERT — calling it on a tenant that already has a provider overwrites the existing config. The tool issues two async POSTs (to /notifications/sms for the brand record and /notifications/sms/providers/twilios for the credentials) and polls both until SUCCESS. PREREQUISITE: Twilio account exists with (a) an Account SID and Auth Token and (b) either a Messaging Service or a phone number provisioned on that account. REQUIRED: accountSid (Twilio AC<32hex>) + authToken (Twilio 32hex) + fromNumber. FOR MESSAGING SERVICE MODE: fromNumber is the full '<Service Name> [MG<32hex>]' string as shown in the RUCKUS One UI dropdown. FOR PHONE NUMBER MODE: fromNumber is a '+E.164' phone number (e.g. '+19388887785'). FOR WHATSAPP: set enableWhatsapp=true and supply authTemplateSid (the HX<32hex> SID of an approved WhatsApp authentication template — Twilio Console → Content Template Builder). Once configured, Self Sign-In networks created via create_wifi_network with enableSmsLogin or enableWhatsappLogin=true will deliver OTPs through this provider.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            accountSid: {
+              type: "string",
+              description:
+                "Twilio Account SID (AC followed by 32 hex chars). Obtain from the Twilio Console account dashboard.",
+            },
+            authToken: {
+              type: "string",
+              description:
+                "Twilio Auth Token (32 hex chars). Obtain from the Twilio Console account dashboard. This is a secret — handle accordingly.",
+            },
+            fromNumber: {
+              type: "string",
+              description:
+                "Sender identity. Either a '+E.164' phone number for phone-number mode (e.g. '+19388887785'), or a full '<Service Name> [MG<32hex>]' string for messaging-service mode (e.g. 'Default Messaging Service for Conversations [MG0f8800a56d2c69aca152c5b593802952]'). The RUCKUS One backend inspects the prefix to pick the mode.",
+            },
+            brandName: {
+              type: "string",
+              description:
+                "Optional display name prefix used on outbound SMS messages (e.g. 'Acme Guest Wi-Fi'). Stored on the /notifications/sms brand record. Empty string by default.",
+            },
+            threshold: {
+              type: "number",
+              description:
+                "Utilization alert threshold for the free-tier RUCKUS SMS pool (percent, 0-100; default: 80). Fires a notification when usage crosses this percentage.",
+            },
+            provider: {
+              type: "string",
+              enum: ["TWILIO"],
+              description:
+                "SMS provider type. Only TWILIO is supported today (default). Esendex / Other are tracked as future work and will be rejected.",
+            },
+            enableWhatsapp: {
+              type: "boolean",
+              description:
+                "Enable WhatsApp OTP delivery via Twilio (default: false). When true, authTemplateSid is required and must point to an approved WhatsApp authentication template on the same Twilio account.",
+            },
+            authTemplateSid: {
+              type: "string",
+              description:
+                "Twilio WhatsApp authentication template SID (HX followed by 32 hex chars). REQUIRED when enableWhatsapp=true. Must be an approved 'AUTHENTICATION' category template from Twilio Content Template Builder.",
+            },
+            maxRetries: {
+              type: "number",
+              description:
+                "Maximum number of polling retries for the two async activities (default: 5).",
+            },
+            pollIntervalMs: {
+              type: "number",
+              description: "Polling interval in milliseconds (default: 2000).",
+            },
+          },
+          required: ["accountSid", "authToken", "fromNumber"],
+        },
+      },
+      {
+        name: "delete_sms_provider",
+        description:
+          "Permanently delete the tenant's Twilio SMS provider credentials. This clears accountSid / authToken / fromNumber / enableWhatsapp / authTemplateSid on /notifications/sms/providers/twilios; after deletion Self Sign-In SMS and WhatsApp channels will stop delivering OTPs. The brand record on /notifications/sms (brandName, threshold) is a separate singleton and is NOT removed by this call. Synchronous operation — no polling. Cannot be undone; use create_sms_provider to restore.",
+        inputSchema: {
+          type: "object",
+          properties: {},
+          required: [],
         },
       },
       {
@@ -7343,6 +7427,135 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: errorMessage,
             },
           ],
+          isError: true,
+        };
+      }
+    }
+
+    case "get_sms_provider": {
+      try {
+        const token = await tokenService.getValidToken();
+        const result = await getSmsProvider(token, process.env.RUCKUS_REGION);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error: any) {
+        console.error("[MCP] Error getting SMS provider:", error);
+        let errorMessage = `Error getting SMS provider: ${error}`;
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+
+    case "create_sms_provider": {
+      try {
+        const {
+          accountSid,
+          authToken: twilioAuthToken,
+          fromNumber,
+          brandName,
+          threshold,
+          provider,
+          enableWhatsapp,
+          authTemplateSid,
+          maxRetries = 5,
+          pollIntervalMs = 2000,
+        } = request.params.arguments as {
+          accountSid: string;
+          authToken: string;
+          fromNumber: string;
+          brandName?: string;
+          threshold?: number;
+          provider?: "TWILIO";
+          enableWhatsapp?: boolean;
+          authTemplateSid?: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const smsConfig: {
+          provider?: "TWILIO";
+          brandName?: string;
+          threshold?: number;
+          accountSid: string;
+          authToken: string;
+          fromNumber: string;
+          enableWhatsapp?: boolean;
+          authTemplateSid?: string;
+        } = {
+          accountSid,
+          authToken: twilioAuthToken,
+          fromNumber,
+        };
+        if (brandName !== undefined) smsConfig.brandName = brandName;
+        if (threshold !== undefined) smsConfig.threshold = threshold;
+        if (provider !== undefined) smsConfig.provider = provider;
+        if (enableWhatsapp !== undefined)
+          smsConfig.enableWhatsapp = enableWhatsapp;
+        if (authTemplateSid !== undefined)
+          smsConfig.authTemplateSid = authTemplateSid;
+
+        const result = await createSmsProviderWithRetry(
+          token,
+          smsConfig,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+        );
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error: any) {
+        console.error("[MCP] Error creating SMS provider:", error);
+        let errorMessage = `Error creating SMS provider: ${error}`;
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+
+    case "delete_sms_provider": {
+      try {
+        const token = await tokenService.getValidToken();
+        const result = await deleteSmsProvider(
+          token,
+          process.env.RUCKUS_REGION,
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error: any) {
+        console.error("[MCP] Error deleting SMS provider:", error);
+        let errorMessage = `Error deleting SMS provider: ${error}`;
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+        return {
+          content: [{ type: "text", text: errorMessage }],
           isError: true,
         };
       }

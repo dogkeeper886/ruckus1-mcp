@@ -7384,3 +7384,241 @@ export async function updateVenueWifiNetworkSettingsWithRetry(
       "Venue WiFi network settings update status unknown - polling timeout",
   };
 }
+
+// ============================================================================
+// SMS PROVIDER (Twilio)
+// ============================================================================
+
+export async function getSmsProvider(
+  token: string,
+  region: string = "",
+): Promise<any> {
+  const baseUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud`
+      : "https://api.ruckus.cloud";
+
+  const [brandResp, twilioResp] = await Promise.all([
+    makeRuckusApiCall(
+      {
+        method: "get",
+        url: `${baseUrl}/notifications/sms`,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+      "Get SMS brand settings",
+    ),
+    makeRuckusApiCall(
+      {
+        method: "get",
+        url: `${baseUrl}/notifications/sms/providers/twilios`,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+      "Get Twilio provider settings",
+    ),
+  ]);
+
+  return { brand: brandResp.data, twilio: twilioResp.data };
+}
+
+export async function createSmsProviderWithRetry(
+  token: string,
+  config: {
+    provider?: "TWILIO";
+    brandName?: string;
+    threshold?: number;
+    accountSid: string;
+    authToken: string;
+    fromNumber: string;
+    enableWhatsapp?: boolean;
+    authTemplateSid?: string;
+  },
+  region: string = "",
+  maxRetries: number = 5,
+  pollIntervalMs: number = 2000,
+): Promise<any> {
+  const baseUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud`
+      : "https://api.ruckus.cloud";
+
+  const provider = config.provider ?? "TWILIO";
+  const enableWhatsapp = config.enableWhatsapp === true;
+
+  if (enableWhatsapp && !config.authTemplateSid) {
+    throw new Error(
+      "authTemplateSid is required when enableWhatsapp=true. Use the Twilio console or the UI dropdown to obtain the approved WhatsApp authentication template SID (HX...).",
+    );
+  }
+
+  // Step 1: Save brand + SMS pool threshold
+  const brandResp = await makeRuckusApiCall(
+    {
+      method: "post",
+      url: `${baseUrl}/notifications/sms`,
+      data: {
+        threshold: config.threshold ?? 80,
+        provider,
+        brandName: config.brandName ?? "",
+      },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Save SMS brand",
+  );
+  const brandRequestId = brandResp.data?.requestId;
+
+  // Step 2: Save Twilio provider credentials + messaging config
+  const twilioResp = await makeRuckusApiCall(
+    {
+      method: "post",
+      url: `${baseUrl}/notifications/sms/providers/twilios`,
+      data: {
+        accountSid: config.accountSid,
+        authToken: config.authToken,
+        fromNumber: config.fromNumber,
+        enableWhatsapp,
+        authTemplateSid: enableWhatsapp ? config.authTemplateSid : null,
+      },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Save Twilio provider",
+  );
+  const twilioRequestId = twilioResp.data?.requestId;
+
+  const requestIds = [
+    ...(brandRequestId
+      ? [{ id: brandRequestId, name: "Save SMS brand" }]
+      : []),
+    ...(twilioRequestId
+      ? [{ id: twilioRequestId, name: "Save Twilio provider" }]
+      : []),
+  ];
+
+  if (requestIds.length === 0) {
+    return {
+      brandResponse: brandResp.data,
+      twilioResponse: twilioResp.data,
+      status: "completed",
+      message: "SMS provider saved successfully (synchronous operation)",
+    };
+  }
+
+  let retryCount = 0;
+  const completedActivities: any[] = [];
+
+  while (retryCount < maxRetries) {
+    try {
+      const pendingActivities = requestIds.filter(
+        (req) => !completedActivities.find((c) => c.activityId === req.id),
+      );
+
+      if (pendingActivities.length === 0) {
+        return {
+          brandRequestId,
+          twilioRequestId,
+          status: "completed",
+          message: "SMS provider saved successfully",
+          activities: completedActivities,
+        };
+      }
+
+      for (const activity of pendingActivities) {
+        const activityDetails = await getRuckusActivityDetails(
+          token,
+          activity.id,
+          region,
+        );
+
+        const isCompleted = activityDetails.endDatetime !== undefined;
+
+        if (isCompleted) {
+          if (activityDetails.status === "SUCCESS") {
+            completedActivities.push({
+              activityId: activity.id,
+              name: activity.name,
+              status: "SUCCESS",
+              details: activityDetails,
+            });
+          } else {
+            return {
+              brandRequestId,
+              twilioRequestId,
+              status: "failed",
+              message: `${activity.name} failed with status: ${activityDetails.status}`,
+              failedActivity: {
+                activityId: activity.id,
+                name: activity.name,
+                status: activityDetails.status,
+                details: activityDetails,
+              },
+              completedActivities,
+            };
+          }
+        }
+      }
+
+      retryCount++;
+      if (retryCount < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+      }
+    } catch (error: any) {
+      console.error(
+        `Error polling SMS provider activities (attempt ${retryCount + 1}): ${error}`,
+      );
+      retryCount++;
+      if (retryCount < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+      }
+    }
+  }
+
+  return {
+    brandRequestId,
+    twilioRequestId,
+    status: "timeout",
+    message: "SMS provider save status unknown - polling timeout",
+    completedActivities,
+  };
+}
+
+export async function deleteSmsProvider(
+  token: string,
+  region: string = "",
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/notifications/sms/providers/twilios`
+      : "https://api.ruckus.cloud/notifications/sms/providers/twilios";
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "delete",
+      url: apiUrl,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Delete Twilio provider",
+  );
+
+  // DELETE returns plain text ("Twilio configuration deleted successfully.")
+  // — wrap it so callers see a consistent JSON-shaped response.
+  const message =
+    typeof response.data === "string"
+      ? response.data
+      : "Twilio configuration deleted successfully.";
+
+  return { status: "completed", message };
+}
