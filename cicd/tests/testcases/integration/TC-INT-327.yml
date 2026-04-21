@@ -1,0 +1,88 @@
+id: TC-INT-327
+name: Self Sign-In network with SMS-only channel round-trip
+suite: integration
+tags: [wifi-networks, guest-portal, self-sign-in]
+story: STORY-014
+priority: 1
+timeout: 300000
+dependencies:
+  - TC-INT-001
+
+steps:
+  - name: Create portal service profile
+    command: npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"name":"mcp-test-portal-ssi-sms","content":{},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "requestId"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Capture portal profile ID
+    command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{"searchString":"mcp-test-portal-ssi-sms"}'
+    capture:
+      profileId: "content[serviceName=mcp-test-portal-ssi-sms].id"
+    expectPatterns:
+      - "mcp-test-portal-ssi-sms"
+    rejectPatterns:
+      - "isError"
+
+  - name: Create SMS-only Self Sign-In WiFi network
+    command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-ssi-sms","ssid":"MCP-Test-SSI-SMS","type":"selfSignIn","wlanSecurity":"None","portalServiceProfileId":"{{profileId}}","enableSmsLogin":true,"enableEmailLogin":false,"enableWhatsappLogin":false,"smsPasswordDuration":{"duration":6,"unit":"HOUR"},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "networkId"
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Capture network ID
+    command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"searchString":"mcp-test-ssi-sms"}'
+    capture:
+      networkId: "data[name=mcp-test-ssi-sms].id"
+    expectPatterns:
+      - "mcp-test-ssi-sms"
+    rejectPatterns:
+      - "isError"
+
+  - name: GET network - verify SMS-only channel flags + smsPasswordDuration round-trip
+    command: npx tsx cicd/tests/src/mcp-client.ts get_wifi_network '{"networkId":"{{networkId}}"}'
+    expectPatterns:
+      - enableSmsLogin
+      - enableEmailLogin
+      - enableWhatsappLogin
+      - smsPasswordDuration
+      - '\bHOUR\b'
+      - SelfSignIn
+    rejectPatterns:
+      - "isError"
+      - '\bDAY\b'
+      - '\bMINUTE\b'
+
+  - name: Delete WiFi network
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_wifi_network '{"networkId":"{{networkId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Delete portal service profile
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_portal_service_profile '{"profileId":"{{profileId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+criteria: |
+  Verifies create_wifi_network supports SMS-only Self Sign-In and the channel
+  flags + smsPasswordDuration round-trip through get_wifi_network:
+  1. Create a self-contained portal service profile
+  2. Create a Self Sign-In network with enableSmsLogin=true, enableEmailLogin=false,
+     enableWhatsappLogin=false, smsPasswordDuration={duration:6, unit:HOUR}
+  3. GET network — assert enableSmsLogin/enableEmailLogin/enableWhatsappLogin keys
+     are present, smsPasswordDuration is present, unit is HOUR (proves SMS-on branch),
+     guestNetworkType is SelfSignIn
+  4. Reject DAY as the unit (proves we did not fall through to the email-session
+     sessionDurationDays quirk)
+  5. Cleanup: delete network, delete portal profile
