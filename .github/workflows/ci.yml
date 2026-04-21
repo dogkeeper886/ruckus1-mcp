@@ -76,3 +76,10 @@ jobs:
     needs: build
     uses: ./.github/workflows/test-clients.yml
     secrets: inherit
+
+  test-notifications:
+    needs: build
+    uses: ./.github/workflows/test-notifications.yml
+    with:
+      judge_mode: ${{ inputs.judge_mode }}
+    secrets: inherit

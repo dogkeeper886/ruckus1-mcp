@@ -1,0 +1,96 @@
+id: TC-INT-331
+name: Twilio SMS provider lifecycle - create, get, delete
+suite: integration
+tags: [notifications, sms-provider]
+story: STORY-015
+priority: 1
+timeout: 300000
+dependencies:
+  - TC-INT-001
+
+steps:
+  - name: Delete any existing Twilio provider (clean slate)
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_sms_provider '{}'
+    expectPatterns:
+      - completed
+      - Twilio configuration deleted
+    rejectPatterns:
+      - isError
+
+  - name: GET confirms twilio record is cleared
+    command: npx tsx cicd/tests/src/mcp-client.ts get_sms_provider '{}'
+    expectPatterns:
+      - brand
+      - twilio
+      - accountSid
+      - enableWhatsapp
+    rejectPatterns:
+      - isError
+
+  - name: Create Twilio provider with brand + WhatsApp enabled
+    command: npx tsx cicd/tests/src/mcp-client.ts create_sms_provider '{"accountSid":"{{TEST_TWILIO_ACCOUNT_SID}}","authToken":"{{TEST_TWILIO_AUTH_TOKEN}}","fromNumber":"{{TEST_TWILIO_FROM_NUMBER}}","brandName":"MCP-CI-SMS-Test","enableWhatsapp":true,"authTemplateSid":"{{TEST_TWILIO_AUTH_TEMPLATE_SID}}","maxRetries":15,"pollIntervalMs":3000}'
+    expectPatterns:
+      - completed
+      - SUCCESS
+      - brandRequestId
+      - twilioRequestId
+      - Save SMS brand
+      - Save Twilio provider
+    rejectPatterns:
+      - isError
+
+  - name: GET verifies populated state + brandName round-trip
+    command: npx tsx cicd/tests/src/mcp-client.ts get_sms_provider '{}'
+    expectPatterns:
+      - MCP-CI-SMS-Test
+      - TWILIO
+      - accountSid
+      - authToken
+      - fromNumber
+      - enableWhatsapp
+      - authTemplateSid
+    rejectPatterns:
+      - isError
+
+  - name: Delete Twilio provider
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_sms_provider '{}'
+    expectPatterns:
+      - completed
+      - Twilio configuration deleted
+    rejectPatterns:
+      - isError
+
+  - name: GET confirms twilio record is cleared after delete
+    command: npx tsx cicd/tests/src/mcp-client.ts get_sms_provider '{}'
+    expectPatterns:
+      - accountSid
+      - enableWhatsapp
+    rejectPatterns:
+      - isError
+
+  - name: Teardown - restore Twilio provider for ongoing QA
+    command: npx tsx cicd/tests/src/mcp-client.ts create_sms_provider '{"accountSid":"{{TEST_TWILIO_ACCOUNT_SID}}","authToken":"{{TEST_TWILIO_AUTH_TOKEN}}","fromNumber":"{{TEST_TWILIO_FROM_NUMBER}}","brandName":"MCP Test Brand","enableWhatsapp":true,"authTemplateSid":"{{TEST_TWILIO_AUTH_TEMPLATE_SID}}","maxRetries":15,"pollIntervalMs":3000}'
+    expectPatterns:
+      - completed
+      - SUCCESS
+    rejectPatterns:
+      - isError
+
+criteria: |
+  Verifies get_sms_provider / create_sms_provider / delete_sms_provider round-trip
+  on a live RUCKUS One tenant:
+  1. Clean slate — delete any existing provider
+  2. Confirm GET returns empty (brand + twilio keys present)
+  3. Create with Twilio creds (from TEST_TWILIO_* env secrets) + WhatsApp on
+  4. Confirm GET returns the round-tripped caller-supplied brandName and key
+     fields (accountSid, fromNumber, enableWhatsapp, authTemplateSid are present)
+  5. Delete — confirm sync success message
+  6. Confirm GET returns cleared twilio record again
+  7. Teardown — restore provider so subsequent tests / manual QA have SMS+WhatsApp
+     OTP delivery available on Self Sign-In networks (STORY-014)
+
+  Credentials come from GitHub Secrets via the test-run.yml env block:
+    TEST_TWILIO_ACCOUNT_SID, TEST_TWILIO_AUTH_TOKEN, TEST_TWILIO_FROM_NUMBER,
+    TEST_TWILIO_AUTH_TEMPLATE_SID
+  The test framework's substituteVariables falls back to process.env when a
+  {{VAR}} reference has no matching capture, so these substitute in at runtime.

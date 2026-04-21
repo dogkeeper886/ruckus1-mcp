@@ -1,0 +1,24 @@
+id: TC-INT-332
+name: create_sms_provider rejects enableWhatsapp=true without authTemplateSid
+suite: integration
+tags: [notifications, sms-provider]
+story: STORY-015
+priority: 3
+timeout: 60000
+dependencies: []
+
+steps:
+  - name: Create with enableWhatsapp=true but no authTemplateSid - expect validation error
+    command: npx tsx cicd/tests/src/mcp-client.ts create_sms_provider '{"accountSid":"{{TEST_TWILIO_ACCOUNT_SID}}","authToken":"{{TEST_TWILIO_AUTH_TOKEN}}","fromNumber":"{{TEST_TWILIO_FROM_NUMBER}}","enableWhatsapp":true}'
+    expectPatterns:
+      - isError
+      - authTemplateSid is required
+    rejectPatterns:
+      - brandRequestId
+      - twilioRequestId
+      - SUCCESS
+
+criteria: |
+  Verifies the client-side validation in create_sms_provider:
+  when enableWhatsapp=true is passed without authTemplateSid, the tool
+  throws before any RUCKUS API call is made. No provider is saved.
