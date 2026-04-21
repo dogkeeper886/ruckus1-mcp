@@ -4426,6 +4426,22 @@ export async function createWifiNetworkWithRetry(
       );
     }
 
+    // Strict validation: surface caller mistakes early rather than silently
+    // dropping inputs that won't take effect.
+    if (networkConfig.smsPasswordDuration !== undefined && !enableSmsLogin) {
+      throw new Error(
+        "smsPasswordDuration requires enableSmsLogin=true; it has no effect when SMS is disabled.",
+      );
+    }
+    if (
+      (networkConfig.allowedEmailDomains?.length ?? 0) > 0 &&
+      !enableEmailLogin
+    ) {
+      throw new Error(
+        "allowedEmailDomains requires enableEmailLogin=true; email restrictions have no effect when Email is disabled.",
+      );
+    }
+
     const sessionDurationDays = networkConfig.sessionDurationDays || 12;
     const allowedDomains = networkConfig.allowedEmailDomains || [];
 
