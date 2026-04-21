@@ -1,0 +1,74 @@
+id: TC-INT-329
+name: Self Sign-In rejects create with no channels enabled
+suite: integration
+tags: [wifi-networks, guest-portal, self-sign-in]
+story: STORY-014
+priority: 3
+timeout: 60000
+dependencies: []
+
+steps:
+  - name: Create portal service profile
+    command: npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"name":"mcp-test-portal-ssi-nochan","content":{},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "requestId"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+  - name: Capture portal profile ID
+    command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{"searchString":"mcp-test-portal-ssi-nochan"}'
+    capture:
+      profileId: "content[serviceName=mcp-test-portal-ssi-nochan].id"
+    expectPatterns:
+      - "mcp-test-portal-ssi-nochan"
+    rejectPatterns:
+      - "isError"
+
+  - name: Create Self Sign-In with all channel flags false - expect validation error
+    command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-ssi-nochan","ssid":"MCP-Test-SSI-NoChan","type":"selfSignIn","wlanSecurity":"None","portalServiceProfileId":"{{profileId}}","enableSmsLogin":false,"enableEmailLogin":false,"enableWhatsappLogin":false}'
+    expectPatterns:
+      - "isError"
+      - At least one Self Sign-In channel
+    rejectPatterns:
+      - "\"status\": \"completed\""
+      - networkId
+
+  - name: smsPasswordDuration without enableSmsLogin - expect validation error
+    command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-ssi-smsdur-nosms","ssid":"MCP-Test-SSI-SmsDurNoSms","type":"selfSignIn","wlanSecurity":"None","portalServiceProfileId":"{{profileId}}","enableEmailLogin":true,"smsPasswordDuration":{"duration":5,"unit":"MINUTE"}}'
+    expectPatterns:
+      - "isError"
+      - smsPasswordDuration requires enableSmsLogin
+    rejectPatterns:
+      - "\"status\": \"completed\""
+      - networkId
+
+  - name: allowedEmailDomains without enableEmailLogin - expect validation error
+    command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-ssi-dom-noemail","ssid":"MCP-Test-SSI-DomNoEmail","type":"selfSignIn","wlanSecurity":"None","portalServiceProfileId":"{{profileId}}","enableSmsLogin":true,"enableEmailLogin":false,"allowedEmailDomains":["example.com"]}'
+    expectPatterns:
+      - "isError"
+      - allowedEmailDomains requires enableEmailLogin
+    rejectPatterns:
+      - "\"status\": \"completed\""
+      - networkId
+
+  - name: Delete portal service profile
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_portal_service_profile '{"profileId":"{{profileId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+      - "\"status\": \"failed\""
+
+criteria: |
+  Verifies the client-side validation in create_wifi_network for Self Sign-In:
+  1. All three enable*Login flags false → rejects with "At least one Self Sign-In
+     channel" message; no network is created.
+  2. smsPasswordDuration supplied while enableSmsLogin is off (email-only path)
+     → rejects with the smsPasswordDuration precondition message; no network is
+     created.
+  3. allowedEmailDomains supplied while enableEmailLogin is off (SMS-only path)
+     → rejects with the allowedEmailDomains precondition message; no network is
+     created.
+  4. Cleanup: delete portal profile (no networks to delete since validation
+     fires before any API call).

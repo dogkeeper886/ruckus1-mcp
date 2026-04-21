@@ -1690,7 +1690,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_wifi_network",
         description:
-          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires type=guest + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. FOR SELF SIGN-IN WITH EMAIL: Requires type=selfSignIn + portalServiceProfileId + wlanSecurity=None + allowedEmailDomains (array of allowed email domains). Optional temporaryConnectionEnabled + temporaryConnection to grant pre-OTP limited internet access (Self Sign-In only). FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId (use query_radius_server_profiles to get ID of ACCOUNTING type profile), enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId). FOR OWE TRANSITION: Requires type=open + wlanSecurity=Open + oweEnabled=true + oweTransitionEnabled=true. Creates a dual-network pair: OWE-encrypted primary + Open companion with '-owe-tr' suffix. The companion network is managed automatically by the backend. FOR DSAE (DPSK WPA2/WPA3-Mixed): Requires type=dpsk + wlanSecurity=WPA23Mixed + dpskServiceId (use query_dpsk_services to get ID). Creates a dual-network pair: WPA2/WPA3-Mixed primary + WPA2 onboard companion with '-dpsk3-wpa2' suffix.",
+          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. FOR GUEST PASS: Requires type=guest + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. FOR SELF SIGN-IN: Requires type=selfSignIn + portalServiceProfileId + wlanSecurity=None. Pick at least one OTP channel via enableSmsLogin, enableEmailLogin, and/or enableWhatsappLogin. Defaults to Email-only when none are specified. FOR SELF SIGN-IN WITH EMAIL: also provide allowedEmailDomains (array of allowed email domains). FOR SELF SIGN-IN WITH SMS: optionally provide smsPasswordDuration={duration,unit} where unit is MINUTE/HOUR/DAY (default {12, HOUR}). FOR SELF SIGN-IN WITH WHATSAPP: set enableWhatsappLogin=true. The backend accepts the flag regardless of UI gating; a tenant not yet provisioned for WhatsApp business messaging may still create the network but end users won't receive OTPs until provisioning completes. Optional temporaryConnectionEnabled + temporaryConnection to grant pre-OTP limited internet access (Self Sign-In only). FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId (use query_radius_server_profiles to get ID of ACCOUNTING type profile), enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId). FOR OWE TRANSITION: Requires type=open + wlanSecurity=Open + oweEnabled=true + oweTransitionEnabled=true. Creates a dual-network pair: OWE-encrypted primary + Open companion with '-owe-tr' suffix. The companion network is managed automatically by the backend. FOR DSAE (DPSK WPA2/WPA3-Mixed): Requires type=dpsk + wlanSecurity=WPA23Mixed + dpskServiceId (use query_dpsk_services to get ID). Creates a dual-network pair: WPA2/WPA3-Mixed primary + WPA2 onboard companion with '-dpsk3-wpa2' suffix.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1705,7 +1705,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             type: {
               type: "string",
               description:
-                "Network type: psk (WPA2 Personal), enterprise (802.1x with RADIUS), open (no security), guest (Guest Pass portal), or selfSignIn (Self Sign-In with Email)",
+                "Network type: psk (WPA2 Personal), enterprise (802.1x with RADIUS), open (no security), guest (Guest Pass portal), or selfSignIn (Self Sign-In — Email, SMS, or WhatsApp OTP)",
               enum: ["psk", "enterprise", "open", "guest", "selfSignIn", "dpsk"],
             },
             passphrase: {
@@ -1761,12 +1761,45 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "array",
               items: { type: "string" },
               description:
-                'Allowed email domains for type=selfSignIn (e.g., ["company.com", "partner.com"]). Users can only sign in with emails from these domains.',
+                'Allowed email domains for type=selfSignIn with Email enabled (e.g., ["company.com", "partner.com"]). Required when enableEmailLogin=true. Users can only sign in with emails from these domains.',
             },
             sessionDurationDays: {
               type: "number",
               description:
-                "Session duration in days for type=selfSignIn (default: 12)",
+                "Session duration in days for type=selfSignIn Email path (default: 12). Ignored when SMS is enabled (SMS OTP uses smsPasswordDuration instead).",
+            },
+            enableSmsLogin: {
+              type: "boolean",
+              description:
+                "Enable SMS-OTP sign-in for type=selfSignIn (default: false). At least one of enableSmsLogin/enableEmailLogin/enableWhatsappLogin must be true. When omitted entirely, the tool defaults to Email-only for backwards compatibility.",
+            },
+            enableEmailLogin: {
+              type: "boolean",
+              description:
+                "Enable Email-OTP sign-in for type=selfSignIn (default: true when no channel flag is specified; otherwise false unless set explicitly). When true, provide allowedEmailDomains.",
+            },
+            enableWhatsappLogin: {
+              type: "boolean",
+              description:
+                "Enable WhatsApp-OTP sign-in for type=selfSignIn (default: false). Requires the tenant to be provisioned for WhatsApp business messaging; the backend rejects if not.",
+            },
+            smsPasswordDuration: {
+              type: "object",
+              description:
+                "How long an SMS OTP stays valid, for type=selfSignIn with enableSmsLogin=true (default: {duration:12, unit:HOUR}).",
+              properties: {
+                duration: {
+                  type: "integer",
+                  description: "Positive integer duration value.",
+                  minimum: 1,
+                },
+                unit: {
+                  type: "string",
+                  enum: ["MINUTE", "HOUR", "DAY"],
+                  description: "Time unit for duration.",
+                },
+              },
+              required: ["duration", "unit"],
             },
             maxDevices: {
               type: "number",
@@ -5958,6 +5991,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           enableAccountingProxy,
           allowedEmailDomains,
           sessionDurationDays,
+          enableSmsLogin,
+          enableEmailLogin,
+          enableWhatsappLogin,
+          smsPasswordDuration,
           maxDevices,
           radiusOptions,
           maxRetries = 5,
@@ -6002,6 +6039,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           enableAccountingProxy?: boolean;
           allowedEmailDomains?: string[];
           sessionDurationDays?: number;
+          enableSmsLogin?: boolean;
+          enableEmailLogin?: boolean;
+          enableWhatsappLogin?: boolean;
+          smsPasswordDuration?: {
+            duration: number;
+            unit: "MINUTE" | "HOUR" | "DAY";
+          };
           maxDevices?: number;
           radiusOptions?: {
             nasIdType?:
@@ -6074,6 +6118,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           networkConfig.allowedEmailDomains = allowedEmailDomains;
         if (sessionDurationDays !== undefined)
           networkConfig.sessionDurationDays = sessionDurationDays;
+        if (enableSmsLogin !== undefined)
+          networkConfig.enableSmsLogin = enableSmsLogin;
+        if (enableEmailLogin !== undefined)
+          networkConfig.enableEmailLogin = enableEmailLogin;
+        if (enableWhatsappLogin !== undefined)
+          networkConfig.enableWhatsappLogin = enableWhatsappLogin;
+        if (smsPasswordDuration !== undefined)
+          networkConfig.smsPasswordDuration = smsPasswordDuration;
         if (maxDevices !== undefined) networkConfig.maxDevices = maxDevices;
         if (radiusOptions !== undefined)
           networkConfig.radiusOptions = radiusOptions;

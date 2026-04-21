@@ -4149,9 +4149,16 @@ export async function createWifiNetworkWithRetry(
     // Proxy settings for enterprise 802.1x (required for FQDN-based RADIUS)
     enableAuthProxy?: boolean;
     enableAccountingProxy?: boolean;
-    // Self Sign-In with Email specific options
+    // Self Sign-In channel and domain options
     allowedEmailDomains?: string[];
     sessionDurationDays?: number;
+    enableSmsLogin?: boolean;
+    enableEmailLogin?: boolean;
+    enableWhatsappLogin?: boolean;
+    smsPasswordDuration?: {
+      duration: number;
+      unit: "MINUTE" | "HOUR" | "DAY";
+    };
     // Guest and Self Sign-In shared options
     maxDevices?: number;
     // RADIUS options for Enterprise 802.1x (NAS ID configuration)
@@ -4400,10 +4407,55 @@ export async function createWifiNetworkWithRetry(
     basePayload.enableDhcp = false;
   }
 
-  // Add guest portal configuration for Self Sign-In with Email type
+  // Add guest portal configuration for Self Sign-In (Email / SMS / WhatsApp)
   if (isSelfSignInType) {
+    // Back-compat default: Email-only when no channel flag is specified.
+    const anyChannelSpecified =
+      networkConfig.enableSmsLogin !== undefined ||
+      networkConfig.enableEmailLogin !== undefined ||
+      networkConfig.enableWhatsappLogin !== undefined;
+    const enableSmsLogin = networkConfig.enableSmsLogin === true;
+    const enableEmailLogin = anyChannelSpecified
+      ? networkConfig.enableEmailLogin === true
+      : true;
+    const enableWhatsappLogin = networkConfig.enableWhatsappLogin === true;
+
+    if (!enableSmsLogin && !enableEmailLogin && !enableWhatsappLogin) {
+      throw new Error(
+        "At least one Self Sign-In channel must be enabled: set enableSmsLogin, enableEmailLogin, or enableWhatsappLogin to true.",
+      );
+    }
+
+    // Strict validation: surface caller mistakes early rather than silently
+    // dropping inputs that won't take effect.
+    if (networkConfig.smsPasswordDuration !== undefined && !enableSmsLogin) {
+      throw new Error(
+        "smsPasswordDuration requires enableSmsLogin=true; it has no effect when SMS is disabled.",
+      );
+    }
+    if (
+      (networkConfig.allowedEmailDomains?.length ?? 0) > 0 &&
+      !enableEmailLogin
+    ) {
+      throw new Error(
+        "allowedEmailDomains requires enableEmailLogin=true; email restrictions have no effect when Email is disabled.",
+      );
+    }
+
     const sessionDurationDays = networkConfig.sessionDurationDays || 12;
     const allowedDomains = networkConfig.allowedEmailDomains || [];
+
+    // smsPasswordDuration: when SMS is on, use caller input or UI default {12, HOUR}.
+    // When SMS is off, preserve the existing email-session-duration-in-days quirk
+    // (server reuses this field; untangling is out of scope for #67).
+    const smsPasswordDuration = enableSmsLogin
+      ? networkConfig.smsPasswordDuration || { duration: 12, unit: "HOUR" }
+      : { duration: sessionDurationDays, unit: "DAY" };
+
+    const allowSign: string[] = [];
+    if (enableSmsLogin) allowSign.push("enableSmsLogin");
+    if (enableEmailLogin) allowSign.push("enableEmailLogin");
+    if (enableWhatsappLogin) allowSign.push("enableWhatsappLogin");
 
     basePayload.guestPortal = {
       guestNetworkType: "SelfSignIn",
@@ -4415,17 +4467,14 @@ export async function createWifiNetworkWithRetry(
       maxDevices: networkConfig.maxDevices || 1,
       userSessionGracePeriod: 60,
       userSessionTimeout: 1440,
-      enableSmsLogin: false,
-      enableEmailLogin: true,
-      enableWhatsappLogin: false,
+      enableSmsLogin,
+      enableEmailLogin,
+      enableWhatsappLogin,
       socialIdentities: {},
-      socialDomains: allowedDomains,
-      socialEmails: true,
+      socialDomains: enableEmailLogin ? allowedDomains : [],
+      socialEmails: enableEmailLogin,
       walledGardens: [],
-      smsPasswordDuration: {
-        duration: sessionDurationDays,
-        unit: "DAY",
-      },
+      smsPasswordDuration,
       ...(networkConfig.temporaryConnectionEnabled !== undefined
         ? { temporaryConnectionEnabled: networkConfig.temporaryConnectionEnabled }
         : {}),
@@ -4433,8 +4482,9 @@ export async function createWifiNetworkWithRetry(
         ? { temporaryConnection: networkConfig.temporaryConnection }
         : {}),
     };
-    basePayload.allowSign = ["enableEmailLogin"];
-    basePayload.allowedDomainsCheckbox = allowedDomains.length > 0;
+    basePayload.allowSign = allowSign;
+    basePayload.allowedDomainsCheckbox =
+      enableEmailLogin && allowedDomains.length > 0;
     basePayload.redirectCheckbox = false;
     basePayload.enableDhcp = false;
   }
