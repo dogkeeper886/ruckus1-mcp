@@ -7455,6 +7455,11 @@ export async function createSmsProviderWithRetry(
       "authTemplateSid is required when enableWhatsapp=true. Use the Twilio console or the UI dropdown to obtain the approved WhatsApp authentication template SID (HX...).",
     );
   }
+  if (config.authTemplateSid !== undefined && !enableWhatsapp) {
+    throw new Error(
+      "authTemplateSid requires enableWhatsapp=true; it has no effect when WhatsApp is disabled.",
+    );
+  }
 
   // Step 1: Save brand + SMS pool threshold
   const brandResp = await makeRuckusApiCall(
@@ -7543,11 +7548,14 @@ export async function createSmsProviderWithRetry(
         const isCompleted = activityDetails.endDatetime !== undefined;
 
         if (isCompleted) {
-          if (activityDetails.status === "SUCCESS") {
+          if (
+            activityDetails.status === "SUCCESS" ||
+            activityDetails.status === "COMPLETED"
+          ) {
             completedActivities.push({
               activityId: activity.id,
               name: activity.name,
-              status: "SUCCESS",
+              status: activityDetails.status,
               details: activityDetails,
             });
           } else {
