@@ -98,7 +98,7 @@ criteria: |
   What this test verifies in plain language.
 ```
 
-**Pattern-matching gotcha:** `mcp-client.ts` returns double-encoded JSON (the tool's JSON is inside a `text` field). Use **bare strings** in patterns (e.g., `networkId`) — quoted forms like `'"networkId"'` won't match the escaped output `\"networkId\"`.
+**Pattern-matching gotcha:** `mcp-client.ts` returns double-encoded JSON (the tool's JSON is inside a `text` field). Use **bare strings** in patterns (e.g., `networkId`) — quoted forms like `'"networkId"'` won't match the escaped output `\"networkId\"`. For the same reason, **do not** add `'"status": "failed"'` as a reject pattern — it cannot match the double-encoded stdout and is a dead assertion (see SO-1 in `docs/audit/2026-04-22_audit_report.md`). Use bare `isError` for the real failure signal.
 
 ## MCP Integration Notes
 

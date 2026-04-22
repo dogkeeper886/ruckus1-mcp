@@ -16,7 +16,6 @@ steps:
       - "requestId"
     rejectPatterns:
       - "isError"
-      - "\"status\": \"failed\""
 
   - name: Capture identity group ID
     command: npx tsx cicd/tests/src/mcp-client.ts query_identity_groups '{"keyword":"mcp-test-idgroup-dpsk-ci"}'
@@ -34,7 +33,6 @@ steps:
       - "requestId"
     rejectPatterns:
       - "isError"
-      - "\"status\": \"failed\""
 
   - name: Query DPSK services and verify created
     command: npx tsx cicd/tests/src/mcp-client.ts query_dpsk_services '{}'
@@ -51,7 +49,6 @@ steps:
       - "completed"
     rejectPatterns:
       - "isError"
-      - "\"status\": \"failed\""
 
   - name: Delete identity group
     command: npx tsx cicd/tests/src/mcp-client.ts delete_identity_group '{"identityGroupId":"{{identityGroupId}}","maxRetries":10,"pollIntervalMs":3000}'
@@ -59,7 +56,6 @@ steps:
       - "completed"
     rejectPatterns:
       - "isError"
-      - "\"status\": \"failed\""
 
 criteria: |
   Full DPSK Service lifecycle with identity group dependency:

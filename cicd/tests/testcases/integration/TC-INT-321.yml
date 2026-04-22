@@ -16,7 +16,6 @@ steps:
       - "requestId"
     rejectPatterns:
       - "isError"
-      - "\"status\": \"failed\""
 
   - name: Query identity groups and capture ID
     command: npx tsx cicd/tests/src/mcp-client.ts query_identity_groups '{"keyword":"mcp-test-idgroup-ci"}'
@@ -33,7 +32,6 @@ steps:
       - "completed"
     rejectPatterns:
       - "isError"
-      - "\"status\": \"failed\""
 
   - name: Verify identity group is gone
     command: npx tsx cicd/tests/src/mcp-client.ts query_identity_groups '{"keyword":"mcp-test-idgroup-ci"}'
