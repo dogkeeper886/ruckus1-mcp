@@ -11,11 +11,15 @@ steps:
   - name: Create guest pass with non-existent network
     command: npx tsx cicd/tests/src/mcp-client.ts create_guest_pass '{"networkId":"00000000-0000-0000-0000-000000000000","name":"test-guest","expiration":{"duration":1,"unit":"Day","activationType":"Creation"},"maxDevices":1,"deliveryMethods":["PRINT"]}'
     expectPatterns:
-      - "content"
+      - isError
+      - GUEST-404007
+      - Network Not found
     rejectPatterns:
-      - "completed"
+      - completed
 
 criteria: |
-  Verify create_guest_pass handles invalid networkId gracefully.
-  - Tool does not crash with non-existent networkId
-  - Returns error, not "completed"
+  Verify create_guest_pass returns a structured error when the target network
+  doesn't exist. RUCKUS returns 404 with error code GUEST-404007. Asserts the
+  MCP isError flag, the specific RUCKUS error code, and the human-readable
+  "Network Not found" message. Rejects "completed" so a successful create path
+  would fail this test.

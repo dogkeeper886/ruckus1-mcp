@@ -11,11 +11,23 @@ steps:
   - name: Delete venue with non-existent ID
     command: npx tsx cicd/tests/src/mcp-client.ts delete_ruckus_venue '{"venueId":"00000000-0000-0000-0000-000000000000"}'
     expectPatterns:
-      - "content"
+      - timeout
+      - polling timeout
+      - Failed to get activity status
     rejectPatterns:
-      - "completed"
+      - completed
+      - Venue deleted successfully
 
 criteria: |
-  Verify delete_ruckus_venue handles non-existent venue ID gracefully.
-  - Tool does not crash with invalid venueId
-  - Returns error or failure status, not "completed"
+  Verify delete_ruckus_venue handles non-existent venue ID gracefully. The RUCKUS
+  backend accepts the POST and returns a requestId but never actually creates the
+  activity record, so every getRuckusActivityDetails poll returns 404. The tool's
+  polling loop swallows the 404s in its catch branch and eventually returns
+  status:"timeout" after maxRetries.
+
+  Asserts "timeout"/"polling timeout"/"Failed to get activity status" — the three
+  stable substrings that are only present on the timeout path. Rejects "completed"
+  and the "Venue deleted successfully" success message.
+
+  Note: this test takes ~10s (default maxRetries=5, pollIntervalMs=2000), well
+  within the 30s step timeout.

@@ -8,14 +8,18 @@ timeout: 30000
 dependencies: []
 
 steps:
-  - name: Query activity details with a non-existent request ID
+  - name: Query activity details with an unknown parameter name (no activityId supplied)
     command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_activity_details '{"requestId":"00000000-0000-0000-0000-000000000000"}'
     expectPatterns:
-      - "content"
-    rejectPatterns: []
+      - isError
+      - ACTIVITY-10001
+      - activity doesn't exist
+    rejectPatterns:
+      - useCase
 
 criteria: |
-  Verify get_ruckus_activity_details accepts a request ID and returns a structured MCP response.
-  - Tool executes without crashing
-  - Response contains MCP content structure (may be an error for unknown ID)
-  - Confirms the activity details endpoint is reachable and handles unknown IDs gracefully
+  Verify get_ruckus_activity_details handles a call with the wrong parameter name gracefully.
+  The tool's required parameter is activityId; this test passes requestId instead, so
+  the backend sees activityId=undefined and returns ACTIVITY-10001 (404, activity doesn't
+  exist). Asserts isError flag + specific error code + human message; rejects the
+  useCase body-shape field that only appears in successful activity-details responses.
