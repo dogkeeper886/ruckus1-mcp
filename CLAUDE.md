@@ -25,7 +25,7 @@ cicd/tests/
 docs/
   stories/                     # STORY-XXX.md source of truth
 .claude/
-  skills/                      # Workflow skills (add-tool, dev-*, ci-*, evolve, session-summary)
+  skills/                      # Workflow skills (add-tool, dev-*, ci-*, evolve, session-summary, audit-tests)
   rules/                       # Path-scoped code patterns (loaded on file match)
 ```
 
@@ -59,6 +59,7 @@ Skills live in `.claude/skills/*/SKILL.md`. Invoke them by name:
 | Running tests | `ci-run` |
 | End-of-session wrap | `session-summary` |
 | Accumulated friction to analyze | `evolve` |
+| Pre-PR audit of YAML test assertions for weaknesses | `audit-tests` |
 
 ## Adding a New MCP Tool (summary)
 
