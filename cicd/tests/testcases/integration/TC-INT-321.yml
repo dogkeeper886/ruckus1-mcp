@@ -10,7 +10,7 @@ dependencies:
 
 steps:
   - name: Create identity group
-    command: npx tsx cicd/tests/src/mcp-client.ts create_identity_group '{"name":"mcp-test-idgroup-ci","maxRetries":10,"pollIntervalMs":3000}'
+    command: npx tsx cicd/tests/src/mcp-client.ts create_identity_group '{"name":"mcp-test-idgroup-ci-{{TEST_RUN_ID}}","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "completed"
       - "requestId"
@@ -18,11 +18,11 @@ steps:
       - "isError"
 
   - name: Query identity groups and capture ID
-    command: npx tsx cicd/tests/src/mcp-client.ts query_identity_groups '{"keyword":"mcp-test-idgroup-ci"}'
+    command: npx tsx cicd/tests/src/mcp-client.ts query_identity_groups '{"keyword":"mcp-test-idgroup-ci-{{TEST_RUN_ID}}"}'
     capture:
-      identityGroupId: "content[name=mcp-test-idgroup-ci].id"
+      identityGroupId: "content[name=mcp-test-idgroup-ci-{{TEST_RUN_ID}}].id"
     expectPatterns:
-      - "mcp-test-idgroup-ci"
+      - "mcp-test-idgroup-ci-{{TEST_RUN_ID}}"
     rejectPatterns:
       - "isError"
 
@@ -34,7 +34,7 @@ steps:
       - "isError"
 
   - name: Verify identity group is gone
-    command: npx tsx cicd/tests/src/mcp-client.ts query_identity_groups '{"keyword":"mcp-test-idgroup-ci"}'
+    command: npx tsx cicd/tests/src/mcp-client.ts query_identity_groups '{"keyword":"mcp-test-idgroup-ci-{{TEST_RUN_ID}}"}'
     expectPatterns:
       - "totalElements"
     rejectPatterns:

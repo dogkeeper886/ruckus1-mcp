@@ -100,6 +100,8 @@ criteria: |
 
 **Pattern-matching gotcha:** `mcp-client.ts` returns double-encoded JSON (the tool's JSON is inside a `text` field). Use **bare strings** in patterns (e.g., `networkId`) — quoted forms like `'"networkId"'` won't match the escaped output `\"networkId\"`. For the same reason, **do not** add `'"status": "failed"'` as a reject pattern — it cannot match the double-encoded stdout and is a dead assertion (see SO-1 in `docs/audit/2026-04-22_audit_report.md`). Use bare `isError` for the real failure signal.
 
+**Fixture naming — always suffix with `{{TEST_RUN_ID}}`:** Any named fixture created by a test (venue, AP group, portal profile, WiFi network, identity group, DPSK service, etc.) must carry the `{{TEST_RUN_ID}}` suffix in every `command:` and `capture:` reference. The test framework auto-injects `TEST_RUN_ID` (GITHUB_RUN_ID in CI; a short random string locally) so each run creates uniquely-named fixtures. Example: `name:"mcp-test-venue-crud-{{TEST_RUN_ID}}"` and `capture.venueId: "data[name=mcp-test-venue-crud-{{TEST_RUN_ID}}].id"`. This prevents cross-run duplicate-name collisions when tenant residue lingers (see the TC-INT-203 RCA on 2026-04-22). For backend-derived companion names (e.g., `-owe-tr`, `-dpsk3-wpa2` suffixes), insert `{{TEST_RUN_ID}}` before the companion suffix: `mcp-test-wifi-owe-{{TEST_RUN_ID}}-owe-tr`. Bare name prefixes still work in `expectPatterns` / `rejectPatterns` because pattern matching is substring-based and the prefix remains present after substitution.
+
 ## MCP Integration Notes
 
 - Transport: stdio. The server runs as a subprocess of the MCP client (Claude Desktop, Claude Code, etc.).

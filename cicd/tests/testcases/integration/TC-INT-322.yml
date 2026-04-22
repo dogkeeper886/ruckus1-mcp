@@ -10,7 +10,7 @@ dependencies:
 
 steps:
   - name: Create identity group for DPSK service
-    command: npx tsx cicd/tests/src/mcp-client.ts create_identity_group '{"name":"mcp-test-idgroup-dpsk-ci","maxRetries":10,"pollIntervalMs":3000}'
+    command: npx tsx cicd/tests/src/mcp-client.ts create_identity_group '{"name":"mcp-test-idgroup-dpsk-ci-{{TEST_RUN_ID}}","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "completed"
       - "requestId"
@@ -18,16 +18,16 @@ steps:
       - "isError"
 
   - name: Capture identity group ID
-    command: npx tsx cicd/tests/src/mcp-client.ts query_identity_groups '{"keyword":"mcp-test-idgroup-dpsk-ci"}'
+    command: npx tsx cicd/tests/src/mcp-client.ts query_identity_groups '{"keyword":"mcp-test-idgroup-dpsk-ci-{{TEST_RUN_ID}}"}'
     capture:
-      identityGroupId: "content[name=mcp-test-idgroup-dpsk-ci].id"
+      identityGroupId: "content[name=mcp-test-idgroup-dpsk-ci-{{TEST_RUN_ID}}].id"
     expectPatterns:
-      - "mcp-test-idgroup-dpsk-ci"
+      - "mcp-test-idgroup-dpsk-ci-{{TEST_RUN_ID}}"
     rejectPatterns:
       - "isError"
 
   - name: Create DPSK service under identity group
-    command: npx tsx cicd/tests/src/mcp-client.ts create_dpsk_service '{"identityGroupId":"{{identityGroupId}}","name":"mcp-test-dpsk-ci","maxRetries":10,"pollIntervalMs":3000}'
+    command: npx tsx cicd/tests/src/mcp-client.ts create_dpsk_service '{"identityGroupId":"{{identityGroupId}}","name":"mcp-test-dpsk-ci-{{TEST_RUN_ID}}","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "completed"
       - "requestId"
@@ -37,9 +37,9 @@ steps:
   - name: Query DPSK services and verify created
     command: npx tsx cicd/tests/src/mcp-client.ts query_dpsk_services '{}'
     capture:
-      dpskServiceId: "content[name=mcp-test-dpsk-ci].id"
+      dpskServiceId: "content[name=mcp-test-dpsk-ci-{{TEST_RUN_ID}}].id"
     expectPatterns:
-      - "mcp-test-dpsk-ci"
+      - "mcp-test-dpsk-ci-{{TEST_RUN_ID}}"
     rejectPatterns:
       - "isError"
 

@@ -10,7 +10,7 @@ dependencies:
 
 steps:
   - name: Create test venue
-    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"name":"mcp-test-venue-crud","addressLine":"1 Test Street","city":"Tokyo","country":"Japan","maxRetries":10,"pollIntervalMs":3000}'
+    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"name":"mcp-test-venue-crud-{{TEST_RUN_ID}}","addressLine":"1 Test Street","city":"Tokyo","country":"Japan","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "completed"
       - "requestId"
@@ -20,9 +20,9 @@ steps:
   - name: Find created venue ID from venue list
     command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venues '{}'
     capture:
-      venueId: "data[name=mcp-test-venue-crud].id"
+      venueId: "data[name=mcp-test-venue-crud-{{TEST_RUN_ID}}].id"
     expectPatterns:
-      - "mcp-test-venue-crud"
+      - "mcp-test-venue-crud-{{TEST_RUN_ID}}"
     rejectPatterns:
       - "isError"
 
@@ -42,7 +42,7 @@ steps:
 
 criteria: |
   Full venue CRUD lifecycle:
-  1. Create venue "mcp-test-venue-crud" with required fields
+  1. Create venue "mcp-test-venue-crud-{{TEST_RUN_ID}}" with required fields
   2. List venues and extract the created venue's ID using array find
   3. Delete the venue using captured venueId
   4. Verify venue no longer appears in list

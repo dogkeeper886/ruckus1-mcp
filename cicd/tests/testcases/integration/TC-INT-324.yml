@@ -10,7 +10,7 @@ dependencies:
 
 steps:
   - name: Create test venue
-    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"name":"mcp-test-venue-sched","addressLine":"Taipei","city":"Taipei","country":"Taiwan","maxRetries":10,"pollIntervalMs":3000}'
+    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"name":"mcp-test-venue-sched-{{TEST_RUN_ID}}","addressLine":"Taipei","city":"Taipei","country":"Taiwan","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "completed"
       - "requestId"
@@ -20,14 +20,14 @@ steps:
   - name: Capture venue ID
     command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venues '{}'
     capture:
-      venueId: "data[name=mcp-test-venue-sched].id"
+      venueId: "data[name=mcp-test-venue-sched-{{TEST_RUN_ID}}].id"
     expectPatterns:
-      - "mcp-test-venue-sched"
+      - "mcp-test-venue-sched-{{TEST_RUN_ID}}"
     rejectPatterns:
       - "isError"
 
   - name: Create PSK WiFi network
-    command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-wifi-sched","ssid":"MCP-Test-Sched","type":"psk","passphrase":"TestPass1234!","wlanSecurity":"WPA2Personal","maxRetries":10,"pollIntervalMs":3000}'
+    command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-wifi-sched-{{TEST_RUN_ID}}","ssid":"MCP-Test-Sched","type":"psk","passphrase":"TestPass1234!","wlanSecurity":"WPA2Personal","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "networkId"
       - "completed"
@@ -35,11 +35,11 @@ steps:
       - "isError"
 
   - name: Capture network ID
-    command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"searchString":"mcp-test-wifi-sched"}'
+    command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"searchString":"mcp-test-wifi-sched-{{TEST_RUN_ID}}"}'
     capture:
-      networkId: "data[name=mcp-test-wifi-sched].id"
+      networkId: "data[name=mcp-test-wifi-sched-{{TEST_RUN_ID}}].id"
     expectPatterns:
-      - "mcp-test-wifi-sched"
+      - "mcp-test-wifi-sched-{{TEST_RUN_ID}}"
     rejectPatterns:
       - "isError"
 
