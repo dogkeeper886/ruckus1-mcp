@@ -1,4 +1,4 @@
-name: "Test: WiFi Networks"
+name: "Test: WiFi Queries"
 
 on:
   workflow_dispatch:
@@ -8,5 +8,5 @@ jobs:
   test:
     uses: ./.github/workflows/test-run.yml
     with:
-      tag: wifi-networks
+      tag: wifi-queries
     secrets: inherit

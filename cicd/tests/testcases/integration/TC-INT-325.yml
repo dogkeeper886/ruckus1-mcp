@@ -1,7 +1,7 @@
 id: TC-INT-325
 name: WiFi scheduler builder + new-format scheduler round-trip
 suite: integration
-tags: [wifi-networks, scheduler, venue-settings, builder]
+tags: [wifi-networks, wifi-scheduler, scheduler, venue-settings, builder]
 story: STORY-013
 priority: 1
 timeout: 300000

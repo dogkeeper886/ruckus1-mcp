@@ -1,7 +1,7 @@
 id: TC-INT-014
 name: Query WiFi networks with default parameters
 suite: integration
-tags: [wifi-networks]
+tags: [wifi-networks, wifi-queries]
 story: STORY-009
 priority: 1
 timeout: 30000

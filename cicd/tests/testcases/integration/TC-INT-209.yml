@@ -1,7 +1,7 @@
 id: TC-INT-209
 name: PSK WiFi network lifecycle - create, query, delete
 suite: integration
-tags: [wifi-networks]
+tags: [wifi-networks, wifi-lifecycles]
 story: STORY-009
 priority: 1
 timeout: 180000

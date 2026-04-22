@@ -1,7 +1,7 @@
 id: TC-INT-330
 name: Self Sign-In back-compat default (no channel flags = Email-only)
 suite: integration
-tags: [wifi-networks, guest-portal, self-sign-in]
+tags: [wifi-networks, wifi-self-sign-in, guest-portal, self-sign-in]
 story: STORY-014
 priority: 1
 timeout: 300000

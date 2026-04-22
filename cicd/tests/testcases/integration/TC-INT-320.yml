@@ -1,7 +1,7 @@
 id: TC-INT-320
 name: OWE Transition WiFi network lifecycle - create, activate, deactivate, delete
 suite: integration
-tags: [wifi-networks, owe]
+tags: [wifi-networks, wifi-lifecycles, owe]
 story: STORY-012
 priority: 1
 timeout: 300000

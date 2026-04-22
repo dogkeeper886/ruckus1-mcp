@@ -1,7 +1,7 @@
 id: TC-INT-328
 name: Self Sign-In network with SMS + Email multi-channel round-trip
 suite: integration
-tags: [wifi-networks, guest-portal, self-sign-in]
+tags: [wifi-networks, wifi-self-sign-in, guest-portal, self-sign-in]
 story: STORY-014
 priority: 1
 timeout: 300000

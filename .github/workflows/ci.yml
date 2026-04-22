@@ -47,9 +47,24 @@ jobs:
     uses: ./.github/workflows/test-roles.yml
     secrets: inherit
 
-  test-wifi-networks:
+  test-wifi-queries:
     needs: build
-    uses: ./.github/workflows/test-wifi-networks.yml
+    uses: ./.github/workflows/test-wifi-queries.yml
+    secrets: inherit
+
+  test-wifi-lifecycles:
+    needs: build
+    uses: ./.github/workflows/test-wifi-lifecycles.yml
+    secrets: inherit
+
+  test-wifi-scheduler:
+    needs: build
+    uses: ./.github/workflows/test-wifi-scheduler.yml
+    secrets: inherit
+
+  test-wifi-self-sign-in:
+    needs: build
+    uses: ./.github/workflows/test-wifi-self-sign-in.yml
     secrets: inherit
 
   test-guest-passes:
