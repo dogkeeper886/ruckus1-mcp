@@ -80,6 +80,4 @@ jobs:
   test-notifications:
     needs: build
     uses: ./.github/workflows/test-notifications.yml
-    with:
-      judge_mode: ${{ inputs.judge_mode }}
     secrets: inherit
