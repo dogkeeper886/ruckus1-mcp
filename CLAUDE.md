@@ -7,7 +7,7 @@ Guidance for Claude Code working in this repository. This is a **Model Context P
 - **Build:** `npm run build` (TypeScript → `dist/`)
 - **Run MCP server (dev):** `npm run mcp` (ts-node)
 - **Run MCP server (prod):** `npm start` (from `dist/`)
-- **Run integration tests:** `cd cicd/tests && npm test` (simple judge) or `npm run test:llm` (LLM judge)
+- **Run integration tests:** `cd cicd/tests && npm test`
 - **List available tests:** `cd cicd/tests && npm run list`
 
 ## Project Layout

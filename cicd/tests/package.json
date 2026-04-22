@@ -1,22 +1,20 @@
 {
   "name": "test-framework",
   "version": "1.0.0",
-  "description": "Dual-judge test framework for ruckus1-mcp",
+  "description": "Test framework for ruckus1-mcp",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "test": "tsx src/cli.ts run --no-llm",
-    "test:integration": "tsx src/cli.ts run --suite integration --no-llm",
-    "test:build": "tsx src/cli.ts run --suite build --no-llm",
-    "test:e2e": "tsx src/cli.ts run --suite e2e --no-llm",
-    "test:llm": "tsx src/cli.ts run",
+    "test": "tsx src/cli.ts run",
+    "test:integration": "tsx src/cli.ts run --suite integration",
+    "test:build": "tsx src/cli.ts run --suite build",
+    "test:e2e": "tsx src/cli.ts run --suite e2e",
     "list": "tsx src/cli.ts list",
     "dev": "tsx src/cli.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "axios": "^1.7.2",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
     "glob": "^10.3.10",

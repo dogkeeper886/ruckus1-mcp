@@ -2,14 +2,6 @@ name: CI
 
 on:
   workflow_dispatch:
-    inputs:
-      judge_mode:
-        description: 'Judge mode'
-        type: choice
-        options:
-          - simple
-          - both
-        default: simple
 
 jobs:
   build:
@@ -18,76 +10,54 @@ jobs:
   test-auth:
     needs: build
     uses: ./.github/workflows/test-auth.yml
-    with:
-      judge_mode: ${{ inputs.judge_mode }}
     secrets: inherit
 
   test-venues:
     needs: build
     uses: ./.github/workflows/test-venues.yml
-    with:
-      judge_mode: ${{ inputs.judge_mode }}
     secrets: inherit
 
   test-ap-groups:
     needs: build
     uses: ./.github/workflows/test-ap-groups.yml
-    with:
-      judge_mode: ${{ inputs.judge_mode }}
     secrets: inherit
 
   test-aps:
     needs: build
     uses: ./.github/workflows/test-aps.yml
-    with:
-      judge_mode: ${{ inputs.judge_mode }}
     secrets: inherit
 
   test-directory-server:
     needs: build
     uses: ./.github/workflows/test-directory-server.yml
-    with:
-      judge_mode: ${{ inputs.judge_mode }}
     secrets: inherit
 
   test-radius-server:
     needs: build
     uses: ./.github/workflows/test-radius-server.yml
-    with:
-      judge_mode: ${{ inputs.judge_mode }}
     secrets: inherit
 
   test-portal-service:
     needs: build
     uses: ./.github/workflows/test-portal-service.yml
-    with:
-      judge_mode: ${{ inputs.judge_mode }}
     secrets: inherit
 
   test-roles:
     needs: build
     uses: ./.github/workflows/test-roles.yml
-    with:
-      judge_mode: ${{ inputs.judge_mode }}
     secrets: inherit
 
   test-wifi-networks:
     needs: build
     uses: ./.github/workflows/test-wifi-networks.yml
-    with:
-      judge_mode: ${{ inputs.judge_mode }}
     secrets: inherit
 
   test-guest-passes:
     needs: build
     uses: ./.github/workflows/test-guest-passes.yml
-    with:
-      judge_mode: ${{ inputs.judge_mode }}
     secrets: inherit
 
   test-clients:
     needs: build
     uses: ./.github/workflows/test-clients.yml
-    with:
-      judge_mode: ${{ inputs.judge_mode }}
     secrets: inherit

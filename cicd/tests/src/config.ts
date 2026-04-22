@@ -11,16 +11,6 @@ export const CONFIG = {
   defaultTimeout: 60000,
   defaultStepTimeout: 30000,
 
-  llm: {
-    defaultUrl: process.env.LLM_JUDGE_URL || 'http://localhost:11435',
-    defaultModel: process.env.LLM_JUDGE_MODEL || 'gemma3:12b-judge',
-    timeout: 300000,
-    numCtx: parseInt(process.env.LLM_JUDGE_NUM_CTX || '', 10) || 8192,
-    stdoutLimit: 1000,
-    stderrLimit: 500,
-    logsLimit: 3000,
-  },
-
   logs: {
     cleanupAge: 24 * 60 * 60 * 1000,
     maxBuffer: 50 * 1024 * 1024,

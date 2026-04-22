@@ -76,8 +76,7 @@ export interface TestReport {
   duration: number;
   steps: StepReportEntry[];
   logFile: string;
-  simpleJudge: Judgment;
-  llmJudge: Judgment;
+  judgment: Judgment;
 }
 
 export interface TestSummary {
@@ -88,8 +87,6 @@ export interface TestSummary {
   total: number;
   passed: number;
   failed: number;
-  simple: { passed: number; failed: number };
-  llm: { passed: number; failed: number };
   environment: {
     hostname: string;
     nodeVersion: string;
@@ -103,9 +100,6 @@ export interface RunConfig {
   tag?: string;
   testId?: string;
   dryRun: boolean;
-  noLlm: boolean;
-  judgeUrl: string;
-  judgeModel: string;
   outputDir: string;
   outputFormat: 'console' | 'json';
   workingDir: string;
@@ -114,8 +108,5 @@ export interface RunConfig {
 
 export const DEFAULT_CONFIG: Partial<RunConfig> = {
   dryRun: false,
-  noLlm: false,
-  judgeUrl: 'http://localhost:11434',
-  judgeModel: 'llama3:8b',
   outputFormat: 'console',
 };

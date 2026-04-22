@@ -7,11 +7,6 @@ on:
         description: 'Feature tag to filter tests'
         required: true
         type: string
-      judge_mode:
-        description: 'Judge mode'
-        required: false
-        type: string
-        default: 'simple'
 
 jobs:
   test:
@@ -32,11 +27,7 @@ jobs:
       - name: Run tests
         run: |
           cd cicd/tests
-          if [ "${{ inputs.judge_mode }}" = "simple" ]; then
-            npx tsx src/cli.ts run --tag ${{ inputs.tag }} --no-llm --format console
-          else
-            npx tsx src/cli.ts run --tag ${{ inputs.tag }} --format console
-          fi
+          npx tsx src/cli.ts run --tag ${{ inputs.tag }} --format console
         env:
           RUCKUS_TENANT_ID: ${{ secrets.RUCKUS_TENANT_ID }}
           RUCKUS_CLIENT_ID: ${{ secrets.RUCKUS_CLIENT_ID }}
