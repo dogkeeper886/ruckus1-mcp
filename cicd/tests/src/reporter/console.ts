@@ -25,19 +25,7 @@ export class ConsoleReporter {
       console.log(`\n${status} ${report.testId}: ${report.name}`);
       console.log(`  Suite: ${report.suite}`);
       console.log(`  Duration: ${this.formatDuration(report.duration)}`);
-
-      const simpleStatus = report.simpleJudge.pass
-        ? chalk.green('PASS')
-        : chalk.red('FAIL');
-      const llmStatus = report.llmJudge.pass
-        ? chalk.green('PASS')
-        : chalk.red('FAIL');
-
-      console.log(`  Simple Judge: ${simpleStatus} - ${report.simpleJudge.reason}`);
-      console.log(`  LLM Judge: ${llmStatus} - ${report.llmJudge.reason}`);
-      if (!report.llmJudge.pass && report.llmJudge.evidence) {
-        console.log(`  ${chalk.yellow('Evidence:')} ${report.llmJudge.evidence}`);
-      }
+      console.log(`  Reason: ${report.reason}`);
 
       if (report.logFile) {
         console.log(`  Log file: ${report.logFile}`);
@@ -56,10 +44,6 @@ export class ConsoleReporter {
         chalk.red(`Failed: ${summary.failed}`)
     );
 
-    console.log(
-      `  Simple Judge: ${summary.simple.passed}/${summary.total} passed`
-    );
-    console.log(`  LLM Judge: ${summary.llm.passed}/${summary.total} passed`);
     console.log(`Duration: ${this.formatDuration(summary.duration)}`);
     console.log(`Output: ${summary.runId}`);
 

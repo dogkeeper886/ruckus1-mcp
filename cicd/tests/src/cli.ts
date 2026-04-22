@@ -12,16 +12,15 @@ import path from 'path';
 import { mkdirSync, existsSync } from 'fs';
 import { TestLoader } from './loader.js';
 import { TestExecutor } from './executor.js';
-import { SimpleJudge, LLMJudge } from './judge/index.js';
+import { SimpleJudge } from './judge/index.js';
 import { JsonReporter, ConsoleReporter } from './reporter/index.js';
-import { RunConfig, DEFAULT_CONFIG } from './types.js';
-import { CONFIG } from './config.js';
+import { RunConfig } from './types.js';
 
 const program = new Command();
 
 program
   .name('test-runner')
-  .description('Dual-judge test framework for ruckus1-mcp')
+  .description('Test framework for ruckus1-mcp')
   .version('1.0.0');
 
 program
@@ -31,9 +30,6 @@ program
   .option('-t, --tag <tag>', 'Run only tests with this tag (e.g., aps, venues, wifi-networks)')
   .option('-i, --id <id>', 'Run only the test with this ID')
   .option('--dry-run', 'Show what would run without executing', false)
-  .option('--no-llm', 'Skip LLM judging (simple judge only)')
-  .option('--judge-url <url>', 'Ollama URL for LLM judge', CONFIG.llm.defaultUrl)
-  .option('--judge-model <model>', 'Model to use for LLM judging', CONFIG.llm.defaultModel)
   .option('-o, --output-dir <dir>', 'Output directory for results')
   .option('-f, --format <format>', 'Output format (console, json)', 'console')
   .action(async (options) => {
@@ -56,9 +52,6 @@ program
       tag: options.tag,
       testId: options.id,
       dryRun: options.dryRun,
-      noLlm: !options.llm,
-      judgeUrl: options.judgeUrl,
-      judgeModel: options.judgeModel,
       outputDir,
       outputFormat: options.format as RunConfig['outputFormat'],
       workingDir: projectRoot,
@@ -68,7 +61,6 @@ program
     process.stderr.write(`\n[CONFIG] Project root: ${projectRoot}\n`);
     process.stderr.write(`[CONFIG] Testcases: ${testcasesDir}\n`);
     process.stderr.write(`[CONFIG] Output: ${outputDir}\n`);
-    process.stderr.write(`[CONFIG] LLM Judge: ${config.noLlm ? 'disabled' : config.judgeUrl}\n`);
 
     const loader = new TestLoader(testcasesDir);
     const allTestCases = await loader.loadAll();
@@ -126,31 +118,12 @@ program
 
     process.stderr.write('\n[JUDGE] Running simple judge...\n');
     const simpleJudge = new SimpleJudge();
-    const simpleJudgments = simpleJudge.judgeAll(results);
-
-    let llmJudgments = simpleJudgments.map((j) => ({
-      ...j,
-      reason: config.noLlm ? 'LLM judge disabled' : j.reason,
-    }));
-
-    if (!config.noLlm) {
-      process.stderr.write('[JUDGE] Running LLM judge...\n');
-      const llmJudge = new LLMJudge(config.judgeUrl, config.judgeModel);
-
-      const available = await llmJudge.isAvailable();
-      if (available) {
-        llmJudgments = await llmJudge.judgeResults(results);
-        await llmJudge.unloadModel();
-      } else {
-        process.stderr.write('[WARN] LLM judge not available, using simple judge results\n');
-      }
-    }
+    const judgments = simpleJudge.judgeAll(results);
 
     const jsonReporter = new JsonReporter(outputDir);
     const { summary, reports } = jsonReporter.generateReports(
       results,
-      simpleJudgments,
-      llmJudgments,
+      judgments,
       startTime,
       suiteName
     );
