@@ -11,11 +11,17 @@ steps:
   - name: Update AP with non-existent serial number
     command: npx tsx cicd/tests/src/mcp-client.ts update_ruckus_ap '{"apSerialNumber":"INVALID000000","apName":"test-name"}'
     expectPatterns:
-      - "content"
+      - isError
+      - Failed to update AP
+      - not found
+      - INVALID000000
     rejectPatterns:
-      - "completed"
+      - completed
 
 criteria: |
-  Verify update_ruckus_ap handles invalid serial number gracefully.
-  - Tool does not crash with non-existent serial number
-  - Returns error, not "completed"
+  Verify update_ruckus_ap returns a structured error when the given serial number
+  doesn't exist. The tool's retrieve-then-update pattern does an initial lookup that
+  fails; handler catches and returns isError. Asserts isError flag, the
+  "Failed to update AP" summary, the "not found" detail, and that the echoed
+  serial "INVALID000000" appears in the error. Rejects "completed" so a successful
+  update path would fail this test.
