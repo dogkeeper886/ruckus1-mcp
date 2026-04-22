@@ -12,7 +12,8 @@ steps:
   - name: Create RADIUS server profile
     command: npx tsx cicd/tests/src/mcp-client.ts create_radius_server_profile '{"name":"mcp-test-radius-{{TEST_RUN_ID}}","type":"AUTHENTICATION","enableSecondaryServer":false,"primary":{"port":1812,"sharedSecret":"TestSecret123","ip":"10.99.99.99"},"maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
-      - "content"
+      - "completed"
+      - "requestId"
     rejectPatterns:
       - "isError"
 
