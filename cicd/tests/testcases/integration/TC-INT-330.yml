@@ -10,23 +10,23 @@ dependencies:
 
 steps:
   - name: Create portal service profile
-    command: npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"name":"mcp-test-portal-ssi-default","content":{},"maxRetries":10,"pollIntervalMs":3000}'
+    command: npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"name":"mcp-test-portal-ssi-default-{{TEST_RUN_ID}}","content":{},"maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "requestId"
     rejectPatterns:
       - "isError"
 
   - name: Capture portal profile ID
-    command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{"searchString":"mcp-test-portal-ssi-default"}'
+    command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{"searchString":"mcp-test-portal-ssi-default-{{TEST_RUN_ID}}"}'
     capture:
-      profileId: "content[serviceName=mcp-test-portal-ssi-default].id"
+      profileId: "content[serviceName=mcp-test-portal-ssi-default-{{TEST_RUN_ID}}].id"
     expectPatterns:
-      - "mcp-test-portal-ssi-default"
+      - "mcp-test-portal-ssi-default-{{TEST_RUN_ID}}"
     rejectPatterns:
       - "isError"
 
   - name: Create Self Sign-In without any channel flags (back-compat default)
-    command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-ssi-default","ssid":"MCP-Test-SSI-Default","type":"selfSignIn","wlanSecurity":"None","portalServiceProfileId":"{{profileId}}","allowedEmailDomains":["example.com"],"sessionDurationDays":7,"maxRetries":10,"pollIntervalMs":3000}'
+    command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-ssi-default-{{TEST_RUN_ID}}","ssid":"MCP-Test-SSI-Default","type":"selfSignIn","wlanSecurity":"None","portalServiceProfileId":"{{profileId}}","allowedEmailDomains":["example.com"],"sessionDurationDays":7,"maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "networkId"
       - "completed"
@@ -34,11 +34,11 @@ steps:
       - "isError"
 
   - name: Capture network ID
-    command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"searchString":"mcp-test-ssi-default"}'
+    command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"searchString":"mcp-test-ssi-default-{{TEST_RUN_ID}}"}'
     capture:
-      networkId: "data[name=mcp-test-ssi-default].id"
+      networkId: "data[name=mcp-test-ssi-default-{{TEST_RUN_ID}}].id"
     expectPatterns:
-      - "mcp-test-ssi-default"
+      - "mcp-test-ssi-default-{{TEST_RUN_ID}}"
     rejectPatterns:
       - "isError"
 

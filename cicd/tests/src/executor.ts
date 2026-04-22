@@ -22,13 +22,24 @@ export class TestExecutor {
   private currentTest: number = 0;
   private currentTestId: string | null = null;
   private variables: Record<string, string> = {};
+  // Per-run unique suffix used by YAMLs to namespace fixture names
+  // (e.g. `mcp-test-apg-venue-{{TEST_RUN_ID}}`). Prefers GITHUB_RUN_ID in CI
+  // for traceability; falls back to an explicit TEST_RUN_ID override or a
+  // random 6-char string for local dev. Separate from `variables` because
+  // captures are reset per test; this survives the whole run.
+  private readonly runId: string;
 
   constructor(config: RunConfig) {
     this.config = config;
+    this.runId =
+      process.env.GITHUB_RUN_ID ||
+      process.env.TEST_RUN_ID ||
+      Math.random().toString(36).slice(2, 8);
   }
 
   private substituteVariables(command: string): string {
     return command.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
+      if (varName === 'TEST_RUN_ID') return this.runId;
       const value = this.variables[varName] ?? process.env[varName];
       if (value === undefined) {
         this.progress(`    [WARN] Variable {{${varName}}} not found`);
@@ -175,15 +186,19 @@ export class TestExecutor {
 
     const combined = result.stdout + '\n' + result.stderr;
 
-    const expected: PatternMatch[] = (expectPatterns || []).map((pattern) => ({
-      pattern,
-      found: new RegExp(pattern, 'i').test(combined),
-    }));
+    // Substitute {{var}} in patterns just like commands so captured IDs and
+    // TEST_RUN_ID can be referenced in expect/reject patterns. Undefined
+    // variables still substitute to the literal `{{name}}` (same foot-gun as
+    // commands — tracked separately as SO-2 in the audit report).
+    const expected: PatternMatch[] = (expectPatterns || []).map((pattern) => {
+      const resolved = this.substituteVariables(pattern);
+      return { pattern: resolved, found: new RegExp(resolved, 'i').test(combined) };
+    });
 
-    const rejected: PatternMatch[] = (rejectPatterns || []).map((pattern) => ({
-      pattern,
-      found: new RegExp(pattern, 'i').test(combined),
-    }));
+    const rejected: PatternMatch[] = (rejectPatterns || []).map((pattern) => {
+      const resolved = this.substituteVariables(pattern);
+      return { pattern: resolved, found: new RegExp(resolved, 'i').test(combined) };
+    });
 
     return { expected, rejected };
   }

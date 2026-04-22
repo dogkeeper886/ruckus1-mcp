@@ -10,7 +10,7 @@ dependencies:
 
 steps:
   - name: Create test venue for AP group
-    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"name":"mcp-test-apg-venue","addressLine":"1 AP Group Test St","city":"Tokyo","country":"Japan","maxRetries":10,"pollIntervalMs":3000}'
+    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"name":"mcp-test-apg-venue-{{TEST_RUN_ID}}","addressLine":"1 AP Group Test St","city":"Tokyo","country":"Japan","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "completed"
     rejectPatterns:
@@ -19,14 +19,14 @@ steps:
   - name: Get venue ID for AP group creation
     command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venues '{}'
     capture:
-      venueId: "data[name=mcp-test-apg-venue].id"
+      venueId: "data[name=mcp-test-apg-venue-{{TEST_RUN_ID}}].id"
     expectPatterns:
-      - "mcp-test-apg-venue"
+      - "mcp-test-apg-venue-{{TEST_RUN_ID}}"
     rejectPatterns:
       - "isError"
 
   - name: Create AP group in test venue
-    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_ap_group '{"venueId":"{{venueId}}","name":"mcp-test-ap-group","maxRetries":10,"pollIntervalMs":3000}'
+    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_ap_group '{"venueId":"{{venueId}}","name":"mcp-test-ap-group-{{TEST_RUN_ID}}","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "completed"
       - "requestId"
@@ -36,9 +36,9 @@ steps:
   - name: Verify AP group exists
     command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_ap_groups '{}'
     capture:
-      apGroupId: "data[name=mcp-test-ap-group].id"
+      apGroupId: "data[name=mcp-test-ap-group-{{TEST_RUN_ID}}].id"
     expectPatterns:
-      - "mcp-test-ap-group"
+      - "mcp-test-ap-group-{{TEST_RUN_ID}}"
     rejectPatterns:
       - "isError"
 
@@ -58,7 +58,7 @@ steps:
 criteria: |
   Full AP group CRUD lifecycle:
   1. Create a test venue (AP groups require a venue)
-  2. Create an AP group "mcp-test-ap-group" in the venue
+  2. Create an AP group "mcp-test-ap-group-{{TEST_RUN_ID}}" in the venue
   3. Verify AP group appears in query results
   4. Delete the AP group
   5. Cleanup: delete the test venue
