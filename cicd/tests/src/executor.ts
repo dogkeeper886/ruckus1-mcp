@@ -23,18 +23,21 @@ export class TestExecutor {
   private currentTestId: string | null = null;
   private variables: Record<string, string> = {};
   // Per-run unique suffix used by YAMLs to namespace fixture names
-  // (e.g. `mcp-test-apg-venue-{{TEST_RUN_ID}}`). Prefers GITHUB_RUN_ID in CI
-  // for traceability; falls back to an explicit TEST_RUN_ID override or a
-  // random 6-char string for local dev. Separate from `variables` because
-  // captures are reset per test; this survives the whole run.
+  // (e.g. `mcp-test-apg-venue-{{TEST_RUN_ID}}`). Truncated to the last 6 chars
+  // so GITHUB_RUN_ID (11 digits) doesn't push fixture names past RUCKUS's
+  // 32-char WiFi/DPSK name limit. Prefers GITHUB_RUN_ID in CI for traceability;
+  // falls back to TEST_RUN_ID override or a random 6-char string locally.
+  // Separate from `variables` because captures reset per test; this survives
+  // the whole run.
   private readonly runId: string;
 
   constructor(config: RunConfig) {
     this.config = config;
-    this.runId =
+    const raw =
       process.env.GITHUB_RUN_ID ||
       process.env.TEST_RUN_ID ||
       Math.random().toString(36).slice(2, 8);
+    this.runId = raw.slice(-6);
   }
 
   private substituteVariables(command: string): string {
