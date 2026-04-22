@@ -1,7 +1,7 @@
 id: TC-INT-329
 name: Self Sign-In rejects create with no channels enabled
 suite: integration
-tags: [wifi-networks, guest-portal, self-sign-in]
+tags: [wifi-networks, wifi-self-sign-in, guest-portal, self-sign-in]
 story: STORY-014
 priority: 3
 timeout: 60000

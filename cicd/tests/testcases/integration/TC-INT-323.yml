@@ -1,7 +1,7 @@
 id: TC-INT-323
 name: DSAE WiFi network lifecycle - create, activate, deactivate, delete
 suite: integration
-tags: [wifi-networks, dsae, dpsk-services, identity-groups]
+tags: [wifi-networks, wifi-lifecycles, dsae, dpsk-services, identity-groups]
 story: STORY-012
 priority: 1
 timeout: 360000
