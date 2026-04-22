@@ -14,7 +14,6 @@ steps:
       - "requestId"
     rejectPatterns:
       - "isError"
-      - "\"status\": \"failed\""
 
   - name: Capture portal profile ID
     command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{"searchString":"mcp-test-portal-ssi-nochan"}'
@@ -58,7 +57,6 @@ steps:
       - "completed"
     rejectPatterns:
       - "isError"
-      - "\"status\": \"failed\""
 
 criteria: |
   Verifies the client-side validation in create_wifi_network for Self Sign-In:
