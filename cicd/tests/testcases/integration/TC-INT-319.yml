@@ -33,3 +33,19 @@ criteria: |
   - Step 2: Get password using discovered venueId
   - Response contains apPassword, updatedTime, and expireTime fields
   - Related to issue #29
+
+  PREREQUISITE — ENVIRONMENTAL
+  This test depends on an AP whose serial matches the GitHub secret
+  TEST_AP_SERIAL being registered in the target tenant with a password
+  configured. If that AP is missing, moved, or unregistered, the test
+  WILL FAIL — this is expected and intentional; the test is not
+  self-provisioning and no rerun will recover it.
+
+  Failure signature:
+    Step 1 silently fails to capture venueId (framework warn-only);
+    Step 2 is called with a literal "{{venueId}}", backend returns
+    isError, expectPatterns updatedTime / expireTime are missing.
+
+  Fix: either re-register the AP, update the TEST_AP_SERIAL secret to
+  point at a currently-registered AP, or skip this test until the
+  tenant is repaired.
