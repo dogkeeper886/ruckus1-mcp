@@ -9,7 +9,7 @@ dependencies: []
 
 steps:
   - name: Delete venue with non-existent ID
-    command: npx tsx cicd/tests/src/mcp-client.ts delete_ruckus_venue '{"venueId":"00000000-0000-0000-0000-000000000000"}'
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_ruckus_venue '{"venueId":"00000000-0000-0000-0000-000000000000","maxRetries":3,"pollIntervalMs":1000}'
     expectPatterns:
       - timeout
       - polling timeout
@@ -29,5 +29,5 @@ criteria: |
   stable substrings that are only present on the timeout path. Rejects "completed"
   and the "Venue deleted successfully" success message.
 
-  Note: this test takes ~10s (default maxRetries=5, pollIntervalMs=2000), well
-  within the 30s step timeout.
+  Note: overrides polling to maxRetries=3, pollIntervalMs=1000 (~3s budget) so the
+  negative-path test stays fast and is decoupled from service-layer defaults.
