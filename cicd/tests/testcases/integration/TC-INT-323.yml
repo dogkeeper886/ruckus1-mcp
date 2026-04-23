@@ -69,11 +69,16 @@ steps:
     command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"searchString":"mcp-test-dsae-ci-{{TEST_RUN_ID}}"}'
     capture:
       networkId: "data[name=mcp-test-dsae-ci-{{TEST_RUN_ID}}].id"
+      # The DSAE companion is NOT a separate data[] entry (unlike OWE-TR).
+      # It's nested inside the primary record as dsaeOnboardNetwork = {id, name, ...}.
+      # Confirmed against a live response: the companion's name is
+      # `<primary>-dpsk3-wpa2` and its id is the sibling of the name.
+      companionId: "data[name=mcp-test-dsae-ci-{{TEST_RUN_ID}}].dsaeOnboardNetwork.id"
     expectPatterns:
       - "mcp-test-dsae-ci-{{TEST_RUN_ID}}"
       - "WPA23Mixed"
       - "dsaeOnboardNetwork"
-      - "dpsk3-wpa2"
+      - "mcp-test-dsae-ci-{{TEST_RUN_ID}}-dpsk3-wpa2"
     rejectPatterns:
       - "isError"
 
@@ -99,21 +104,13 @@ steps:
     rejectPatterns:
       - "isError"
 
-  - name: Verify DSAE network is gone
+  - name: Verify DSAE network and companion are gone
     command: npx tsx cicd/tests/src/mcp-client.ts query_wifi_networks '{"searchString":"mcp-test-dsae-ci-{{TEST_RUN_ID}}"}'
     expectPatterns:
       - "content"
     rejectPatterns:
       - "{{networkId}}"
-    # Companion (-dpsk3-wpa2) verification was dropped: the original
-    # capture selector `data[name=<primary>-dpsk3-wpa2].id` never matched
-    # any response entry since it was added (commit c632dd3, Apr 20),
-    # which SO-2 made visible. The exact DSAE companion name convention
-    # isn't known from the YAML alone and TC-INT-320's OWE-TR model
-    # (-owe-tr suffix returned as a separate data entry) doesn't transfer.
-    # If cascade-delete of the companion is important to verify, revisit
-    # with a real query response sample to pick a working selector (e.g.
-    # data[dsaeOnboardNetwork=true].id, which resolvePath supports).
+      - "{{companionId}}"
 
   - name: Delete DPSK service
     command: npx tsx cicd/tests/src/mcp-client.ts delete_dpsk_service '{"dpskServiceId":"{{dpskServiceId}}","maxRetries":10,"pollIntervalMs":3000}'
@@ -142,11 +139,13 @@ criteria: |
   2. Create DPSK service under identity group
   3. Create test venue for activation
   4. Create DSAE network (type=dpsk, wlanSecurity=WPA23Mixed, dpskServiceId)
-  5. Verify DSAE fields appear on the primary (WPA23Mixed, dsaeOnboardNetwork,
-     dpsk3-wpa2 — substring). Companion (-dpsk3-wpa2) capture-by-ID was
-     removed; see the "Verify DSAE network is gone" step comment for RCA.
+  5. Verify dual-network pair: primary appears in data[] with dsaeOnboardNetwork
+     nested field containing the companion's {id, name="<primary>-dpsk3-wpa2",
+     securityProtocol=WPA2Personal, ...}. Capture both primary id and
+     companion id. NOTE: unlike OWE-TR, the DSAE companion is NOT a separate
+     data[] entry — it's nested inside the primary as dsaeOnboardNetwork.
   6. Activate at venue - verify no 422 errors from read-only fields
   7. Deactivate from venue
-  8. Delete network, verify primary is removed (companion cascade-delete
-     is assumed to be backend-managed but not explicitly verified)
+  8. Delete network, verify primary AND companion (by captured IDs) are
+     both gone from query results — proves cascade-delete of companion.
   9. Clean up: DPSK service, identity group, venue
