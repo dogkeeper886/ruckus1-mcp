@@ -41,12 +41,19 @@ export class TestExecutor {
   }
 
   private substituteVariables(command: string): string {
-    return command.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
+    return command.replace(/\{\{(\w+)\}\}/g, (_match, varName) => {
       if (varName === 'TEST_RUN_ID') return this.runId;
       const value = this.variables[varName] ?? process.env[varName];
       if (value === undefined) {
-        this.progress(`    [WARN] Variable {{${varName}}} not found`);
-        return match;
+        // Strict: refuse to pass a literal {{name}} downstream. Silent
+        // substitution caused dead assertions (undefined vars in reject
+        // patterns always passed) and misleading cascades (undefined vars
+        // in commands produced backend "isError" far from the real cause).
+        // Callers are expected to catch and either fail the step or mark
+        // the pattern as a substitution-error (see audit SO-2).
+        throw new Error(
+          `Undefined variable {{${varName}}} — not set by any prior capture or environment`
+        );
       }
       return value;
     });
@@ -191,16 +198,29 @@ export class TestExecutor {
 
     // Substitute {{var}} in patterns just like commands so captured IDs and
     // TEST_RUN_ID can be referenced in expect/reject patterns. Undefined
-    // variables still substitute to the literal `{{name}}` (same foot-gun as
-    // commands — tracked separately as SO-2 in the audit report).
+    // variables throw (see substituteVariables). We mark such patterns as
+    // [UNDEFINED], and set found in the direction that fails the step —
+    // an expected pattern with an undefined var is "not found" (fail), a
+    // rejected pattern with an undefined var is "found" (fail). Either way
+    // the step fails loudly at the exact pattern that referenced the bad var.
     const expected: PatternMatch[] = (expectPatterns || []).map((pattern) => {
-      const resolved = this.substituteVariables(pattern);
-      return { pattern: resolved, found: new RegExp(resolved, 'i').test(combined) };
+      try {
+        const resolved = this.substituteVariables(pattern);
+        return { pattern: resolved, found: new RegExp(resolved, 'i').test(combined) };
+      } catch (e) {
+        const msg = (e as Error).message;
+        return { pattern: `[UNDEFINED] ${pattern} — ${msg}`, found: false };
+      }
     });
 
     const rejected: PatternMatch[] = (rejectPatterns || []).map((pattern) => {
-      const resolved = this.substituteVariables(pattern);
-      return { pattern: resolved, found: new RegExp(resolved, 'i').test(combined) };
+      try {
+        const resolved = this.substituteVariables(pattern);
+        return { pattern: resolved, found: new RegExp(resolved, 'i').test(combined) };
+      } catch (e) {
+        const msg = (e as Error).message;
+        return { pattern: `[UNDEFINED] ${pattern} — ${msg}`, found: true };
+      }
     });
 
     return { expected, rejected };
@@ -226,7 +246,24 @@ export class TestExecutor {
         `  [${stepTimestamp}] Step ${i + 1}/${testCase.steps.length}: ${step.name}`
       );
 
-      const resolvedCommand = this.substituteVariables(step.command);
+      let resolvedCommand: string;
+      try {
+        resolvedCommand = this.substituteVariables(step.command);
+      } catch (e) {
+        const msg = (e as Error).message;
+        const synthetic: StepResult = {
+          name: step.name,
+          command: step.command,
+          stdout: '',
+          stderr: `[SUBSTITUTION FAILED] ${msg}`,
+          exitCode: 1,
+          duration: 0,
+        };
+        this.progress(`    [FAIL] Substitution: ${msg}`);
+        stepResults.push(synthetic);
+        continue;
+      }
+
       const cmdPreview =
         resolvedCommand.length > 80
           ? resolvedCommand.substring(0, 80) + '...'
