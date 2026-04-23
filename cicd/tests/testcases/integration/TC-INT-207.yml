@@ -12,7 +12,8 @@ steps:
   - name: Create directory server profile
     command: npx tsx cicd/tests/src/mcp-client.ts create_directory_server_profile '{"name":"mcp-test-ldap-{{TEST_RUN_ID}}","type":"LDAP","tlsEnabled":false,"host":"10.99.99.99","port":389,"domainName":"dc=test,dc=com","adminDomainName":"cn=admin,dc=test,dc=com","adminPassword":"TestPass123","identityName":"uid","identityEmail":"mail","identityPhone":"telephoneNumber","keyAttribute":"uid","attributeMappings":[{"name":"firstName","mappedByName":"givenName"}],"maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
-      - "content"
+      - "completed"
+      - "requestId"
     rejectPatterns:
       - "isError"
 

@@ -12,6 +12,7 @@ steps:
   - name: Create PSK WiFi network
     command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-wifi-psk-{{TEST_RUN_ID}}","ssid":"MCP-Test-PSK","type":"psk","passphrase":"TestPass1234!","wlanSecurity":"WPA2Personal","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
+      - "completed"
       - "requestId"
     rejectPatterns:
       - "isError"
