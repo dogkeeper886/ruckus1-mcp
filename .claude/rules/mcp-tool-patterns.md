@@ -12,7 +12,7 @@ Concrete code templates for adding/modifying MCP tools in this repo. The `add-to
 ## Operation Types
 
 - **Read-only** (GET, Query): Synchronous. No retry parameters. No polling.
-- **Async** (Create, Delete, Update): Returns `requestId`. Poll with `maxRetries=5`, `pollIntervalMs=2000`.
+- **Async** (Create, Delete, Update): Returns `requestId`. Poll with `maxRetries=20`, `pollIntervalMs=5000`.
 - **Pure builder** (no API call): Rare. See "Pure Builder Tool Pattern" — use only to shape complex discriminated-union configs for other tools.
 
 ## Read-Only Operations
@@ -116,8 +116,8 @@ export async function yourNewToolWithRetry(
   requiredParam1: string,
   requiredParam2: string,
   region: string = '',
-  maxRetries: number = 5,       // ALWAYS 5
-  pollIntervalMs: number = 2000 // ALWAYS 2000
+  maxRetries: number = 20,      // ALWAYS 20
+  pollIntervalMs: number = 5000 // ALWAYS 5000
 ): Promise<any> {
   const apiUrl = region && region.trim() !== ''
     ? `https://api.${region}.ruckus.cloud/your/endpoint`
@@ -242,8 +242,8 @@ return { status: 'timeout', /* ... */ };
     properties: {
       requiredParam1: { type: 'string', description: 'Description' },
       requiredParam2: { type: 'string', description: 'Description' },
-      maxRetries: { type: 'number', description: 'Maximum number of polling retries (default: 5)' },
-      pollIntervalMs: { type: 'number', description: 'Polling interval in milliseconds (default: 2000)' }
+      maxRetries: { type: 'number', description: 'Maximum number of polling retries (default: 20)' },
+      pollIntervalMs: { type: 'number', description: 'Polling interval in milliseconds (default: 5000)' }
     },
     required: ['requiredParam1', 'requiredParam2']
   }
@@ -327,7 +327,7 @@ case 'your_new_tool': {
   try {
     const {
       requiredParam1, requiredParam2,
-      maxRetries = 5, pollIntervalMs = 2000
+      maxRetries = 20, pollIntervalMs = 5000
     } = request.params.arguments as {
       requiredParam1: string; requiredParam2: string;
       maxRetries?: number; pollIntervalMs?: number;
@@ -357,7 +357,7 @@ case 'your_new_tool': {
 - No retry params. No polling. No extra response fields.
 
 **Async (Create/Delete/Update):**
-- `maxRetries = 5`, `pollIntervalMs = 2000`. Do not change.
+- `maxRetries = 20`, `pollIntervalMs = 5000`. Do not change.
 - COPY polling loop and error handling from an existing tool.
 - No extra response metadata.
 - Check if one of the Advanced Patterns below applies.

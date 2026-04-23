@@ -379,8 +379,8 @@ export async function deleteVenueWithRetry(
   token: string,
   venueId: string,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -515,8 +515,8 @@ export async function createVenueWithRetry(
     timezone?: string;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -669,8 +669,8 @@ export async function updateVenueWithRetry(
     timezone?: string;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -803,8 +803,8 @@ export async function createApGroupWithRetry(
     apSerialNumbers?: Array<{ serialNumber: string }>;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -950,8 +950,8 @@ export async function addApToGroupWithRetry(
     description?: string;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -1131,8 +1131,8 @@ export async function updateApGroupWithRetry(
     apSerialNumbers?: Array<{ serialNumber: string }>;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
   preserveExistingAps: boolean = true,
 ): Promise<any> {
   const apiUrl =
@@ -1393,8 +1393,8 @@ export async function deleteApGroupWithRetry(
   venueId: string,
   apGroupId: string,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -1527,8 +1527,8 @@ export async function removeApWithRetry(
   venueId: string,
   apSerialNumber: string,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -1714,8 +1714,8 @@ export async function updateApWithRetrieval(
     description?: string;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   // Step 1: Get current AP state
   const currentAp = await getApDetailsBySerial(token, serialNumber, region);
@@ -1760,8 +1760,8 @@ export async function moveApWithRetry(
   description?: string,
   method: "direct" | "update" = "update",
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   let apiUrl: string;
   let payload: any = {};
@@ -2130,8 +2130,8 @@ export async function createDirectoryServerProfileWithRetry(
     }>;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -2278,8 +2278,8 @@ export async function createRadiusServerProfileWithRetry(
     };
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -2482,8 +2482,8 @@ export async function updateDirectoryServerProfileWithRetry(
     }>;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -2614,8 +2614,8 @@ export async function deleteDirectoryServerProfileWithRetry(
   token: string,
   profileId: string,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -2728,8 +2728,8 @@ export async function deleteRadiusServerProfileWithRetry(
   token: string,
   profileId: string,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -2858,8 +2858,8 @@ export async function updateRadiusServerProfileWithRetry(
     };
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -3113,8 +3113,8 @@ export async function createPortalServiceProfileWithRetry(
     content: any;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -3236,8 +3236,8 @@ export async function updatePortalServiceProfileWithRetry(
     content: any;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -3355,8 +3355,8 @@ export async function deletePortalServiceProfileWithRetry(
   token: string,
   profileId: string,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -3597,8 +3597,8 @@ export async function updatePrivilegeGroupWithRetry(
     }>;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const url = `https://api.${region ? region + "." : ""}ruckus.cloud/roleAuthentications/privilegeGroups/${privilegeGroupId}`;
 
@@ -3690,8 +3690,8 @@ export async function updatePrivilegeGroupSimple(
   allVenues: boolean = true,
   venueNames: string[] = [],
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   // Resolve group name to ID
   const privilegeGroupId = await resolvePrivilegeGroupId(
@@ -3757,8 +3757,8 @@ export async function updateCustomRoleWithRetry(
     preDefinedRole?: string;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const url = `https://api.${region ? region + "." : ""}ruckus.cloud/roleAuthentications/customRoles/${roleId}`;
 
@@ -4009,8 +4009,8 @@ export async function deleteCustomRoleWithRetry(
   token: string,
   roleId: string,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const url =
     region && region.trim() !== ""
@@ -4184,8 +4184,8 @@ export async function createWifiNetworkWithRetry(
     };
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -4866,8 +4866,8 @@ export async function activateWifiNetworkAtVenuesWithRetry(
     };
   }>,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
   portalServiceProfileId?: string,
   fullNetworkConfig?: any,
 ): Promise<any> {
@@ -5407,8 +5407,8 @@ export async function activateWifiNetworkAtVenueWithRetry(
     };
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   // This is a convenience wrapper around activateWifiNetworkAtVenuesWithRetry
   // for activating at a single venue
@@ -5527,8 +5527,8 @@ export async function updateWifiNetworkPortalServiceProfileWithRetry(
   networkId: string,
   profileId: string,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -5643,8 +5643,8 @@ export async function updateWifiNetworkRadiusServerProfileSettingsWithRetry(
   region: string = "",
   enableAccountingProxy: boolean = false,
   enableAuthProxy: boolean = false,
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -5768,8 +5768,8 @@ export async function updateWifiNetworkWithRetry(
   networkId: string,
   networkConfig: any,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -5889,8 +5889,8 @@ export async function deactivateWifiNetworkAtVenuesWithRetry(
   networkId: string,
   venueIds: string[],
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const baseApiUrl =
     region && region.trim() !== ""
@@ -6288,8 +6288,8 @@ export async function deleteWifiNetworkWithRetry(
   token: string,
   networkId: string,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -6501,8 +6501,8 @@ export async function createGuestPassWithRetry(
     notes?: string;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -6645,8 +6645,8 @@ export async function deleteGuestPassWithRetry(
   networkId: string,
   guestPassId: string,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -6863,8 +6863,8 @@ export async function createIdentityGroupWithRetry(
   name: string,
   autoCleanupEnabled: boolean = true,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -6990,8 +6990,8 @@ export async function deleteIdentityGroupWithRetry(
   token: string,
   identityGroupId: string,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -7077,8 +7077,8 @@ export async function createDpskServiceWithRetry(
   autoNotificationsEnabled: boolean = false,
   expirationType: string | null = null,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -7194,8 +7194,8 @@ export async function deleteDpskServiceWithRetry(
   token: string,
   dpskServiceId: string,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -7305,8 +7305,8 @@ export async function updateVenueWifiNetworkSettingsWithRetry(
   wifiNetworkId: string,
   settings: any,
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -7439,8 +7439,8 @@ export async function createSmsProviderWithRetry(
     authTemplateSid?: string;
   },
   region: string = "",
-  maxRetries: number = 5,
-  pollIntervalMs: number = 2000,
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
 ): Promise<any> {
   const baseUrl =
     region && region.trim() !== ""

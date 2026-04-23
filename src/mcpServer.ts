@@ -171,11 +171,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["name", "addressLine", "city", "country"],
@@ -194,11 +194,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["venueId"],
@@ -253,11 +253,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["venueId", "name", "addressLine", "city", "country"],
@@ -301,11 +301,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["venueId", "name"],
@@ -340,11 +340,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of polling retries (default: 5)",
+              description: "Maximum number of polling retries (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["venueId", "apGroupId", "name", "serialNumber"],
@@ -367,11 +367,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of polling retries (default: 5)",
+              description: "Maximum number of polling retries (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["venueId", "apSerialNumber"],
@@ -423,11 +423,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["venueId", "apGroupId"],
@@ -480,11 +480,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["venueId", "apGroupId", "name"],
@@ -757,11 +757,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of polling retries (default: 5)",
+              description: "Maximum number of polling retries (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["apSerialNumber"],
@@ -908,11 +908,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: [
@@ -1016,11 +1016,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: [
@@ -1054,11 +1054,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["profileId"],
@@ -1171,11 +1171,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["name", "type", "enableSecondaryServer", "primary"],
@@ -1195,11 +1195,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["profileId"],
@@ -1281,11 +1281,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: [
@@ -1376,11 +1376,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["name", "content"],
@@ -1408,11 +1408,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["profileId", "name", "content"],
@@ -1431,11 +1431,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["profileId"],
@@ -1499,11 +1499,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of polling retries (default: 5)",
+              description: "Maximum number of polling retries (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["privilegeGroupName", "name", "roleName", "delegation"],
@@ -1536,11 +1536,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of polling retries (default: 5)",
+              description: "Maximum number of polling retries (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["roleId", "name", "features"],
@@ -1619,11 +1619,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["roleId"],
@@ -1943,11 +1943,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             maxRetries: {
               type: "number",
               description:
-                "Maximum number of retry attempts for async polling (default: 5)",
+                "Maximum number of retry attempts for async polling (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["name", "ssid", "type", "wlanSecurity"],
@@ -2032,11 +2032,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             maxRetries: {
               type: "number",
               description:
-                "Maximum number of retry attempts for async polling (default: 5)",
+                "Maximum number of retry attempts for async polling (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["networkId", "venueConfigs"],
@@ -2058,11 +2058,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["networkId", "profileId"],
@@ -2088,11 +2088,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["networkId"],
@@ -2115,11 +2115,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["networkId", "networkConfig"],
@@ -2146,11 +2146,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             maxRetries: {
               type: "number",
               description:
-                "Maximum number of retry attempts for async polling (default: 5)",
+                "Maximum number of retry attempts for async polling (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["networkId", "venueIds"],
@@ -2171,11 +2171,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             maxRetries: {
               type: "number",
               description:
-                "Maximum number of retry attempts for async polling (default: 5)",
+                "Maximum number of retry attempts for async polling (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["networkId"],
@@ -2298,11 +2298,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             maxRetries: {
               type: "number",
               description:
-                "Maximum number of retry attempts for async polling (default: 5)",
+                "Maximum number of retry attempts for async polling (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: [
@@ -2333,11 +2333,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             maxRetries: {
               type: "number",
-              description: "Maximum number of retry attempts (default: 5)",
+              description: "Maximum number of retry attempts (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000)",
+              description: "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["networkId", "guestPassId"],
@@ -2431,12 +2431,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             maxRetries: {
               type: "number",
               description:
-                "Maximum number of retry attempts for async polling (default: 5)",
+                "Maximum number of retry attempts for async polling (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
               description:
-                "Polling interval in milliseconds (default: 2000)",
+                "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["name"],
@@ -2490,12 +2490,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             maxRetries: {
               type: "number",
               description:
-                "Maximum number of retry attempts for async polling (default: 5)",
+                "Maximum number of retry attempts for async polling (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
               description:
-                "Polling interval in milliseconds (default: 2000)",
+                "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["identityGroupId"],
@@ -2535,12 +2535,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             maxRetries: {
               type: "number",
               description:
-                "Maximum number of retry attempts for async polling (default: 5)",
+                "Maximum number of retry attempts for async polling (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
               description:
-                "Polling interval in milliseconds (default: 2000)",
+                "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["identityGroupId", "name"],
@@ -2588,12 +2588,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             maxRetries: {
               type: "number",
               description:
-                "Maximum number of retry attempts for async polling (default: 5)",
+                "Maximum number of retry attempts for async polling (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
               description:
-                "Polling interval in milliseconds (default: 2000)",
+                "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["dpskServiceId"],
@@ -2645,12 +2645,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             maxRetries: {
               type: "number",
               description:
-                "Maximum number of retry attempts for async polling (default: 5)",
+                "Maximum number of retry attempts for async polling (default: 20)",
             },
             pollIntervalMs: {
               type: "number",
               description:
-                "Polling interval in milliseconds (default: 2000)",
+                "Polling interval in milliseconds (default: 5000)",
             },
           },
           required: ["venueId", "wifiNetworkId", "settings"],
@@ -2717,11 +2717,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             maxRetries: {
               type: "number",
               description:
-                "Maximum number of polling retries for the two async activities (default: 5).",
+                "Maximum number of polling retries for the two async activities (default: 20).",
             },
             pollIntervalMs: {
               type: "number",
-              description: "Polling interval in milliseconds (default: 2000).",
+              description: "Polling interval in milliseconds (default: 5000).",
             },
           },
           required: ["accountSid", "authToken", "fromNumber"],
@@ -3061,8 +3061,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           latitude,
           longitude,
           timezone,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           name: string;
           addressLine: string;
@@ -3169,8 +3169,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const {
           venueId,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           venueId: string;
           maxRetries?: number;
@@ -3270,8 +3270,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           latitude,
           longitude,
           timezone,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           venueId: string;
           name: string;
@@ -3342,8 +3342,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           name,
           description,
           apSerialNumbers,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           venueId: string;
           name: string;
@@ -3447,8 +3447,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           name,
           serialNumber,
           description,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           venueId: string;
           apGroupId: string;
@@ -3540,8 +3540,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const {
           venueId,
           apSerialNumber,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           venueId: string;
           apSerialNumber: string;
@@ -3680,8 +3680,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const {
           venueId,
           apGroupId,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           venueId: string;
           apGroupId: string;
@@ -3779,8 +3779,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           description,
           apSerialNumbers,
           preserveExistingAps = true,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           venueId: string;
           apGroupId: string;
@@ -4468,8 +4468,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           venueId,
           apGroupId,
           description,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           apSerialNumber: string;
           apName?: string;
@@ -4700,8 +4700,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           keyAttribute,
           searchFilter,
           attributeMappings,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           name: string;
           type: string;
@@ -4794,8 +4794,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           keyAttribute,
           searchFilter,
           attributeMappings,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           profileId: string;
           name: string;
@@ -4876,8 +4876,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const {
           profileId,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           profileId: string;
           maxRetries?: number;
@@ -5023,8 +5023,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           enableSecondaryServer,
           primary,
           secondary,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           name: string;
           type: string;
@@ -5092,8 +5092,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const {
           profileId,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           profileId: string;
           maxRetries?: number;
@@ -5146,8 +5146,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           enableSecondaryServer,
           primary,
           secondary,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           profileId: string;
           name: string;
@@ -5351,8 +5351,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const {
           name,
           content,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           name: string;
           content: any;
@@ -5406,8 +5406,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           profileId,
           name,
           content,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           profileId: string;
           name: string;
@@ -5461,8 +5461,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const {
           profileId,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           profileId: string;
           maxRetries?: number;
@@ -5594,8 +5594,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           delegation,
           allVenues = true,
           venueNames = [],
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           privilegeGroupName: string;
           name: string;
@@ -5661,8 +5661,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           name,
           features,
           preDefinedRole,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           roleId: string;
           name: string;
@@ -5876,8 +5876,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const {
           roleId,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           roleId: string;
           maxRetries?: number;
@@ -6081,8 +6081,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           smsPasswordDuration,
           maxDevices,
           radiusOptions,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           name: string;
           ssid: string;
@@ -6261,8 +6261,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           networkId,
           venueConfigs,
           portalServiceProfileId,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           networkId: string;
           venueConfigs: Array<{
@@ -6331,8 +6331,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const {
           networkId,
           venueIds,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           networkId: string;
           venueIds: string[];
@@ -6391,8 +6391,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const {
           networkId,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           networkId: string;
           maxRetries?: number;
@@ -6542,8 +6542,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           mobilePhoneNumber,
           email,
           notes,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           networkId: string;
           name: string;
@@ -6618,8 +6618,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const {
           networkId,
           guestPassId,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           networkId: string;
           guestPassId: string;
@@ -6676,8 +6676,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const {
           networkId,
           profileId,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           networkId: string;
           profileId: string;
@@ -6733,8 +6733,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           networkId,
           enableAccountingProxy = false,
           enableAuthProxy = false,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           networkId: string;
           enableAccountingProxy?: boolean;
@@ -6792,8 +6792,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const {
           networkId,
           networkConfig,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           networkId: string;
           networkConfig: any;
@@ -6963,8 +6963,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const {
           name: groupName,
           autoCleanupEnabled = true,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           name: string;
           autoCleanupEnabled?: boolean;
@@ -7082,8 +7082,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const {
           identityGroupId,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           identityGroupId: string;
           maxRetries?: number;
@@ -7141,8 +7141,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           passphraseFormat = "MOST_SECURED",
           passphraseLength = 18,
           autoNotificationsEnabled = false,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           identityGroupId: string;
           name: string;
@@ -7264,8 +7264,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const {
           dpskServiceId,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           dpskServiceId: string;
           maxRetries?: number;
@@ -7374,8 +7374,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           venueId,
           wifiNetworkId,
           settings,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           venueId: string;
           wifiNetworkId: string;
@@ -7467,8 +7467,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           provider,
           enableWhatsapp,
           authTemplateSid,
-          maxRetries = 5,
-          pollIntervalMs = 2000,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
         } = request.params.arguments as {
           accountSid: string;
           authToken: string;
