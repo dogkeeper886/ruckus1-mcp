@@ -1,0 +1,123 @@
+id: TC-INT-333
+name: Portal profile T&C fields - rich-doc, URL mode, hyperlink builder
+suite: integration
+tags: [portal-service-profiles, terms-conditions, builder]
+story: STORY-016
+priority: 1
+timeout: 300000
+dependencies: []
+
+steps:
+  - name: Build PLAIN Tiptap config via builder
+    command: npx tsx cicd/tests/src/mcp-client.ts build_terms_condition_config '{"mode":"PLAIN","plain":{"text":"By connecting to this network, you agree to use it lawfully and responsibly. Read our privacy policy for details."}}'
+    expectPatterns:
+      - type
+      - doc
+      - paragraph
+      - text
+      - By connecting to this network
+    rejectPatterns:
+      - isError
+
+  - name: Create portal profile with rich-doc T&C (RICH DOC mode + display toggle)
+    command: |
+      npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"name":"mcp-test-portal-tc-{{TEST_RUN_ID}}","content":{},"termsConditionConfig":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"By connecting to this network, you agree to use it lawfully and responsibly. Read our privacy policy for details."}]}]},"termsConditionsDisplay":true,"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - requestId
+      - completed
+    rejectPatterns:
+      - isError
+
+  - name: Capture portal profile ID
+    command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{"searchString":"mcp-test-portal-tc-{{TEST_RUN_ID}}"}'
+    capture:
+      profileId: "content[serviceName=mcp-test-portal-tc-{{TEST_RUN_ID}}].id"
+    expectPatterns:
+      - mcp-test-portal-tc-{{TEST_RUN_ID}}
+    rejectPatterns:
+      - isError
+
+  - name: GET portal profile - verify rich-doc T&C round-trip
+    command: npx tsx cicd/tests/src/mcp-client.ts get_portal_service_profile '{"profileId":"{{profileId}}"}'
+    expectPatterns:
+      - termsConditionConfig
+      - doc
+      - paragraph
+      - By connecting to this network
+      - termsConditions
+      - "true"
+    rejectPatterns:
+      - isError
+
+  - name: Update portal profile to LINK TO URL mode
+    command: npx tsx cicd/tests/src/mcp-client.ts update_portal_service_profile '{"profileId":"{{profileId}}","name":"mcp-test-portal-tc-{{TEST_RUN_ID}}","content":{},"termsConditionUrl":"https://example.com/terms","termsConditionsDisplay":true,"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - completed
+    rejectPatterns:
+      - isError
+
+  - name: GET portal profile - verify URL mode round-trip
+    command: npx tsx cicd/tests/src/mcp-client.ts get_portal_service_profile '{"profileId":"{{profileId}}"}'
+    expectPatterns:
+      - termsConditionUrl
+      - example.com/terms
+      - termsConditions
+    rejectPatterns:
+      - isError
+
+  - name: Build HYPERLINK Tiptap config via builder
+    command: |
+      npx tsx cicd/tests/src/mcp-client.ts build_terms_condition_config '{"mode":"HYPERLINK","hyperlink":{"segments":[{"text":"Read our "},{"text":"privacy policy","href":"https://example.com/privacy"},{"text":" for details."}]}}'
+    expectPatterns:
+      - paragraph
+      - privacy policy
+      - link
+      - href
+      - https://example.com/privacy
+    rejectPatterns:
+      - isError
+
+  - name: Update portal profile to rich-doc with hyperlink
+    command: |
+      npx tsx cicd/tests/src/mcp-client.ts update_portal_service_profile '{"profileId":"{{profileId}}","name":"mcp-test-portal-tc-{{TEST_RUN_ID}}","content":{},"termsConditionConfig":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Read our "},{"type":"text","text":"privacy policy","marks":[{"type":"link","attrs":{"href":"https://example.com/privacy"}}]},{"type":"text","text":" for details."}]}]},"termsConditionsDisplay":true,"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - completed
+    rejectPatterns:
+      - isError
+
+  - name: GET portal profile - verify hyperlink mark round-trip
+    command: npx tsx cicd/tests/src/mcp-client.ts get_portal_service_profile '{"profileId":"{{profileId}}"}'
+    expectPatterns:
+      - termsConditionConfig
+      - privacy policy
+      - link
+      - href
+      - example.com/privacy
+    rejectPatterns:
+      - isError
+
+  - name: Delete portal service profile
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_portal_service_profile '{"profileId":"{{profileId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - completed
+    rejectPatterns:
+      - isError
+
+criteria: |
+  Verifies the new T&C parameters on portal service profile tools and the
+  build_terms_condition_config pure builder, covering all three T&C modes:
+
+  1. build_terms_condition_config(mode=PLAIN) returns a valid Tiptap doc
+  2. create_portal_service_profile accepts termsConditionConfig + termsConditionsDisplay
+     and the rich-doc round-trips through get_portal_service_profile
+     (server preserves doc/paragraph/text structure and componentDisplay.termsConditions=true)
+  3. update_portal_service_profile switches mode to LINK TO URL via termsConditionUrl;
+     GET confirms the URL round-trips
+  4. build_terms_condition_config(mode=HYPERLINK) emits the link mark with attrs.href
+  5. update_portal_service_profile accepts a hyperlink-bearing rich-doc;
+     GET confirms the link mark + href round-trip
+  6. Cleanup: delete profile
+
+  Mutual exclusion between modes is server-enforced (GUEST-422xxx codes); this
+  test does not exercise rejection paths since the goal is the happy-path round
+  trip for each mode. Add a separate TC-INT-* if rejection coverage is needed.

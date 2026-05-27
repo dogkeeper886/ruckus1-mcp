@@ -83,6 +83,42 @@ import { tokenService } from "./services/tokenService";
 
 dotenv.config();
 
+function mergeTermsConditionFields(
+  content: any,
+  fields: {
+    termsConditionConfig?: any | undefined;
+    termsConditionUrl?: string | undefined;
+    termsConditionsDisplay?: boolean | undefined;
+  },
+): any {
+  const base: any = {};
+  if (fields.termsConditionConfig !== undefined)
+    base.termsConditionConfig = fields.termsConditionConfig;
+  if (fields.termsConditionUrl !== undefined)
+    base.termsConditionUrl = fields.termsConditionUrl;
+
+  const callerComponentDisplay =
+    content && typeof content === "object" ? content.componentDisplay : undefined;
+  const mergedComponentDisplay =
+    fields.termsConditionsDisplay !== undefined ||
+    callerComponentDisplay !== undefined
+      ? {
+          ...(fields.termsConditionsDisplay !== undefined
+            ? { termsConditions: fields.termsConditionsDisplay }
+            : {}),
+          ...(callerComponentDisplay || {}),
+        }
+      : undefined;
+
+  return {
+    ...base,
+    ...(content || {}),
+    ...(mergedComponentDisplay !== undefined
+      ? { componentDisplay: mergedComponentDisplay }
+      : {}),
+  };
+}
+
 const server = new Server(
   {
     name: "ruckus1-mcp",
@@ -1361,7 +1397,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_portal_service_profile",
         description:
-          "Create a new portal service profile in RUCKUS One with automatic status checking for async operations",
+          "Create a new portal service profile in RUCKUS One with automatic status checking for async operations. REQUIRED: name + content (free-form portal content configuration object with styling/text/display settings). FOR TERMS & CONDITIONS: pass exactly one of three modes — (1) LEGACY PLAIN TEXT: set content.termsCondition to the plain string; (2) RICH DOC: pass termsConditionConfig as a Tiptap doc JSON (use build_terms_condition_config to construct it correctly with paragraph / hardBreak / link-mark support); (3) LINK TO URL: pass termsConditionUrl as a single http/https URL. The server enforces mutual exclusion via GUEST-422xxx codes. Also pass termsConditionsDisplay=true to show the T&C checkbox in the captive portal (the componentDisplay.termsConditions toggle). Top-level params merge into content first; caller's content fields win on collision.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1372,7 +1408,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             content: {
               type: "object",
               description:
-                "Portal content configuration object with styling, text, and display settings",
+                "Portal content configuration object with styling, text, and display settings. Free-form pass-through. Fields set here override the merged top-level params (termsConditionConfig, termsConditionUrl, termsConditionsDisplay).",
+            },
+            termsConditionConfig: {
+              type: "object",
+              description:
+                "Tiptap rich-doc JSON for Terms & Conditions (RICH DOC mode). Shape: {type:'doc', content:[{type:'paragraph', content:[{type:'text', text:'...'}, ...]}, ...]}. Allowed node types: doc, paragraph, text, hardBreak. Allowed marks on text: link (with attrs.href, http/https only). Server validates depth ≤10, ≤700 paragraphs, ≤100 text nodes/paragraph, ≤60k chars total. Use build_terms_condition_config to construct this object. Mutually exclusive with termsCondition (legacy) and termsConditionUrl.",
+            },
+            termsConditionUrl: {
+              type: "string",
+              description:
+                "Single http/https URL for the LINK TO URL Terms & Conditions mode. Must include a host. Mutually exclusive with termsCondition (legacy) and termsConditionConfig.",
+            },
+            termsConditionsDisplay: {
+              type: "boolean",
+              description:
+                "Whether the T&C checkbox component renders in the captive portal (sets content.componentDisplay.termsConditions). Default behavior follows the backend (typically false when omitted on create).",
             },
             maxRetries: {
               type: "number",
@@ -1389,13 +1440,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "update_portal_service_profile",
         description:
-          "Update a portal service profile in RUCKUS One with automatic status checking for async operations",
+          "Update a portal service profile in RUCKUS One with automatic status checking for async operations. REQUIRED: profileId (use query_portal_service_profiles to get ID) + name + content (full portal content configuration; PUT replaces the whole content blob). FOR TERMS & CONDITIONS: pass exactly one of three modes — (1) LEGACY PLAIN TEXT: set content.termsCondition; (2) RICH DOC: pass termsConditionConfig as a Tiptap doc JSON (use build_terms_condition_config to construct); (3) LINK TO URL: pass termsConditionUrl. The server enforces mutual exclusion via GUEST-422xxx codes. Also pass termsConditionsDisplay to toggle the T&C checkbox visibility (content.componentDisplay.termsConditions). Top-level params merge into content first; caller's content fields win on collision.",
         inputSchema: {
           type: "object",
           properties: {
             profileId: {
               type: "string",
-              description: "ID of the portal service profile to update",
+              description:
+                "ID of the portal service profile to update (use query_portal_service_profiles to find profile ID)",
             },
             name: {
               type: "string",
@@ -1404,7 +1456,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             content: {
               type: "object",
               description:
-                "Portal content configuration object with styling, text, and display settings",
+                "Portal content configuration object with styling, text, and display settings. Free-form pass-through. Fields set here override the merged top-level params (termsConditionConfig, termsConditionUrl, termsConditionsDisplay).",
+            },
+            termsConditionConfig: {
+              type: "object",
+              description:
+                "Tiptap rich-doc JSON for Terms & Conditions (RICH DOC mode). Use build_terms_condition_config to construct. Mutually exclusive with termsCondition (legacy) and termsConditionUrl.",
+            },
+            termsConditionUrl: {
+              type: "string",
+              description:
+                "Single http/https URL for the LINK TO URL Terms & Conditions mode. Mutually exclusive with termsCondition (legacy) and termsConditionConfig.",
+            },
+            termsConditionsDisplay: {
+              type: "boolean",
+              description:
+                "Whether the T&C checkbox component renders in the captive portal (sets content.componentDisplay.termsConditions).",
             },
             maxRetries: {
               type: "number",
@@ -2895,6 +2962,75 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 },
               },
               required: ["repeatRule", "startDate"],
+            },
+          },
+          required: ["mode"],
+        },
+      },
+      {
+        name: "build_terms_condition_config",
+        description:
+          "Build a correctly-shaped Tiptap doc JSON for the Terms & Conditions RICH DOC mode on a portal service profile. PURE BUILDER — does NOT call the RUCKUS API. Pass the returned JSON as the 'termsConditionConfig' field of create_portal_service_profile or update_portal_service_profile. REQUIRED: mode. MODE REFERENCE: PLAIN (one paragraph, one text run). HYPERLINK (one paragraph with multiple text segments; segments that include href become Tiptap link marks). MULTILINE (one paragraph with text lines joined by hardBreak nodes). Server validates depth ≤10, ≤700 paragraphs, ≤100 text nodes/paragraph, ≤60k chars; only http/https hrefs are accepted.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            mode: {
+              type: "string",
+              enum: ["PLAIN", "HYPERLINK", "MULTILINE"],
+              description:
+                "Which Tiptap doc shape to build. Only the matching nested object (plain / hyperlink / multiline) is read; others are ignored.",
+            },
+            plain: {
+              type: "object",
+              description:
+                "Used only when mode=PLAIN. REQUIRED inside: text.",
+              properties: {
+                text: {
+                  type: "string",
+                  description: "Single text run rendered as one paragraph.",
+                },
+              },
+              required: ["text"],
+            },
+            hyperlink: {
+              type: "object",
+              description:
+                "Used only when mode=HYPERLINK. REQUIRED inside: segments (1+ entries). Each segment becomes a text node; if href is set, a Tiptap link mark with attrs.href is attached. Use multiple segments to interleave plain text with hyperlinked text in one paragraph.",
+              properties: {
+                segments: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      text: {
+                        type: "string",
+                        description: "Visible text for this segment.",
+                      },
+                      href: {
+                        type: "string",
+                        description:
+                          "Optional http/https URL. When set, this segment becomes a hyperlink (Tiptap link mark).",
+                      },
+                    },
+                    required: ["text"],
+                  },
+                  description: "Ordered segments to render in one paragraph.",
+                },
+              },
+              required: ["segments"],
+            },
+            multiline: {
+              type: "object",
+              description:
+                "Used only when mode=MULTILINE. REQUIRED inside: lines (1+ entries). Lines are placed in a single paragraph separated by hardBreak nodes (visual line breaks, not new paragraphs).",
+              properties: {
+                lines: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Text lines joined by hardBreak nodes.",
+                },
+              },
+              required: ["lines"],
             },
           },
           required: ["mode"],
@@ -5351,22 +5487,34 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const {
           name,
           content,
+          termsConditionConfig,
+          termsConditionUrl,
+          termsConditionsDisplay,
           maxRetries = 20,
           pollIntervalMs = 5000,
         } = request.params.arguments as {
           name: string;
           content: any;
+          termsConditionConfig?: any;
+          termsConditionUrl?: string;
+          termsConditionsDisplay?: boolean;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
 
         const token = await tokenService.getValidToken();
 
+        const mergedContent = mergeTermsConditionFields(content, {
+          termsConditionConfig,
+          termsConditionUrl,
+          termsConditionsDisplay,
+        });
+
         const result = await createPortalServiceProfileWithRetry(
           token,
           {
             name,
-            content,
+            content: mergedContent,
           },
           process.env.RUCKUS_REGION,
           maxRetries,
@@ -5406,24 +5554,36 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           profileId,
           name,
           content,
+          termsConditionConfig,
+          termsConditionUrl,
+          termsConditionsDisplay,
           maxRetries = 20,
           pollIntervalMs = 5000,
         } = request.params.arguments as {
           profileId: string;
           name: string;
           content: any;
+          termsConditionConfig?: any;
+          termsConditionUrl?: string;
+          termsConditionsDisplay?: boolean;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
 
         const token = await tokenService.getValidToken();
 
+        const mergedContent = mergeTermsConditionFields(content, {
+          termsConditionConfig,
+          termsConditionUrl,
+          termsConditionsDisplay,
+        });
+
         const result = await updatePortalServiceProfileWithRetry(
           token,
           profileId,
           {
             name,
-            content,
+            content: mergedContent,
           },
           process.env.RUCKUS_REGION,
           maxRetries,
@@ -7683,6 +7843,115 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: `Error building scheduler config: ${error.message || error}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    case "build_terms_condition_config": {
+      try {
+        const { mode, plain, hyperlink, multiline } = request.params
+          .arguments as {
+          mode: "PLAIN" | "HYPERLINK" | "MULTILINE";
+          plain?: { text?: string };
+          hyperlink?: { segments?: Array<{ text?: string; href?: string }> };
+          multiline?: { lines?: string[] };
+        };
+
+        let paragraphContent: any[];
+
+        switch (mode) {
+          case "PLAIN": {
+            if (!plain || typeof plain.text !== "string") {
+              throw new Error("mode=PLAIN requires plain.text (string)");
+            }
+            paragraphContent = [{ type: "text", text: plain.text }];
+            break;
+          }
+          case "HYPERLINK": {
+            if (
+              !hyperlink ||
+              !Array.isArray(hyperlink.segments) ||
+              hyperlink.segments.length === 0
+            ) {
+              throw new Error(
+                "mode=HYPERLINK requires hyperlink.segments (non-empty array)",
+              );
+            }
+            paragraphContent = hyperlink.segments.map((segment, idx) => {
+              if (!segment || typeof segment.text !== "string") {
+                throw new Error(
+                  `hyperlink.segments[${idx}].text is required (string)`,
+                );
+              }
+              const node: any = { type: "text", text: segment.text };
+              if (segment.href !== undefined) {
+                node.marks = [
+                  { type: "link", attrs: { href: segment.href } },
+                ];
+              }
+              return node;
+            });
+            break;
+          }
+          case "MULTILINE": {
+            if (
+              !multiline ||
+              !Array.isArray(multiline.lines) ||
+              multiline.lines.length === 0
+            ) {
+              throw new Error(
+                "mode=MULTILINE requires multiline.lines (non-empty array)",
+              );
+            }
+            paragraphContent = [];
+            multiline.lines.forEach((line, idx) => {
+              if (typeof line !== "string") {
+                throw new Error(
+                  `multiline.lines[${idx}] must be a string`,
+                );
+              }
+              if (idx > 0) {
+                paragraphContent.push({ type: "hardBreak" });
+              }
+              paragraphContent.push({ type: "text", text: line });
+            });
+            break;
+          }
+          default: {
+            const _exhaustive: never = mode;
+            throw new Error(
+              `Unknown mode: ${_exhaustive}. Expected PLAIN, HYPERLINK, or MULTILINE.`,
+            );
+          }
+        }
+
+        const doc = {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: paragraphContent,
+            },
+          ],
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(doc, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error building terms condition config: ${error.message || error}`,
             },
           ],
           isError: true,
