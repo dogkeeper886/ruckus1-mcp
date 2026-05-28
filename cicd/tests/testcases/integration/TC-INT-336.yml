@@ -1,0 +1,29 @@
+id: TC-INT-336
+name: Legacy type=guest is rejected after breaking-change rename
+suite: integration
+tags: [wifi-networks, captive-portal, schema-validation]
+story: STORY-017
+priority: 2
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Attempt create_wifi_network with legacy type=guest
+    command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-legacy-guest-{{TEST_RUN_ID}}","ssid":"MCP-Test-Legacy","type":"guest","wlanSecurity":"None","portalServiceProfileId":"00000000-0000-0000-0000-000000000000"}'
+    expectPatterns:
+      - isError
+    rejectPatterns:
+      - "\"status\": \"completed\""
+
+criteria: |
+  Issue #92 ships a breaking change: type=guest is removed from the
+  create_wifi_network enum and split into explicit values (guestPass,
+  clickThrough, hostApproval, cloudpath, wispr, directory, saml, workflow,
+  selfSignIn). This test pins that breaking change.
+
+  - Calling with type=guest must produce isError (either schema-level enum
+    rejection at the MCP layer or backend rejection from R1; either is fine).
+  - Must NOT succeed silently — that would mean the breaking change wasn't
+    actually applied.
+  - Uses a deliberately-bogus portalServiceProfileId so the test cannot
+    accidentally create a real WLAN even if validation were somehow bypassed.
