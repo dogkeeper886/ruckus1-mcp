@@ -110,34 +110,36 @@ Both names already appear in the codebase (`captiveType` in default query fields
 
 → The fix does **not** touch `create_portal_service_profile` / `update_portal_service_profile`.
 
-## Planned change
+## What shipped (PR #93)
 
-**Two files only.** Two interface options — both expose the choice clearly to the agent.
+**Decision: Option A — split the `type` enum.** Backward-compat Option B (keep `type=guest`, add a `portalType` enum) was considered but rejected because keeping the overloaded `guest` value would leave the agent's decision path ambiguous, defeating the purpose of the fix. Pre-1.0 repo so the breaking rename is acceptable.
 
-### Option A — split the `type` enum (preferred)
+### Files changed
 
-`src/mcpServer.ts:1778` — replace `guest` with `guestPass | clickThrough | hostApproval | adLdap | samlIdp | cloudpath | wispr | workflow`. (Keep `selfSignIn` as-is — it already maps to `nwSubType=guest` + `guestNetworkType=SelfSignIn` internally.)
+- `src/mcpServer.ts` — `type` enum now lists all 9 captive-portal sub-types plus the 4 non-captive ones (`psk`, `enterprise`, `open`, `dpsk`). Tool description has per-type `FOR <TYPE>:` clauses. `guestPortal` and `portalServiceProfileId` parameter descriptions updated.
+- `src/services/ruckusApiService.ts` — Added module-level `PORTAL_TYPE_TO_WIRE` map. Replaced `isGuestOrSelfSignIn` with `isCaptivePortal` (broader semantics now). Added `isSimplePortalType` (everything except `selfSignIn`, which keeps its channel-aware block). Replaced the hardcoded `"GuestPass"` literal with `PORTAL_TYPE_TO_WIRE[networkConfig.type]`.
 
-### Option B — add a `portalType` field alongside `type=guest`
+### Behavior change: `guestPortal` is now merge-then-override, not full-replace
 
-`src/mcpServer.ts:1778` — keep `type=guest`; add `portalType` enum at the top level (`guestPass | clickThrough | ...`) with `guestPass` as default for backward compat.
+Previously: `networkConfig.guestPortal || { defaults }` — if the caller passed a `guestPortal` object, defaults were fully discarded. Easy to lose the discriminator by accident.
 
-### Handler (both options)
+Now: `{ ...defaults, ...(networkConfig.guestPortal || {}) }` — defaults sit underneath, caller's fields win per-key. Companion fields like `hostContacts` for `type=hostApproval` can be passed without dropping the tool-injected `guestNetworkType`. Documented in the `guestPortal` parameter description.
 
-`src/services/ruckusApiService.ts:4393-4408` — replace the hardcoded `"GuestPass"` literal with a switch on the chosen value, falling through to `"GuestPass"` when absent.
+### Tests
 
-### Schema description
+| ID | What it pins |
+|---|---|
+| `TC-INT-334` | Click-Through full lifecycle → asserts `captiveType=ClickThrough`, rejects `GuestPass` to guard against the silent-default bug |
+| `TC-INT-335` | `type=guestPass` regression — same `captiveType=GuestPass` behavior under the new name |
+| `TC-INT-336` | `type=guest` is rejected (proves the breaking change) |
 
-Each value needs a `FOR <TYPE>:` clause in the tool description per `.claude/rules/tool-descriptions.md` — so the agent reads, picks correctly, and never lands on the wrong portal flow.
+All three pass against `dev.ruckus.cloud` (45s, 45s, 3.5s).
 
-## Open questions
+## Follow-ups (separate issues)
 
-- **Option A vs Option B**: A is what issue author leans toward and removes the "guest" overload; B is fully backward-compatible. Pick before implementation.
-- **Per-type extra payload fields**: Cloudpath sets `isCloudpathEnabled: true` (observed `false` in Click-Through and HostApproval traces) — implies a top-level toggle, not just a `guestNetworkType` value. HostApproval requires `guestPortal.hostContacts` (radio: EntireDomain / SpecificEmails + domain/email list). SAML / Directory / WISPr / Workflow likely need server-profile references and additional payload fields, captured only at full-submit time. **Each of those 5 needs a separate trace once external dependencies (Cloudpath account, RADIUS profile, AD server profile, SAML IdP metadata) are available**, to discover the additional required fields. The discriminator string itself is locked in by the DOM-value capture; only the *companion* fields remain unknown for full feature parity.
-
-## Test coverage
-
-3 YAML tests today (one per confirmed type): ClickThrough, GuestPass, SelfSignIn. Add one per type as wire values are confirmed.
+- **Companion fields for 5 portal types** — Cloudpath (`isCloudpathEnabled: true` toggle + enrollment URL + RADIUS server reference), Directory (directory server profile ID), WISPr (3rd-party AAA reference), SAML (IdP metadata), Workflow (unknown extras). Each needs a separate live trace once the external dependency is provisioned on the test tenant. The MCP schema today accepts these types but R1 will 422 the create call until the companion fields are supplied via the `guestPortal` escape hatch.
+- **`hostApproval` `hostContacts` as a top-level param** — works today via the `guestPortal` merge hatch; deserves a dedicated typed parameter once we settle on the shape (radio: EntireDomain / SpecificEmails + domain/email list).
+- **Merge-semantics test** — current tests only exercise top-level params; a small test passing `guestPortal: { maxDevices: 5 }` and asserting both the override AND the tool-injected discriminator survive would close the gap.
 
 ## Refs
 

@@ -1,6 +1,23 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { AuthTokenResponse } from "../types/ruckusApi";
 
+// Captive-portal sub-types — the MCP `type` enum value → the wire
+// `guestNetworkType` string the R1 API expects. All sub-types serialize to
+// nwSubType=guest at the top level; the discriminator lives in
+// guestPortal.guestNetworkType. Single source of truth — keep in sync with
+// the `type` enum in src/mcpServer.ts (create_wifi_network).
+const PORTAL_TYPE_TO_WIRE: Record<string, string> = {
+  guestPass: "GuestPass",
+  clickThrough: "ClickThrough",
+  selfSignIn: "SelfSignIn",
+  hostApproval: "HostApproval",
+  cloudpath: "Cloudpath",
+  wispr: "WISPr",
+  directory: "Directory",
+  saml: "SAML",
+  workflow: "Workflow",
+};
+
 async function makeRuckusApiCall<T = any>(
   config: AxiosRequestConfig,
   operationName: string,
@@ -4206,21 +4223,6 @@ export async function createWifiNetworkWithRetry(
       : "https://api.ruckus.cloud/wifiNetworks";
 
   // Build WLAN configuration payload
-  // Captive-portal sub-types — the MCP enum value → the wire `guestNetworkType`
-  // string the R1 API expects. All sub-types serialize to nwSubType=guest at the
-  // top level; the discriminator lives in guestPortal.guestNetworkType.
-  const PORTAL_TYPE_TO_WIRE: Record<string, string> = {
-    guestPass: "GuestPass",
-    clickThrough: "ClickThrough",
-    selfSignIn: "SelfSignIn",
-    hostApproval: "HostApproval",
-    cloudpath: "Cloudpath",
-    wispr: "WISPr",
-    directory: "Directory",
-    saml: "SAML",
-    workflow: "Workflow",
-  };
-
   const isCaptivePortal = networkConfig.type in PORTAL_TYPE_TO_WIRE;
   const isSelfSignInType = networkConfig.type === "selfSignIn";
   const isSimplePortalType = isCaptivePortal && !isSelfSignInType;
