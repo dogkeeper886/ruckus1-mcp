@@ -1,6 +1,23 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { AuthTokenResponse } from "../types/ruckusApi";
 
+// Captive-portal sub-types — the MCP `type` enum value → the wire
+// `guestNetworkType` string the R1 API expects. All sub-types serialize to
+// nwSubType=guest at the top level; the discriminator lives in
+// guestPortal.guestNetworkType. Single source of truth — keep in sync with
+// the `type` enum in src/mcpServer.ts (create_wifi_network).
+const PORTAL_TYPE_TO_WIRE: Record<string, string> = {
+  guestPass: "GuestPass",
+  clickThrough: "ClickThrough",
+  selfSignIn: "SelfSignIn",
+  hostApproval: "HostApproval",
+  cloudpath: "Cloudpath",
+  wispr: "WISPr",
+  directory: "Directory",
+  saml: "SAML",
+  workflow: "Workflow",
+};
+
 async function makeRuckusApiCall<T = any>(
   config: AxiosRequestConfig,
   operationName: string,
@@ -4119,7 +4136,20 @@ export async function createWifiNetworkWithRetry(
   networkConfig: {
     name: string;
     ssid: string;
-    type: "psk" | "enterprise" | "open" | "guest" | "selfSignIn" | "dpsk";
+    type:
+      | "psk"
+      | "enterprise"
+      | "open"
+      | "dpsk"
+      | "guestPass"
+      | "clickThrough"
+      | "selfSignIn"
+      | "hostApproval"
+      | "cloudpath"
+      | "wispr"
+      | "directory"
+      | "saml"
+      | "workflow";
     passphrase?: string;
     wlanSecurity:
       | "WPA2Personal"
@@ -4193,9 +4223,9 @@ export async function createWifiNetworkWithRetry(
       : "https://api.ruckus.cloud/wifiNetworks";
 
   // Build WLAN configuration payload
-  const isGuestType = networkConfig.type === "guest";
+  const isCaptivePortal = networkConfig.type in PORTAL_TYPE_TO_WIRE;
   const isSelfSignInType = networkConfig.type === "selfSignIn";
-  const isGuestOrSelfSignIn = isGuestType || isSelfSignInType;
+  const isSimplePortalType = isCaptivePortal && !isSelfSignInType;
   const isEnterpriseType = networkConfig.type === "enterprise";
   const isOweTransition =
     networkConfig.type === "open" &&
@@ -4205,10 +4235,10 @@ export async function createWifiNetworkWithRetry(
     networkConfig.type === "dpsk" &&
     networkConfig.wlanSecurity === "WPA23Mixed";
 
-  // Map types for RUCKUS API: 'enterprise' -> 'aaa', 'selfSignIn' -> 'guest'
+  // Map types for RUCKUS API: 'enterprise' -> 'aaa', any captive-portal -> 'guest'
   const apiType = isEnterpriseType
     ? "aaa"
-    : isSelfSignInType
+    : isCaptivePortal
       ? "guest"
       : networkConfig.type;
 
@@ -4244,12 +4274,12 @@ export async function createWifiNetworkWithRetry(
   };
 
   // Add passphrase for PSK networks
-  if (networkConfig.passphrase && !isGuestOrSelfSignIn) {
+  if (networkConfig.passphrase && !isCaptivePortal) {
     wlanConfig.passphrase = networkConfig.passphrase;
   }
 
   // Guest pass and Self Sign-In specific WLAN settings
-  if (isGuestOrSelfSignIn) {
+  if (isCaptivePortal) {
     wlanConfig.bypassCPUsingMacAddressAuthentication = true;
     wlanConfig.bypassCNA = false;
     wlanConfig.macAddressAuthentication = false;
@@ -4271,7 +4301,7 @@ export async function createWifiNetworkWithRetry(
     clientIsolation:
       networkConfig.clientIsolation !== undefined
         ? networkConfig.clientIsolation
-        : isGuestOrSelfSignIn || isOweTransition
+        : isCaptivePortal || isOweTransition
           ? true
           : false,
     clientIsolationOptions: {
@@ -4389,10 +4419,15 @@ export async function createWifiNetworkWithRetry(
   wlanConfig.advancedCustomization = wlanConfig.advancedCustomization;
   basePayload.wlan = wlanConfig;
 
-  // Add guest portal configuration for guest type (Guest Pass)
-  if (isGuestType) {
-    basePayload.guestPortal = networkConfig.guestPortal || {
-      guestNetworkType: "GuestPass",
+  // Add guest portal configuration for the 8 "simple" captive-portal sub-types
+  // (everything except selfSignIn, which has its own channel-aware block below).
+  // Defaults match the Guest-Pass-style payload the admin GUI submits; caller-
+  // provided guestPortal fields are merged on top so companion fields (e.g.
+  // hostContacts for hostApproval) can be added without losing the
+  // tool-injected discriminator.
+  if (isSimplePortalType) {
+    basePayload.guestPortal = {
+      guestNetworkType: PORTAL_TYPE_TO_WIRE[networkConfig.type],
       enableSelfService: true,
       endOfDayReauthDelay: false,
       lockoutPeriod: 120,
@@ -4402,6 +4437,7 @@ export async function createWifiNetworkWithRetry(
       userSessionGracePeriod: 60,
       userSessionTimeout: 1440,
       walledGardens: [],
+      ...(networkConfig.guestPortal || {}),
     };
     basePayload.redirectCheckbox = false;
     basePayload.enableDhcp = false;
@@ -4524,7 +4560,7 @@ export async function createWifiNetworkWithRetry(
 
   // Step 2: Associate portal service profile for guest pass and self sign-in networks
   let portalRequestId: string | undefined;
-  if (isGuestOrSelfSignIn && networkConfig.portalServiceProfileId) {
+  if (isCaptivePortal && networkConfig.portalServiceProfileId) {
     console.log("[RUCKUS] Associating portal service profile...");
     const portalUrl = `${apiUrl}/${networkId}/portalServiceProfiles/${networkConfig.portalServiceProfileId}`;
 
