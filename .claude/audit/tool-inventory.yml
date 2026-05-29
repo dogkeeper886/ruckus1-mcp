@@ -1,0 +1,1890 @@
+tools:
+  - name: activate_wifi_network_at_venues
+    registered_at: src/mcpServer.ts:2038
+    service_function: activateWifiNetworkAtVenuesWithRetry
+    service_at: src/services/ruckusApiService.ts:4890
+    operation_type: async
+    r1_endpoints:
+      - method: GET
+        path: /wifiNetworks/{networkId}
+        condition: when fullNetworkConfig not provided (calls getWifiNetwork)
+      - method: PUT
+        path: /venues/{venueId}/wifiNetworks/{networkId}
+        condition: when network type is 'aaa' (enterprise), one per venueConfig
+      - method: PUT
+        path: /wifiNetworks/{networkId}
+        condition: when network type is not 'aaa' (PSK/guest flow)
+      - method: PUT
+        path: /wifiNetworks/{networkId}/portalServiceProfiles/{portalServiceProfileId}
+        condition: when isGuestType && portalServiceProfileId provided
+      - method: PUT
+        path: /wifiNetworks/{networkId}/radiusServerProfileSettings
+        condition: when network type is not 'aaa'
+      - method: PUT
+        path: /venues/{venueId}/wifiNetworks/{networkId}
+        condition: when network type is not 'aaa', one per venueConfig
+      - method: PUT
+        path: /venues/{venueId}/wifiNetworks/{networkId}/settings
+        condition: when network type is not 'aaa', one per venueConfig
+    callers:
+      tests:
+        - integration/TC-INT-320.yml
+        - integration/TC-INT-323.yml
+        - integration/TC-INT-324.yml
+        - integration/TC-INT-325.yml
+      code:
+        - activateWifiNetworkAtVenueWithRetry
+    inputs:
+      required: [networkId, venueConfigs]
+      optional_count: 1
+      total_params: 5
+      complexity:
+        nested_object_params: [venueConfigs]
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 3
+
+  - name: add_ap_to_group
+    registered_at: src/mcpServer.ts:351
+    service_function: addApToGroupWithRetry
+    service_at: src/services/ruckusApiService.ts:960
+    operation_type: async
+    r1_endpoints:
+      - method: POST
+        path: /venues/{venueId}/apGroups/{apGroupId}/aps
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [venueId, apGroupId, name, serialNumber]
+      optional_count: 1
+      total_params: 7
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: build_terms_condition_config
+    registered_at: src/mcpServer.ts:2985
+    service_function: null
+    service_at: null
+    operation_type: pure-builder
+    r1_endpoints: []
+    callers:
+      tests:
+        - integration/TC-INT-333.yml
+      code: []
+    inputs:
+      required: [mode]
+      optional_count: 3
+      total_params: 4
+      complexity:
+        nested_object_params: [plain, hyperlink, multiline]
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 3
+
+  - name: build_wifi_scheduler_config
+    registered_at: src/mcpServer.ts:2822
+    service_function: null
+    service_at: null
+    operation_type: pure-builder
+    r1_endpoints: []
+    callers:
+      tests:
+        - integration/TC-INT-325.yml
+      code: []
+    inputs:
+      required: [mode]
+      optional_count: 3
+      total_params: 4
+      complexity:
+        nested_object_params: [legacyCustom, basic, advanced]
+        free_form_object_params: []
+        enums_with_many_values:
+          - {name: "basic.weeklyRepeatDays.items", value_count: 7}
+        max_nesting_depth: 2
+
+  - name: create_custom_role
+    registered_at: src/mcpServer.ts:1651
+    service_function: createCustomRole
+    service_at: src/services/ruckusApiService.ts:3939
+    operation_type: read-only
+    r1_endpoints:
+      - method: POST
+        path: /roleAuthentications/customRoles
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-208.yml
+      code: []
+    inputs:
+      required: [name, features]
+      optional_count: 1
+      total_params: 3
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: create_directory_server_profile
+    registered_at: src/mcpServer.ts:868
+    service_function: createDirectoryServerProfileWithRetry
+    service_at: src/services/ruckusApiService.ts:2128
+    operation_type: async
+    r1_endpoints:
+      - method: POST
+        path: /directoryServerProfiles
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-207.yml
+      code: []
+    inputs:
+      required: [name, type, tlsEnabled, host, port, domainName, adminDomainName, adminPassword, identityName, identityEmail, identityPhone, keyAttribute, attributeMappings]
+      optional_count: 1
+      total_params: 16
+      complexity:
+        nested_object_params: [attributeMappings]
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 2
+
+  - name: create_dpsk_service
+    registered_at: src/mcpServer.ts:2586
+    service_function: createDpskServiceWithRetry
+    service_at: src/services/ruckusApiService.ts:7107
+    operation_type: async
+    r1_endpoints:
+      - method: POST
+        path: /identityGroups/{identityGroupId}/dpskServices
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-322.yml
+        - integration/TC-INT-323.yml
+      code: []
+    inputs:
+      required: [identityGroupId, name]
+      optional_count: 3
+      total_params: 7
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: create_guest_pass
+    registered_at: src/mcpServer.ts:2314
+    service_function: createGuestPassWithRetry
+    service_at: src/services/ruckusApiService.ts:6523
+    operation_type: async
+    r1_endpoints:
+      - method: POST
+        path: /wifiNetworks/{networkId}/guestUsers
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-318.yml
+      code: []
+    inputs:
+      required: [networkId, name, expiration, maxDevices, deliveryMethods]
+      optional_count: 3
+      total_params: 10
+      complexity:
+        nested_object_params: [expiration]
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 2
+
+  - name: create_identity_group
+    registered_at: src/mcpServer.ts:2497
+    service_function: createIdentityGroupWithRetry
+    service_at: src/services/ruckusApiService.ts:6897
+    operation_type: async
+    r1_endpoints:
+      - method: POST
+        path: /identityGroups
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-321.yml
+        - integration/TC-INT-322.yml
+        - integration/TC-INT-323.yml
+      code: []
+    inputs:
+      required: [name]
+      optional_count: 1
+      total_params: 4
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: create_portal_service_profile
+    registered_at: src/mcpServer.ts:1398
+    service_function: createPortalServiceProfileWithRetry
+    service_at: src/services/ruckusApiService.ts:3126
+    operation_type: async
+    r1_endpoints:
+      - method: POST
+        path: /portalServiceProfiles
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-205.yml
+        - integration/TC-INT-326.yml
+        - integration/TC-INT-329.yml
+        - integration/TC-INT-330.yml
+        - integration/TC-INT-333.yml
+        - integration/TC-INT-334.yml
+        - integration/TC-INT-335.yml
+      code: []
+    inputs:
+      required: [name, content]
+      optional_count: 3
+      total_params: 7
+      complexity:
+        nested_object_params: []
+        free_form_object_params: [content, termsConditionConfig]
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: create_radius_server_profile
+    registered_at: src/mcpServer.ts:1139
+    service_function: createRadiusServerProfileWithRetry
+    service_at: src/services/ruckusApiService.ts:2278
+    operation_type: async
+    r1_endpoints:
+      - method: POST
+        path: /radiusServerProfiles
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-206.yml
+      code: []
+    inputs:
+      required: [name, type, enableSecondaryServer, primary]
+      optional_count: 1
+      total_params: 7
+      complexity:
+        nested_object_params: [primary, secondary]
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 2
+
+  - name: create_ruckus_ap_group
+    registered_at: src/mcpServer.ts:303
+    service_function: createApGroupWithRetry
+    service_at: src/services/ruckusApiService.ts:814
+    operation_type: async
+    r1_endpoints:
+      - method: POST
+        path: /venues/{venueId}/apGroups
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-203.yml
+      code: []
+    inputs:
+      required: [venueId, name]
+      optional_count: 2
+      total_params: 6
+      complexity:
+        nested_object_params: [apSerialNumbers]
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 2
+
+  - name: create_ruckus_venue
+    registered_at: src/mcpServer.ts:171
+    service_function: createVenueWithRetry
+    service_at: src/services/ruckusApiService.ts:523
+    operation_type: async
+    r1_endpoints:
+      - method: POST
+        path: /venues
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-201.yml
+        - integration/TC-INT-203.yml
+        - integration/TC-INT-302.yml
+        - integration/TC-INT-320.yml
+        - integration/TC-INT-323.yml
+        - integration/TC-INT-324.yml
+        - integration/TC-INT-325.yml
+      code: []
+    inputs:
+      required: [name, addressLine, city, country]
+      optional_count: 3
+      total_params: 9
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: create_sms_provider
+    registered_at: src/mcpServer.ts:2751
+    service_function: createSmsProviderWithRetry
+    service_at: src/services/ruckusApiService.ts:7465
+    operation_type: async
+    r1_endpoints:
+      - method: POST
+        path: /notifications/sms
+        always: true
+      - method: POST
+        path: /notifications/sms/providers/twilios
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [accountSid, authToken, fromNumber]
+      optional_count: 5
+      total_params: 10
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: create_wifi_network
+    registered_at: src/mcpServer.ts:1761
+    service_function: createWifiNetworkWithRetry
+    service_at: src/services/ruckusApiService.ts:4134
+    operation_type: async
+    r1_endpoints:
+      - method: POST
+        path: /wifiNetworks
+        always: true
+      - method: PUT
+        path: /wifiNetworks/{networkId}/portalServiceProfiles/{portalServiceProfileId}
+        condition: when isCaptivePortal && portalServiceProfileId provided
+      - method: PUT
+        path: /wifiNetworks/{networkId}/radiusServerProfileSettings
+        always: true
+      - method: PUT
+        path: /wifiNetworks/{networkId}/radiusServerProfiles/{radiusServiceProfileId}
+        condition: when isEnterpriseType && radiusServiceProfileId provided
+      - method: PUT
+        path: /wifiNetworks/{networkId}/radiusServerProfiles/{accountingRadiusServiceProfileId}
+        condition: when isEnterpriseType && accountingRadiusServiceProfileId provided
+      - method: PUT
+        path: /wifiNetworks/{networkId}/dpskServices/{dpskServiceId}
+        condition: when isDsaeType && dpskServiceId provided (type=dpsk + wlanSecurity=WPA23Mixed)
+    callers:
+      tests:
+        - integration/TC-INT-209.yml
+        - integration/TC-INT-316.yml
+        - integration/TC-INT-320.yml
+        - integration/TC-INT-323.yml
+        - integration/TC-INT-324.yml
+        - integration/TC-INT-325.yml
+        - integration/TC-INT-326.yml
+        - integration/TC-INT-329.yml
+        - integration/TC-INT-330.yml
+        - integration/TC-INT-334.yml
+        - integration/TC-INT-335.yml
+        - integration/TC-INT-336.yml
+      code: []
+    inputs:
+      required: [name, ssid, type, wlanSecurity]
+      optional_count: 30
+      total_params: 36
+      complexity:
+        nested_object_params: [smsPasswordDuration, temporaryConnection, radiusOptions]
+        free_form_object_params: [guestPortal]
+        enums_with_many_values:
+          - {name: type, value_count: 13}
+          - {name: wlanSecurity, value_count: 7}
+        max_nesting_depth: 2
+
+  - name: deactivate_wifi_network_at_venues
+    registered_at: src/mcpServer.ts:2210
+    service_function: deactivateWifiNetworkAtVenuesWithRetry
+    service_at: src/services/ruckusApiService.ts:5923
+    operation_type: async
+    r1_endpoints:
+      - method: GET
+        path: /wifiNetworks/{networkId}
+        always: true
+      - method: DELETE
+        path: /venues/{venueId}/wifiNetworks/{networkId}
+        condition: when network type is 'aaa' (enterprise), one per venueId
+      - method: PUT
+        path: /wifiNetworks/{networkId}
+        condition: when network type is not 'aaa' (PSK/guest flow)
+      - method: PUT
+        path: /wifiNetworks/{networkId}/radiusServerProfileSettings
+        condition: when network type is not 'aaa'
+      - method: DELETE
+        path: /venues/{venueId}/wifiNetworks/{networkId}
+        condition: when network type is not 'aaa', one per venueId
+    callers:
+      tests:
+        - integration/TC-INT-320.yml
+        - integration/TC-INT-323.yml
+        - integration/TC-INT-324.yml
+        - integration/TC-INT-325.yml
+      code: []
+    inputs:
+      required: [networkId, venueIds]
+      optional_count: 0
+      total_params: 4
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: delete_custom_role
+    registered_at: src/mcpServer.ts:1677
+    service_function: deleteCustomRoleWithRetry
+    service_at: src/services/ruckusApiService.ts:4025
+    operation_type: async
+    r1_endpoints:
+      - method: DELETE
+        path: /roleAuthentications/customRoles/{roleId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-208.yml
+      code: []
+    inputs:
+      required: [roleId]
+      optional_count: 0
+      total_params: 3
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: delete_directory_server_profile
+    registered_at: src/mcpServer.ts:1081
+    service_function: deleteDirectoryServerProfileWithRetry
+    service_at: src/services/ruckusApiService.ts:2630
+    operation_type: async
+    r1_endpoints:
+      - method: DELETE
+        path: /directoryServerProfiles/{profileId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-207.yml
+      code: []
+    inputs:
+      required: [profileId]
+      optional_count: 0
+      total_params: 3
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: delete_dpsk_service
+    registered_at: src/mcpServer.ts:2658
+    service_function: deleteDpskServiceWithRetry
+    service_at: src/services/ruckusApiService.ts:7229
+    operation_type: async
+    r1_endpoints:
+      - method: DELETE
+        path: /dpskServices/{dpskServiceId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-322.yml
+        - integration/TC-INT-323.yml
+      code: []
+    inputs:
+      required: [dpskServiceId]
+      optional_count: 0
+      total_params: 3
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: delete_guest_pass
+    registered_at: src/mcpServer.ts:2399
+    service_function: deleteGuestPassWithRetry
+    service_at: src/services/ruckusApiService.ts:6679
+    operation_type: async
+    r1_endpoints:
+      - method: DELETE
+        path: /wifiNetworks/{networkId}/guestUsers/{guestPassId}
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [networkId, guestPassId]
+      optional_count: 0
+      total_params: 4
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: delete_identity_group
+    registered_at: src/mcpServer.ts:2560
+    service_function: deleteIdentityGroupWithRetry
+    service_at: src/services/ruckusApiService.ts:7025
+    operation_type: async
+    r1_endpoints:
+      - method: DELETE
+        path: /identityGroups/{identityGroupId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-321.yml
+        - integration/TC-INT-322.yml
+        - integration/TC-INT-323.yml
+      code: []
+    inputs:
+      required: [identityGroupId]
+      optional_count: 0
+      total_params: 3
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: delete_portal_service_profile
+    registered_at: src/mcpServer.ts:1489
+    service_function: deletePortalServiceProfileWithRetry
+    service_at: src/services/ruckusApiService.ts:3371
+    operation_type: async
+    r1_endpoints:
+      - method: DELETE
+        path: /portalServiceProfiles/{profileId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-205.yml
+        - integration/TC-INT-326.yml
+        - integration/TC-INT-329.yml
+        - integration/TC-INT-330.yml
+        - integration/TC-INT-333.yml
+        - integration/TC-INT-334.yml
+        - integration/TC-INT-335.yml
+      code: []
+    inputs:
+      required: [profileId]
+      optional_count: 0
+      total_params: 3
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: delete_radius_server_profile
+    registered_at: src/mcpServer.ts:1221
+    service_function: deleteRadiusServerProfileWithRetry
+    service_at: src/services/ruckusApiService.ts:2744
+    operation_type: async
+    r1_endpoints:
+      - method: DELETE
+        path: /radiusServerProfiles/{profileId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-206.yml
+      code: []
+    inputs:
+      required: [profileId]
+      optional_count: 0
+      total_params: 3
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: delete_ruckus_ap_group
+    registered_at: src/mcpServer.ts:446
+    service_function: deleteApGroupWithRetry
+    service_at: src/services/ruckusApiService.ts:1408
+    operation_type: async
+    r1_endpoints:
+      - method: DELETE
+        path: /venues/{venueId}/apGroups/{apGroupId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-203.yml
+      code: []
+    inputs:
+      required: [venueId, apGroupId]
+      optional_count: 0
+      total_params: 4
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: delete_ruckus_venue
+    registered_at: src/mcpServer.ts:221
+    service_function: deleteVenueWithRetry
+    service_at: src/services/ruckusApiService.ts:395
+    operation_type: async
+    r1_endpoints:
+      - method: DELETE
+        path: /venues/{venueId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-201.yml
+        - integration/TC-INT-203.yml
+        - integration/TC-INT-303.yml
+        - integration/TC-INT-320.yml
+        - integration/TC-INT-323.yml
+        - integration/TC-INT-324.yml
+        - integration/TC-INT-325.yml
+      code: []
+    inputs:
+      required: [venueId]
+      optional_count: 0
+      total_params: 3
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: delete_sms_provider
+    registered_at: src/mcpServer.ts:2812
+    service_function: deleteSmsProvider
+    service_at: src/services/ruckusApiService.ts:7639
+    operation_type: read-only
+    r1_endpoints:
+      - method: DELETE
+        path: /notifications/sms/providers/twilios
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: []
+      optional_count: 0
+      total_params: 0
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: delete_wifi_network
+    registered_at: src/mcpServer.ts:2241
+    service_function: deleteWifiNetworkWithRetry
+    service_at: src/services/ruckusApiService.ts:6323
+    operation_type: async
+    r1_endpoints:
+      - method: DELETE
+        path: /wifiNetworks/{networkId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-209.yml
+        - integration/TC-INT-320.yml
+        - integration/TC-INT-323.yml
+        - integration/TC-INT-324.yml
+        - integration/TC-INT-325.yml
+        - integration/TC-INT-326.yml
+        - integration/TC-INT-330.yml
+        - integration/TC-INT-334.yml
+        - integration/TC-INT-335.yml
+      code: []
+    inputs:
+      required: [networkId]
+      optional_count: 0
+      total_params: 3
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_ap_client_admission_control_settings
+    registered_at: src/mcpServer.ts:684
+    service_function: getApClientAdmissionControlSettings
+    service_at: src/services/ruckusApiService.ts:349
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /venues/{venueId}/aps/{apSerialNumber}/clientAdmissionControlSettings
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [venueId, apSerialNumber]
+      optional_count: 0
+      total_params: 2
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_ap_group_antenna_type_settings
+    registered_at: src/mcpServer.ts:579
+    service_function: getApGroupAntennaTypeSettings
+    service_at: src/services/ruckusApiService.ts:190
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /venues/{venueId}/apGroups/{apGroupId}/apModelAntennaTypeSettings
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [venueId, apGroupId]
+      optional_count: 0
+      total_params: 2
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_ap_group_ap_model_band_mode_settings
+    registered_at: src/mcpServer.ts:628
+    service_function: getApGroupApModelBandModeSettings
+    service_at: src/services/ruckusApiService.ts:257
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /venues/{venueId}/apGroups/{apGroupId}/apModelBandModeSettings
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [venueId, apGroupId]
+      optional_count: 0
+      total_params: 2
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_ap_group_client_admission_control_settings
+    registered_at: src/mcpServer.ts:703
+    service_function: getApGroupClientAdmissionControlSettings
+    service_at: src/services/ruckusApiService.ts:372
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /venues/{venueId}/apGroups/{apGroupId}/apClientAdmissionControlSettings
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [venueId, apGroupId]
+      optional_count: 0
+      total_params: 2
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_ap_group_external_antenna_settings
+    registered_at: src/mcpServer.ts:559
+    service_function: getApGroupExternalAntennaSettings
+    service_at: src/services/ruckusApiService.ts:167
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /venues/{venueId}/apGroups/{apGroupId}/apModelExternalAntennaSettings
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [venueId, apGroupId]
+      optional_count: 0
+      total_params: 2
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_ap_group_radio_settings
+    registered_at: src/mcpServer.ts:648
+    service_function: getApGroupRadioSettings
+    service_at: src/services/ruckusApiService.ts:280
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /venues/{venueId}/apGroups/{apGroupId}/radioSettings
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [venueId, apGroupId]
+      optional_count: 0
+      total_params: 2
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_ap_password
+    registered_at: src/mcpServer.ts:2476
+    service_function: getApPassword
+    service_at: src/services/ruckusApiService.ts:326
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /venues/{venueId}/aps/{apSerial}/passwords
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-319.yml
+      code: []
+    inputs:
+      required: [venueId, apSerial]
+      optional_count: 0
+      total_params: 2
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_ap_radio_settings
+    registered_at: src/mcpServer.ts:666
+    service_function: getApRadioSettings
+    service_at: src/services/ruckusApiService.ts:303
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /venues/{venueId}/aps/{apSerialNumber}/radioSettings
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [venueId, apSerialNumber]
+      optional_count: 0
+      total_params: 2
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_directory_server_profile
+    registered_at: src/mcpServer.ts:853
+    service_function: getDirectoryServerProfile
+    service_at: src/services/ruckusApiService.ts:1989
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /directoryServerProfiles/{profileId}
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [profileId]
+      optional_count: 0
+      total_params: 1
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_portal_service_profile
+    registered_at: src/mcpServer.ts:1383
+    service_function: getPortalServiceProfile
+    service_at: src/services/ruckusApiService.ts:3101
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /portalServiceProfiles/{profileId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-333.yml
+      code: []
+    inputs:
+      required: [profileId]
+      optional_count: 0
+      total_params: 1
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_radius_server_profile
+    registered_at: src/mcpServer.ts:1123
+    service_function: getRadiusServerProfile
+    service_at: src/services/ruckusApiService.ts:2046
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /radiusServerProfiles/{profileId}
+        always: true
+      - method: POST
+        path: /radiusServerProfiles/query
+        condition: when primary.hostname and primary.ip both missing (fallback to extract from query API); may repeat for secondary
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [profileId]
+      optional_count: 0
+      total_params: 1
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_ruckus_activity_details
+    registered_at: src/mcpServer.ts:156
+    service_function: getRuckusActivityDetails
+    service_at: src/services/ruckusApiService.ts:101
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /activities/{activityId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-002.yml
+        - integration/TC-INT-301.yml
+      code:
+        - activateWifiNetworkAtVenuesWithRetry
+        - addApToGroupWithRetry
+        - createApGroupWithRetry
+        - createCustomRole
+        - createDirectoryServerProfileWithRetry
+        - createDpskServiceWithRetry
+        - createGuestPassWithRetry
+        - createIdentityGroupWithRetry
+        - createPortalServiceProfileWithRetry
+        - createRadiusServerProfileWithRetry
+        - createSmsProviderWithRetry
+        - createVenueWithRetry
+        - createWifiNetworkWithRetry
+        - deactivateWifiNetworkAtVenuesWithRetry
+        - deleteApGroupWithRetry
+        - deleteCustomRoleWithRetry
+        - deleteDirectoryServerProfileWithRetry
+        - deleteDpskServiceWithRetry
+        - deleteGuestPassWithRetry
+        - deleteIdentityGroupWithRetry
+        - deletePortalServiceProfileWithRetry
+        - deleteRadiusServerProfileWithRetry
+        - deleteVenueWithRetry
+        - deleteWifiNetworkWithRetry
+        - moveApWithRetry
+        - removeApWithRetry
+        - updateCustomRoleWithRetry
+        - updateDirectoryServerProfileWithRetry
+        - updatePortalServiceProfileWithRetry
+        - updatePrivilegeGroupWithRetry
+        - updateRadiusServerProfileWithRetry
+        - updateVenueWifiNetworkSettingsWithRetry
+        - updateVenueWithRetry
+        - updateWifiNetworkPortalServiceProfileWithRetry
+        - updateWifiNetworkRadiusServerProfileSettingsWithRetry
+        - updateWifiNetworkWithRetry
+        - updateApGroupWithRetry
+    inputs:
+      required: [activityId]
+      optional_count: 0
+      total_params: 1
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_ruckus_ap_groups
+    registered_at: src/mcpServer.ts:417
+    service_function: queryApGroups
+    service_at: src/services/ruckusApiService.ts:1291
+    operation_type: read-only
+    r1_endpoints:
+      - method: POST
+        path: /venues/apGroups/query
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-006.yml
+        - integration/TC-INT-103.yml
+        - integration/TC-INT-203.yml
+      code: []
+    inputs:
+      required: []
+      optional_count: 4
+      total_params: 4
+      complexity:
+        nested_object_params: []
+        free_form_object_params: [filters]
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: get_ruckus_aps
+    registered_at: src/mcpServer.ts:723
+    service_function: queryAPs
+    service_at: src/services/ruckusApiService.ts:1331
+    operation_type: read-only
+    r1_endpoints:
+      - method: POST
+        path: /venues/aps/query
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-007.yml
+        - integration/TC-INT-104.yml
+        - integration/TC-INT-319.yml
+      code:
+        - getApDetailsBySerial
+        - getApGroupDetails
+    inputs:
+      required: []
+      optional_count: 7
+      total_params: 7
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: get_ruckus_auth_token
+    registered_at: src/mcpServer.ts:138
+    service_function: getRuckusJwtToken
+    service_at: src/services/ruckusApiService.ts:76
+    operation_type: read-only
+    r1_endpoints:
+      - method: POST
+        path: /oauth2/token/{tenantId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-001.yml
+      code: []
+    inputs:
+      required: []
+      optional_count: 0
+      total_params: 0
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_ruckus_roles
+    registered_at: src/mcpServer.ts:1522
+    service_function: queryCustomRoles
+    service_at: src/services/ruckusApiService.ts:3747
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /roleAuthentications/customRoles
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-012.yml
+        - integration/TC-INT-208.yml
+      code: []
+    inputs:
+      required: []
+      optional_count: 0
+      total_params: 0
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_ruckus_user_groups
+    registered_at: src/mcpServer.ts:1512
+    service_function: queryPrivilegeGroups
+    service_at: src/services/ruckusApiService.ts:3484
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /roleAuthentications/privilegeGroups
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-011.yml
+      code: []
+    inputs:
+      required: []
+      optional_count: 0
+      total_params: 0
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_ruckus_venues
+    registered_at: src/mcpServer.ts:147
+    service_function: null
+    service_at: null
+    operation_type: read-only
+    r1_endpoints:
+      - method: POST
+        path: /venues/query
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-003.yml
+        - integration/TC-INT-004.yml
+        - integration/TC-INT-005.yml
+        - integration/TC-INT-102.yml
+        - integration/TC-INT-201.yml
+        - integration/TC-INT-203.yml
+        - integration/TC-INT-320.yml
+        - integration/TC-INT-323.yml
+        - integration/TC-INT-324.yml
+        - integration/TC-INT-325.yml
+      code: []
+    inputs:
+      required: []
+      optional_count: 0
+      total_params: 0
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_sms_provider
+    registered_at: src/mcpServer.ts:2741
+    service_function: getSmsProvider
+    service_at: src/services/ruckusApiService.ts:7428
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /notifications/sms
+        always: true
+      - method: GET
+        path: /notifications/sms/providers/twilios
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: []
+      optional_count: 0
+      total_params: 0
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_venue_antenna_type_settings
+    registered_at: src/mcpServer.ts:545
+    service_function: getVenueAntennaTypeSettings
+    service_at: src/services/ruckusApiService.ts:145
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /venues/{venueId}/apModelAntennaTypeSettings
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [venueId]
+      optional_count: 0
+      total_params: 1
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_venue_ap_model_band_mode_settings
+    registered_at: src/mcpServer.ts:599
+    service_function: getVenueApModelBandModeSettings
+    service_at: src/services/ruckusApiService.ts:213
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /venues/{venueId}/apModelBandModeSettings
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-005.yml
+      code: []
+    inputs:
+      required: [venueId]
+      optional_count: 0
+      total_params: 1
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_venue_external_antenna_settings
+    registered_at: src/mcpServer.ts:530
+    service_function: getVenueExternalAntennaSettings
+    service_at: src/services/ruckusApiService.ts:123
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /venues/{venueId}/apModelExternalAntennaSettings
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [venueId]
+      optional_count: 0
+      total_params: 1
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_venue_radio_settings
+    registered_at: src/mcpServer.ts:614
+    service_function: getVenueRadioSettings
+    service_at: src/services/ruckusApiService.ts:235
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /venues/{venueId}/apRadioSettings
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-004.yml
+      code: []
+    inputs:
+      required: [venueId]
+      optional_count: 0
+      total_params: 1
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_venue_wifi_network_settings
+    registered_at: src/mcpServer.ts:2684
+    service_function: getVenueWifiNetworkSettings
+    service_at: src/services/ruckusApiService.ts:7311
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /venues/{venueId}/wifiNetworks/{wifiNetworkId}/settings
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-324.yml
+        - integration/TC-INT-325.yml
+      code: []
+    inputs:
+      required: [venueId, wifiNetworkId]
+      optional_count: 0
+      total_params: 2
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: get_wifi_network
+    registered_at: src/mcpServer.ts:1746
+    service_function: getWifiNetwork
+    service_at: src/services/ruckusApiService.ts:5536
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /wifiNetworks/{networkId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-326.yml
+        - integration/TC-INT-330.yml
+      code:
+        - activateWifiNetworkAtVenuesWithRetry
+        - deactivateWifiNetworkAtVenuesWithRetry
+    inputs:
+      required: [networkId]
+      optional_count: 0
+      total_params: 1
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: query_clients
+    registered_at: src/mcpServer.ts:2428
+    service_function: queryClients
+    service_at: src/services/ruckusApiService.ts:6813
+    operation_type: read-only
+    r1_endpoints:
+      - method: POST
+        path: /venues/aps/clients/query
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-017.yml
+        - integration/TC-INT-112.yml
+      code: []
+    inputs:
+      required: []
+      optional_count: 8
+      total_params: 8
+      complexity:
+        nested_object_params: []
+        free_form_object_params: [filters]
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: query_directory_server_profiles
+    registered_at: src/mcpServer.ts:807
+    service_function: queryDirectoryServerProfiles
+    service_at: src/services/ruckusApiService.ts:1935
+    operation_type: read-only
+    r1_endpoints:
+      - method: POST
+        path: /directoryServerProfiles/query
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-008.yml
+        - integration/TC-INT-106.yml
+        - integration/TC-INT-207.yml
+      code: []
+    inputs:
+      required: []
+      optional_count: 8
+      total_params: 8
+      complexity:
+        nested_object_params: []
+        free_form_object_params: [filters]
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: query_dpsk_services
+    registered_at: src/mcpServer.ts:2631
+    service_function: queryDpskServices
+    service_at: src/services/ruckusApiService.ts:7201
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /dpskServices?size={pageSize}&page={page}&sort={sortField},{sortOrder}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-322.yml
+        - integration/TC-INT-323.yml
+      code: []
+    inputs:
+      required: []
+      optional_count: 4
+      total_params: 4
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: query_guest_passes
+    registered_at: src/mcpServer.ts:2266
+    service_function: queryGuestPasses
+    service_at: src/services/ruckusApiService.ts:6454
+    operation_type: read-only
+    r1_endpoints:
+      - method: POST
+        path: /guestUsers/query
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-016.yml
+        - integration/TC-INT-111.yml
+      code: []
+    inputs:
+      required: []
+      optional_count: 8
+      total_params: 8
+      complexity:
+        nested_object_params: []
+        free_form_object_params: [filters]
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: query_identity_groups
+    registered_at: src/mcpServer.ts:2527
+    service_function: queryIdentityGroups
+    service_at: src/services/ruckusApiService.ts:6984
+    operation_type: read-only
+    r1_endpoints:
+      - method: POST
+        path: /identityGroups/query?size={pageSize}&page={page}&sort={sortField},{sortOrder}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-321.yml
+        - integration/TC-INT-322.yml
+        - integration/TC-INT-323.yml
+      code: []
+    inputs:
+      required: []
+      optional_count: 5
+      total_params: 5
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: query_portal_service_profiles
+    registered_at: src/mcpServer.ts:1337
+    service_function: queryPortalServiceProfiles
+    service_at: src/services/ruckusApiService.ts:3059
+    operation_type: read-only
+    r1_endpoints:
+      - method: POST
+        path: /portalServiceProfiles/query
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-010.yml
+        - integration/TC-INT-205.yml
+        - integration/TC-INT-326.yml
+        - integration/TC-INT-329.yml
+        - integration/TC-INT-330.yml
+        - integration/TC-INT-333.yml
+        - integration/TC-INT-334.yml
+        - integration/TC-INT-335.yml
+      code: []
+    inputs:
+      required: []
+      optional_count: 8
+      total_params: 8
+      complexity:
+        nested_object_params: []
+        free_form_object_params: [filters]
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: query_radius_server_profiles
+    registered_at: src/mcpServer.ts:1104
+    service_function: queryRadiusServerProfiles
+    service_at: src/services/ruckusApiService.ts:2014
+    operation_type: read-only
+    r1_endpoints:
+      - method: POST
+        path: /radiusServerProfiles/query
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-009.yml
+        - integration/TC-INT-107.yml
+        - integration/TC-INT-206.yml
+      code:
+        - getRadiusServerProfile
+    inputs:
+      required: []
+      optional_count: 2
+      total_params: 2
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: query_role_features
+    registered_at: src/mcpServer.ts:1617
+    service_function: queryRoleFeatures
+    service_at: src/services/ruckusApiService.ts:3861
+    operation_type: read-only
+    r1_endpoints:
+      - method: GET
+        path: /roleAuthentications/features?showScopes={showScopes}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-013.yml
+        - integration/TC-INT-109.yml
+      code: []
+    inputs:
+      required: []
+      optional_count: 5
+      total_params: 5
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: query_wifi_networks
+    registered_at: src/mcpServer.ts:1700
+    service_function: queryWifiNetworks
+    service_at: src/services/ruckusApiService.ts:5470
+    operation_type: read-only
+    r1_endpoints:
+      - method: POST
+        path: /wifiNetworks/query
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-014.yml
+        - integration/TC-INT-015.yml
+        - integration/TC-INT-110.yml
+        - integration/TC-INT-209.yml
+        - integration/TC-INT-320.yml
+        - integration/TC-INT-323.yml
+        - integration/TC-INT-324.yml
+        - integration/TC-INT-325.yml
+        - integration/TC-INT-326.yml
+        - integration/TC-INT-330.yml
+        - integration/TC-INT-334.yml
+        - integration/TC-INT-335.yml
+      code: []
+    inputs:
+      required: []
+      optional_count: 8
+      total_params: 8
+      complexity:
+        nested_object_params: []
+        free_form_object_params: [filters]
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: remove_ap
+    registered_at: src/mcpServer.ts:390
+    service_function: removeApWithRetry
+    service_at: src/services/ruckusApiService.ts:1542
+    operation_type: async
+    r1_endpoints:
+      - method: DELETE
+        path: /venues/{venueId}/aps/{apSerialNumber}
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [venueId, apSerialNumber]
+      optional_count: 0
+      total_params: 4
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: update_custom_role
+    registered_at: src/mcpServer.ts:1580
+    service_function: updateCustomRoleWithRetry
+    service_at: src/services/ruckusApiService.ts:3768
+    operation_type: async
+    r1_endpoints:
+      - method: PUT
+        path: /roleAuthentications/customRoles/{roleId}
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [roleId, name, features]
+      optional_count: 1
+      total_params: 6
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: update_directory_server_profile
+    registered_at: src/mcpServer.ts:972
+    service_function: updateDirectoryServerProfileWithRetry
+    service_at: src/services/ruckusApiService.ts:2479
+    operation_type: async
+    r1_endpoints:
+      - method: PUT
+        path: /directoryServerProfiles/{profileId}
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [profileId, name, type, tlsEnabled, host, port, domainName, adminDomainName, adminPassword, identityName, identityEmail, identityPhone, keyAttribute, attributeMappings]
+      optional_count: 1
+      total_params: 17
+      complexity:
+        nested_object_params: [attributeMappings]
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 2
+
+  - name: update_portal_service_profile
+    registered_at: src/mcpServer.ts:1441
+    service_function: updatePortalServiceProfileWithRetry
+    service_at: src/services/ruckusApiService.ts:3248
+    operation_type: async
+    r1_endpoints:
+      - method: PUT
+        path: /portalServiceProfiles/{profileId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-333.yml
+      code: []
+    inputs:
+      required: [profileId, name, content]
+      optional_count: 3
+      total_params: 8
+      complexity:
+        nested_object_params: []
+        free_form_object_params: [content, termsConditionConfig]
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: update_privilege_group
+    registered_at: src/mcpServer.ts:1532
+    service_function: updatePrivilegeGroupSimple
+    service_at: src/services/ruckusApiService.ts:3701
+    operation_type: async
+    r1_endpoints:
+      - method: GET
+        path: /roleAuthentications/privilegeGroups
+        condition: when privilegeGroupName is not a UUID (resolvePrivilegeGroupId helper)
+      - method: POST
+        path: /venues/query
+        condition: when allVenues=false && venueNames contains non-UUID values (resolveVenueIds helper)
+      - method: PUT
+        path: /roleAuthentications/privilegeGroups/{privilegeGroupId}
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [privilegeGroupName, name, roleName, delegation]
+      optional_count: 2
+      total_params: 8
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: update_radius_server_profile
+    registered_at: src/mcpServer.ts:1245
+    service_function: updateRadiusServerProfileWithRetry
+    service_at: src/services/ruckusApiService.ts:2857
+    operation_type: async
+    r1_endpoints:
+      - method: PUT
+        path: /radiusServerProfiles/{profileId}
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [profileId, name, type, enableSecondaryServer, primary]
+      optional_count: 1
+      total_params: 8
+      complexity:
+        nested_object_params: [primary, secondary]
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 2
+
+  - name: update_ruckus_ap
+    registered_at: src/mcpServer.ts:766
+    service_function: updateApWithRetrieval
+    service_at: src/services/ruckusApiService.ts:1724
+    operation_type: async
+    r1_endpoints:
+      - method: POST
+        path: /venues/aps/query
+        always: true
+      - method: POST
+        path: /venues/aps/query
+        condition: when method=='update' (moveApWithRetry retrieves currentAp again before PUT)
+      - method: PUT
+        path: /venues/{venueId}/apGroups/{apGroupId}/aps/{apSerialNumber}
+        condition: when isMoving (venueId or apGroupId differs from current) — direct group assignment method
+      - method: PUT
+        path: /venues/{venueId}/aps/{apSerialNumber}
+        condition: when not moving — update method with full payload preservation
+    callers:
+      tests:
+        - integration/TC-INT-307.yml
+      code: []
+    inputs:
+      required: [apSerialNumber]
+      optional_count: 4
+      total_params: 7
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: update_ruckus_ap_group
+    registered_at: src/mcpServer.ts:473
+    service_function: updateApGroupWithRetry
+    service_at: src/services/ruckusApiService.ts:1141
+    operation_type: async
+    r1_endpoints:
+      - method: POST
+        path: /venues/aps/query
+        condition: when apSerialNumbers omitted && preserveExistingAps=true (getApGroupDetails retrieves existing APs)
+      - method: PUT
+        path: /venues/{venueId}/apGroups/{apGroupId}
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [venueId, apGroupId, name]
+      optional_count: 3
+      total_params: 8
+      complexity:
+        nested_object_params: [apSerialNumbers]
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 2
+
+  - name: update_ruckus_venue
+    registered_at: src/mcpServer.ts:244
+    service_function: updateVenueWithRetry
+    service_at: src/services/ruckusApiService.ts:674
+    operation_type: async
+    r1_endpoints:
+      - method: PUT
+        path: /venues/{venueId}
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [venueId, name, addressLine, city, country]
+      optional_count: 5
+      total_params: 12
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: update_venue_wifi_network_settings
+    registered_at: src/mcpServer.ts:2705
+    service_function: updateVenueWifiNetworkSettingsWithRetry
+    service_at: src/services/ruckusApiService.ts:7338
+    operation_type: async
+    r1_endpoints:
+      - method: PUT
+        path: /venues/{venueId}/wifiNetworks/{wifiNetworkId}/settings
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-324.yml
+        - integration/TC-INT-325.yml
+      code: []
+    inputs:
+      required: [venueId, wifiNetworkId, settings]
+      optional_count: 0
+      total_params: 5
+      complexity:
+        nested_object_params: []
+        free_form_object_params: [settings]
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: update_wifi_network
+    registered_at: src/mcpServer.ts:2183
+    service_function: updateWifiNetworkWithRetry
+    service_at: src/services/ruckusApiService.ts:5802
+    operation_type: async
+    r1_endpoints:
+      - method: PUT
+        path: /wifiNetworks/{networkId}
+        always: true
+    callers:
+      tests:
+        - integration/TC-INT-326.yml
+      code: []
+    inputs:
+      required: [networkId, networkConfig]
+      optional_count: 0
+      total_params: 4
+      complexity:
+        nested_object_params: []
+        free_form_object_params: [networkConfig]
+        enums_with_many_values: []
+        max_nesting_depth: 1
+
+  - name: update_wifi_network_portal_service_profile
+    registered_at: src/mcpServer.ts:2127
+    service_function: updateWifiNetworkPortalServiceProfileWithRetry
+    service_at: src/services/ruckusApiService.ts:5561
+    operation_type: async
+    r1_endpoints:
+      - method: PUT
+        path: /wifiNetworks/{networkId}/portalServiceProfiles/{profileId}
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [networkId, profileId]
+      optional_count: 0
+      total_params: 4
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
+
+  - name: update_wifi_network_radius_server_profile_settings
+    registered_at: src/mcpServer.ts:2153
+    service_function: updateWifiNetworkRadiusServerProfileSettingsWithRetry
+    service_at: src/services/ruckusApiService.ts:5676
+    operation_type: async
+    r1_endpoints:
+      - method: PUT
+        path: /wifiNetworks/{networkId}/radiusServerProfileSettings
+        always: true
+    callers:
+      tests: []
+      code: []
+    inputs:
+      required: [networkId]
+      optional_count: 2
+      total_params: 5
+      complexity:
+        nested_object_params: []
+        free_form_object_params: []
+        enums_with_many_values: []
+        max_nesting_depth: 0
