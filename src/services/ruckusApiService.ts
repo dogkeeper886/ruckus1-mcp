@@ -4295,8 +4295,12 @@ export async function createWifiNetworkWithRetry(
     userUplinkRateLimiting: 0,
     userDownlinkRateLimiting: 0,
     maxClientsOnWlanPerRadio: networkConfig.maxClientsOnWlanPerRadio || 100,
-    enableBandBalancing:
-      networkConfig.enableBandBalancing !== undefined
+    // DSAE (DPSK3 / WPA2-WPA3-mixed DPSK) forbids band balancing — R1 rejects it
+    // with WIFI-12024. Force it off for DSAE regardless of caller input; otherwise
+    // default on (caller may override).
+    enableBandBalancing: isDsaeType
+      ? false
+      : networkConfig.enableBandBalancing !== undefined
         ? networkConfig.enableBandBalancing
         : true,
     clientIsolation:
