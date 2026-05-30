@@ -81,6 +81,32 @@ import { tokenService } from "./services/tokenService";
 
 dotenv.config();
 
+/**
+ * Build an MCP tool result from a service-layer payload, revealing failure.
+ *
+ * Async service functions return `{ status: "completed" | "failed" | "timeout", ... }`.
+ * `status` is "failed" when any API call or polled activity failed — including any
+ * single requestId in a multi-step trace — and "timeout" when polling was exhausted.
+ * We surface those as `isError: true` so the MCP client (and the test harness) sees a
+ * real failure instead of a success-looking result. Read-only payloads without a
+ * `status` field are returned as-is (their errors throw and are handled in catch). See #106.
+ */
+function toolResult(payload: any) {
+  const failed =
+    payload != null &&
+    typeof payload === "object" &&
+    (payload.status === "failed" || payload.status === "timeout");
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify(payload, null, 2),
+      },
+    ],
+    ...(failed ? { isError: true } : {}),
+  };
+}
+
 function mergeTermsConditionFields(
   content: any,
   fields: {
@@ -3189,14 +3215,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error creating venue:", error);
 
@@ -3281,14 +3300,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error deleting venue:", error);
 
@@ -3402,14 +3414,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error updating venue:", error);
 
@@ -3463,14 +3468,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error creating AP group:", error);
 
@@ -3571,14 +3569,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error adding AP to group:", error);
 
@@ -3654,14 +3645,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error removing AP:", error);
 
@@ -3737,14 +3721,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pageSize,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error querying AP groups:", error);
 
@@ -3794,14 +3771,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error deleting AP group:", error);
 
@@ -3903,14 +3873,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           preserveExistingAps,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error updating AP group:", error);
 
@@ -4592,14 +4555,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error updating AP:", error);
 
@@ -4699,14 +4655,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortOrder,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error querying directory server profiles:", error);
 
@@ -4745,14 +4694,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error getting directory server profile:", error);
 
@@ -4843,14 +4785,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error creating directory server profile:", error);
 
@@ -4939,14 +4874,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error updating directory server profile:", error);
 
@@ -4988,14 +4916,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error deleting directory server profile:", error);
 
@@ -5031,14 +4952,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pageSize,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error querying RADIUS server profiles:", error);
 
@@ -5077,14 +4991,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error getting RADIUS server profile:", error);
 
@@ -5155,14 +5062,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error creating RADIUS server profile:", error);
 
@@ -5204,14 +5104,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error deleting RADIUS server profile:", error);
 
@@ -5301,14 +5194,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error updating RADIUS server profile:", error);
 
@@ -5362,14 +5248,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortOrder,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error querying portal service profiles:", error);
 
@@ -5408,14 +5287,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error getting portal service profile:", error);
 
@@ -5479,14 +5351,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error creating portal service profile:", error);
 
@@ -5548,14 +5413,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error updating portal service profile:", error);
 
@@ -5597,14 +5455,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error deleting portal service profile:", error);
 
@@ -5633,14 +5484,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error getting user groups:", error);
 
@@ -5671,14 +5515,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         const result = await queryCustomRoles(token, process.env.RUCKUS_REGION);
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error getting roles:", error);
 
@@ -5740,14 +5577,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error updating privilege group:", error);
 
@@ -5806,14 +5636,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error updating custom role:", error);
 
@@ -5866,14 +5689,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pageSize,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error querying role features:", error);
 
@@ -6012,14 +5828,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error deleting custom role:", error);
 
@@ -6102,9 +5911,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortOrder,
         );
 
-        return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error querying WiFi networks:", error);
 
@@ -6139,9 +5946,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION,
         );
 
-        return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error getting WiFi network:", error);
 
@@ -6353,14 +6158,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error creating WiFi network:", error);
 
@@ -6424,14 +6222,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           portalServiceProfileId,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error activating WiFi network at venues:", error);
 
@@ -6482,14 +6273,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error(
           "[MCP] Error deactivating WiFi network at venues:",
@@ -6540,14 +6324,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error deleting WiFi network:", error);
 
@@ -6629,14 +6406,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortOrder,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error querying guest passes:", error);
 
@@ -6711,14 +6481,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error creating guest pass:", error);
 
@@ -6769,14 +6532,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error deleting guest pass:", error);
 
@@ -6827,14 +6583,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error updating WiFi network:", error);
 
@@ -6892,14 +6641,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           sortOrder,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error querying clients:", error);
 
@@ -6941,14 +6683,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.RUCKUS_REGION,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error getting AP password:", error);
         let errorMessage = `Error getting AP password: ${error}`;
@@ -6998,14 +6733,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error creating identity group:", error);
 
@@ -7060,14 +6788,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
 
         console.log("[MCP] Query identity groups response:", result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error querying identity groups:", error);
 
@@ -7115,14 +6836,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error deleting identity group:", error);
 
@@ -7183,14 +6897,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error creating DPSK service:", error);
 
@@ -7242,14 +6949,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
 
         console.log("[MCP] Query DPSK services response:", result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error querying DPSK services:", error);
 
@@ -7297,14 +6997,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error deleting DPSK service:", error);
 
@@ -7347,14 +7040,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
 
         console.log("[MCP] Get venue WiFi network settings response:", result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error(
           "[MCP] Error getting venue WiFi network settings:",
@@ -7411,14 +7097,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error(
           "[MCP] Error updating venue WiFi network settings:",
@@ -7451,9 +7130,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const token = await tokenService.getValidToken();
         const result = await getSmsProvider(token, process.env.RUCKUS_REGION);
-        return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error getting SMS provider:", error);
         let errorMessage = `Error getting SMS provider: ${error}`;
@@ -7529,9 +7206,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pollIntervalMs,
         );
 
-        return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error creating SMS provider:", error);
         let errorMessage = `Error creating SMS provider: ${error}`;
@@ -7556,9 +7231,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           token,
           process.env.RUCKUS_REGION,
         );
-        return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-        };
+        return toolResult(result);
       } catch (error: any) {
         console.error("[MCP] Error deleting SMS provider:", error);
         let errorMessage = `Error deleting SMS provider: ${error}`;
