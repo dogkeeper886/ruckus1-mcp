@@ -62,8 +62,6 @@ import {
   queryGuestPasses,
   createGuestPassWithRetry,
   deleteGuestPassWithRetry,
-  updateWifiNetworkPortalServiceProfileWithRetry,
-  updateWifiNetworkRadiusServerProfileSettingsWithRetry,
   updateWifiNetworkWithRetry,
   queryClients,
   getApPassword,
@@ -2124,75 +2122,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: "update_wifi_network_portal_service_profile",
-        description: "Associate a portal service profile with a WiFi network",
-        inputSchema: {
-          type: "object",
-          properties: {
-            networkId: {
-              type: "string",
-              description: "ID of the WiFi network",
-            },
-            profileId: {
-              type: "string",
-              description: "ID of the portal service profile to associate",
-            },
-            maxRetries: {
-              type: "number",
-              description: "Maximum number of retry attempts (default: 20)",
-            },
-            pollIntervalMs: {
-              type: "number",
-              description: "Polling interval in milliseconds (default: 5000)",
-            },
-          },
-          required: ["networkId", "profileId"],
-        },
-      },
-      {
-        name: "update_wifi_network_radius_server_profile_settings",
-        description: "Update RADIUS server profile settings for a WiFi network",
-        inputSchema: {
-          type: "object",
-          properties: {
-            networkId: {
-              type: "string",
-              description: "ID of the WiFi network",
-            },
-            enableAccountingProxy: {
-              type: "boolean",
-              description: "Enable accounting proxy (default: false)",
-            },
-            enableAuthProxy: {
-              type: "boolean",
-              description: "Enable authentication proxy (default: false)",
-            },
-            maxRetries: {
-              type: "number",
-              description: "Maximum number of retry attempts (default: 20)",
-            },
-            pollIntervalMs: {
-              type: "number",
-              description: "Polling interval in milliseconds (default: 5000)",
-            },
-          },
-          required: ["networkId"],
-        },
-      },
-      {
         name: "update_wifi_network",
         description:
-          "Update a WiFi network with a full configuration object. The networkConfig is passed to R1 verbatim as the PUT body. For Self Sign-In networks, you can toggle temporary pre-OTP internet access by including `guestPortal.temporaryConnectionEnabled` (boolean) and `guestPortal.temporaryConnection` (object with duration 1-15 min, maxDownloadRate in {1000,2000,5000,-1}, maxUploadRate in {256,512,1000,-1}) inside networkConfig.",
+          "Update an existing WiFi network by passing only the fields you want to change. REQUIRED: networkId (use query_wifi_networks to get network ID) + networkConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics; arrays are replaced wholesale, a null value deletes a key). IN-CONFIG ATTRIBUTES: any WLAN config field, e.g. `guestPortal.walledGardens` (string[] of permitted destinations), `wlan.vlanId`, `guestPortal.temporaryConnectionEnabled`/`guestPortal.temporaryConnection` (Self Sign-In). SUB-RESOURCE ASSOCIATIONS (include these keys in networkConfig and they are routed to their own endpoints, NOT merged into the config body): `portalServiceProfileId` (use query_portal_service_profiles), `radiusServiceProfileId` + `accountingRadiusServiceProfileId` (use query_radius_server_profiles) to switch the network's RADIUS profiles, and `enableAuthProxy`/`enableAccountingProxy` for RADIUS proxy settings. FOR FQDN/HOSTNAME RADIUS PROFILES: set enableAuthProxy=true (proxy settings are applied before the profile association, per WIFI-20049). At least one change is required.",
         inputSchema: {
           type: "object",
           properties: {
             networkId: {
               type: "string",
-              description: "ID of the WiFi network to update",
+              description:
+                "ID of the WiFi network to update (use query_wifi_networks to get network ID)",
             },
             networkConfig: {
               type: "object",
-              description: "Full network configuration object",
+              description:
+                "Partial network configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). May also include sub-resource association keys (portalServiceProfileId, radiusServiceProfileId, accountingRadiusServiceProfileId, enableAuthProxy, enableAccountingProxy) which are routed to their own endpoints rather than merged into the config body.",
             },
             maxRetries: {
               type: "number",
@@ -6853,122 +6797,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: errorMessage,
             },
           ],
-          isError: true,
-        };
-      }
-    }
-
-    case "update_wifi_network_portal_service_profile": {
-      try {
-        const {
-          networkId,
-          profileId,
-          maxRetries = 20,
-          pollIntervalMs = 5000,
-        } = request.params.arguments as {
-          networkId: string;
-          profileId: string;
-          maxRetries?: number;
-          pollIntervalMs?: number;
-        };
-
-        const token = await tokenService.getValidToken();
-
-        const result = await updateWifiNetworkPortalServiceProfileWithRetry(
-          token,
-          networkId,
-          profileId,
-          process.env.RUCKUS_REGION,
-          maxRetries,
-          pollIntervalMs,
-        );
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      } catch (error: any) {
-        console.error(
-          "[MCP] Error updating WiFi network portal service profile:",
-          error,
-        );
-
-        let errorMessage = `Error updating WiFi network portal service profile: ${error}`;
-
-        if (error.response) {
-          errorMessage += `\nHTTP Status: ${error.response.status}`;
-          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
-          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
-        } else if (error.request) {
-          errorMessage += `\nNo response received: ${error.request}`;
-        }
-
-        return {
-          content: [{ type: "text", text: errorMessage }],
-          isError: true,
-        };
-      }
-    }
-
-    case "update_wifi_network_radius_server_profile_settings": {
-      try {
-        const {
-          networkId,
-          enableAccountingProxy = false,
-          enableAuthProxy = false,
-          maxRetries = 20,
-          pollIntervalMs = 5000,
-        } = request.params.arguments as {
-          networkId: string;
-          enableAccountingProxy?: boolean;
-          enableAuthProxy?: boolean;
-          maxRetries?: number;
-          pollIntervalMs?: number;
-        };
-
-        const token = await tokenService.getValidToken();
-
-        const result =
-          await updateWifiNetworkRadiusServerProfileSettingsWithRetry(
-            token,
-            networkId,
-            process.env.RUCKUS_REGION,
-            enableAccountingProxy,
-            enableAuthProxy,
-            maxRetries,
-            pollIntervalMs,
-          );
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      } catch (error: any) {
-        console.error(
-          "[MCP] Error updating WiFi network RADIUS server profile settings:",
-          error,
-        );
-
-        let errorMessage = `Error updating WiFi network RADIUS server profile settings: ${error}`;
-
-        if (error.response) {
-          errorMessage += `\nHTTP Status: ${error.response.status}`;
-          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
-          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
-        } else if (error.request) {
-          errorMessage += `\nNo response received: ${error.request}`;
-        }
-
-        return {
-          content: [{ type: "text", text: errorMessage }],
           isError: true,
         };
       }

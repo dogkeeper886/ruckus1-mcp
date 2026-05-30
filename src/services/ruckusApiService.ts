@@ -1,5 +1,6 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { AuthTokenResponse } from "../types/ruckusApi";
+import { applyMergePatch } from "../utils/mergePatch";
 
 // Captive-portal sub-types — the MCP `type` enum value → the wire
 // `guestNetworkType` string the R1 API expects. All sub-types serialize to
@@ -5558,356 +5559,279 @@ export async function getWifiNetwork(
   return response.data;
 }
 
-export async function updateWifiNetworkPortalServiceProfileWithRetry(
-  token: string,
-  networkId: string,
-  profileId: string,
-  region: string = "",
-  maxRetries: number = 20,
-  pollIntervalMs: number = 5000,
-): Promise<any> {
-  const apiUrl =
-    region && region.trim() !== ""
-      ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}/portalServiceProfiles/${profileId}`
-      : `https://api.ruckus.cloud/wifiNetworks/${networkId}/portalServiceProfiles/${profileId}`;
-
-  const response = await makeRuckusApiCall(
-    {
-      method: "put",
-      url: apiUrl,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    },
-    "Update WiFi network portal service profile",
-  );
-
-  const updateResponse = response.data;
-
-  const activityId = updateResponse.requestId;
-
-  if (!activityId) {
-    return {
-      ...updateResponse,
-      status: "completed",
-      message:
-        "Portal service profile associated successfully (synchronous operation)",
-    };
-  }
-
-  console.log(
-    `Starting portal service profile association status polling for activity ${activityId}`,
-  );
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(
-      `Polling attempt ${attempt}/${maxRetries} for portal service profile association activity ${activityId}`,
-    );
-
-    try {
-      const activityDetails = await getRuckusActivityDetails(
-        token,
-        activityId,
-        region,
-      );
-      console.log(`Activity status: ${activityDetails.status}`);
-
-      if (
-        activityDetails.status === "COMPLETED" ||
-        activityDetails.status === "SUCCESS"
-      ) {
-        return {
-          ...updateResponse,
-          status: "completed",
-          message: "Portal service profile associated successfully",
-          activityDetails,
-        };
-      } else if (activityDetails.status === "FAIL") {
-        return {
-          ...updateResponse,
-          status: "failed",
-          message: "Portal service profile association failed",
-          error: activityDetails.error || "Unknown error occurred",
-          activityDetails,
-        };
-      }
-
-      if (attempt === maxRetries) {
-        return {
-          ...updateResponse,
-          status: "timeout",
-          message:
-            "Portal service profile association status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    } catch (error: any) {
-      console.error(
-        `Error polling portal service profile association activity (attempt ${attempt}):`,
-        error.message,
-      );
-
-      if (attempt === maxRetries) {
-        return {
-          ...updateResponse,
-          status: "timeout",
-          message:
-            "Portal service profile association status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    }
-  }
-
-  return {
-    ...updateResponse,
-    status: "timeout",
-    message:
-      "Portal service profile association status unknown - polling timeout",
-    activityId,
-  };
-}
-
-export async function updateWifiNetworkRadiusServerProfileSettingsWithRetry(
-  token: string,
-  networkId: string,
-  region: string = "",
-  enableAccountingProxy: boolean = false,
-  enableAuthProxy: boolean = false,
-  maxRetries: number = 20,
-  pollIntervalMs: number = 5000,
-): Promise<any> {
-  const apiUrl =
-    region && region.trim() !== ""
-      ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}/radiusServerProfileSettings`
-      : `https://api.ruckus.cloud/wifiNetworks/${networkId}/radiusServerProfileSettings`;
-
-  // Use empty object if both are false (default), otherwise send the values
-  const payload =
-    enableAccountingProxy === false && enableAuthProxy === false
-      ? {}
-      : {
-          enableAccountingProxy,
-          enableAuthProxy,
-        };
-
-  const response = await makeRuckusApiCall(
-    {
-      method: "put",
-      url: apiUrl,
-      data: payload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    },
-    "Update WiFi network RADIUS server profile settings",
-  );
-
-  const updateResponse = response.data;
-
-  const activityId = updateResponse.requestId;
-
-  if (!activityId) {
-    return {
-      ...updateResponse,
-      status: "completed",
-      message:
-        "RADIUS server profile settings updated successfully (synchronous operation)",
-    };
-  }
-
-  console.log(
-    `Starting RADIUS server profile settings update status polling for activity ${activityId}`,
-  );
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(
-      `Polling attempt ${attempt}/${maxRetries} for RADIUS server profile settings update activity ${activityId}`,
-    );
-
-    try {
-      const activityDetails = await getRuckusActivityDetails(
-        token,
-        activityId,
-        region,
-      );
-      console.log(`Activity status: ${activityDetails.status}`);
-
-      if (
-        activityDetails.status === "COMPLETED" ||
-        activityDetails.status === "SUCCESS"
-      ) {
-        return {
-          ...updateResponse,
-          status: "completed",
-          message: "RADIUS server profile settings updated successfully",
-          activityDetails,
-        };
-      } else if (activityDetails.status === "FAIL") {
-        return {
-          ...updateResponse,
-          status: "failed",
-          message: "RADIUS server profile settings update failed",
-          error: activityDetails.error || "Unknown error occurred",
-          activityDetails,
-        };
-      }
-
-      if (attempt === maxRetries) {
-        return {
-          ...updateResponse,
-          status: "timeout",
-          message:
-            "RADIUS server profile settings update status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    } catch (error: any) {
-      console.error(
-        `Error polling RADIUS server profile settings update activity (attempt ${attempt}):`,
-        error.message,
-      );
-
-      if (attempt === maxRetries) {
-        return {
-          ...updateResponse,
-          status: "timeout",
-          message:
-            "RADIUS server profile settings update status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    }
-  }
-
-  return {
-    ...updateResponse,
-    status: "timeout",
-    message:
-      "RADIUS server profile settings update status unknown - polling timeout",
-    activityId,
-  };
-}
-
 export async function updateWifiNetworkWithRetry(
   token: string,
   networkId: string,
-  networkConfig: any,
+  networkConfig: any = {},
   region: string = "",
   maxRetries: number = 20,
   pollIntervalMs: number = 5000,
 ): Promise<any> {
-  const apiUrl =
+  const baseUrl =
     region && region.trim() !== ""
       ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}`
       : `https://api.ruckus.cloud/wifiNetworks/${networkId}`;
 
-  const response = await makeRuckusApiCall(
-    {
-      method: "put",
-      url: apiUrl,
-      data: networkConfig,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    },
-    "Update WiFi network",
-  );
+  // STORY-022: update_wifi_network is config-driven. Sub-resource association keys are
+  // extracted from networkConfig and routed to their own R1 endpoints; the remaining keys
+  // form the config-body merge patch applied via retrieve-then-merge. This keeps the tool
+  // surface to (networkId, networkConfig) while orchestrating the multi-endpoint chain.
+  const {
+    portalServiceProfileId,
+    radiusServiceProfileId,
+    accountingRadiusServiceProfileId,
+    enableAuthProxy,
+    enableAccountingProxy,
+    ...configBody
+  } = networkConfig || {};
 
-  const updateResponse = response.data;
+  const hasConfigBody =
+    configBody &&
+    typeof configBody === "object" &&
+    Object.keys(configBody).length > 0;
+  const hasPortal = !!portalServiceProfileId;
+  const hasRadiusSettings =
+    enableAuthProxy !== undefined || enableAccountingProxy !== undefined;
+  const hasRadiusProfile = !!radiusServiceProfileId;
+  const hasAccountingRadiusProfile = !!accountingRadiusServiceProfileId;
 
-  const activityId = updateResponse.requestId;
+  if (
+    !hasConfigBody &&
+    !hasPortal &&
+    !hasRadiusSettings &&
+    !hasRadiusProfile &&
+    !hasAccountingRadiusProfile
+  ) {
+    throw new Error(
+      "update_wifi_network requires at least one change: a networkConfig field to update, " +
+        "portalServiceProfileId, radiusServiceProfileId, accountingRadiusServiceProfileId, " +
+        "enableAuthProxy, or enableAccountingProxy.",
+    );
+  }
 
-  if (!activityId) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+
+  // Step 1: WLAN config PUT (retrieve-then-merge) — only when config-body fields are present.
+  // R1 accepts the GET-shaped body verbatim on PUT (confirmed by trace), so no reshape.
+  let updateRequestId: string | undefined;
+  if (hasConfigBody) {
+    const currentConfig = await getWifiNetwork(token, networkId, region);
+    const mergedConfig = applyMergePatch(currentConfig, configBody);
+    updateRequestId = (
+      await makeRuckusApiCall(
+        { method: "put", url: baseUrl, data: mergedConfig, headers },
+        "Update WiFi network",
+      )
+    ).data.requestId;
+  }
+
+  // Step 2: RADIUS proxy settings — MUST precede an FQDN RADIUS-profile association (WIFI-20049).
+  let radiusSettingsRequestId: string | undefined;
+  if (hasRadiusSettings) {
+    radiusSettingsRequestId = (
+      await makeRuckusApiCall(
+        {
+          method: "put",
+          url: `${baseUrl}/radiusServerProfileSettings`,
+          data: {
+            enableAccountingProxy: enableAccountingProxy ?? false,
+            enableAuthProxy: enableAuthProxy ?? false,
+          },
+          headers,
+        },
+        "Update RADIUS server profile settings",
+      )
+    ).data.requestId;
+  }
+
+  // Step 3: Portal service profile association.
+  let portalRequestId: string | undefined;
+  if (hasPortal) {
+    portalRequestId = (
+      await makeRuckusApiCall(
+        {
+          method: "put",
+          url: `${baseUrl}/portalServiceProfiles/${portalServiceProfileId}`,
+          headers,
+        },
+        "Associate portal service profile",
+      )
+    ).data.requestId;
+  }
+
+  // Step 4: RADIUS authentication service profile association.
+  let radiusProfileRequestId: string | undefined;
+  if (hasRadiusProfile) {
+    radiusProfileRequestId = (
+      await makeRuckusApiCall(
+        {
+          method: "put",
+          url: `${baseUrl}/radiusServerProfiles/${radiusServiceProfileId}`,
+          headers,
+        },
+        "Associate RADIUS service profile",
+      )
+    ).data.requestId;
+  }
+
+  // Step 5: RADIUS accounting service profile association.
+  let accountingRadiusProfileRequestId: string | undefined;
+  if (hasAccountingRadiusProfile) {
+    accountingRadiusProfileRequestId = (
+      await makeRuckusApiCall(
+        {
+          method: "put",
+          url: `${baseUrl}/radiusServerProfiles/${accountingRadiusServiceProfileId}`,
+          headers,
+        },
+        "Associate accounting RADIUS service profile",
+      )
+    ).data.requestId;
+  }
+
+  const requestIds = [
+    ...(updateRequestId
+      ? [{ id: updateRequestId, name: "Update WiFi network" }]
+      : []),
+    ...(radiusSettingsRequestId
+      ? [
+          {
+            id: radiusSettingsRequestId,
+            name: "Update RADIUS server profile settings",
+          },
+        ]
+      : []),
+    ...(portalRequestId
+      ? [{ id: portalRequestId, name: "Associate portal service profile" }]
+      : []),
+    ...(radiusProfileRequestId
+      ? [{ id: radiusProfileRequestId, name: "Associate RADIUS service profile" }]
+      : []),
+    ...(accountingRadiusProfileRequestId
+      ? [
+          {
+            id: accountingRadiusProfileRequestId,
+            name: "Associate accounting RADIUS service profile",
+          },
+        ]
+      : []),
+  ];
+
+  const responseIds = {
+    networkId,
+    updateRequestId,
+    radiusSettingsRequestId,
+    portalRequestId,
+    radiusProfileRequestId,
+    accountingRadiusProfileRequestId,
+  };
+
+  // All operations were synchronous (no requestId to poll).
+  if (requestIds.length === 0) {
     return {
-      ...updateResponse,
+      ...responseIds,
       status: "completed",
       message: "WiFi network updated successfully (synchronous operation)",
     };
   }
 
-  console.log(
-    `Starting WiFi network update status polling for activity ${activityId}`,
-  );
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(
-      `Polling attempt ${attempt}/${maxRetries} for WiFi network update activity ${activityId}`,
-    );
-
+  // Consolidated polling across all activities (mirrors createWifiNetworkWithRetry).
+  let retryCount = 0;
+  const completedActivities: any[] = [];
+  while (retryCount < maxRetries) {
     try {
-      const activityDetails = await getRuckusActivityDetails(
-        token,
-        activityId,
-        region,
+      const pending = requestIds.filter(
+        (req) => !completedActivities.find((c) => c.activityId === req.id),
       );
-      console.log(`Activity status: ${activityDetails.status}`);
-
-      if (
-        activityDetails.status === "COMPLETED" ||
-        activityDetails.status === "SUCCESS"
-      ) {
+      if (pending.length === 0) {
         return {
-          ...updateResponse,
+          ...responseIds,
           status: "completed",
           message: "WiFi network updated successfully",
-          activityDetails,
-        };
-      } else if (activityDetails.status === "FAIL") {
-        return {
-          ...updateResponse,
-          status: "failed",
-          message: "WiFi network update failed",
-          error: activityDetails.error || "Unknown error occurred",
-          activityDetails,
+          activities: completedActivities,
         };
       }
-
-      if (attempt === maxRetries) {
-        return {
-          ...updateResponse,
-          status: "timeout",
-          message: "WiFi network update status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
+      for (const activity of pending) {
+        const details = await getRuckusActivityDetails(token, activity.id, region);
+        const isCompleted = details.endDatetime !== undefined;
+        const isFailed =
+          details.status !== "SUCCESS" && details.status !== "INPROGRESS";
+        if (isCompleted) {
+          if (details.status === "SUCCESS") {
+            completedActivities.push({
+              activityId: activity.id,
+              name: activity.name,
+              status: "SUCCESS",
+              details,
+            });
+          } else {
+            return {
+              ...responseIds,
+              status: "failed",
+              message: `${activity.name} failed`,
+              error:
+                details.error ||
+                details.message ||
+                "Operation completed with non-SUCCESS status",
+              activities: [
+                ...completedActivities,
+                {
+                  activityId: activity.id,
+                  name: activity.name,
+                  status: details.status,
+                  details,
+                },
+              ],
+            };
+          }
+        } else if (isFailed) {
+          return {
+            ...responseIds,
+            status: "failed",
+            message: `${activity.name} failed`,
+            error: details.error || details.message || "Operation failed",
+            activities: [
+              ...completedActivities,
+              {
+                activityId: activity.id,
+                name: activity.name,
+                status: details.status,
+                details,
+              },
+            ],
+          };
+        }
       }
-
+      retryCount++;
+      if (retryCount >= maxRetries) break;
       await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    } catch (error: any) {
+    } catch (error) {
+      retryCount++;
       console.error(
-        `Error polling WiFi network update activity (attempt ${attempt}):`,
-        error.message,
+        `[RUCKUS] Error polling WiFi network update activity (attempt ${retryCount}/${maxRetries}):`,
+        error,
       );
-
-      if (attempt === maxRetries) {
+      if (retryCount >= maxRetries) {
         return {
-          ...updateResponse,
+          ...responseIds,
           status: "timeout",
           message: "WiFi network update status unknown - polling timeout",
           error: "Failed to get activity status after maximum retries",
+          activities: completedActivities,
         };
       }
-
       await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
     }
   }
 
   return {
-    ...updateResponse,
+    ...responseIds,
     status: "timeout",
     message: "WiFi network update status unknown - polling timeout",
-    activityId,
+    activities: completedActivities,
   };
 }
 

@@ -55,6 +55,30 @@ steps:
     rejectPatterns:
       - "isError"
 
+  - name: Partial update via update_wifi_network - add walled garden (retrieve-then-merge)
+    command: npx tsx cicd/tests/src/mcp-client.ts update_wifi_network '{"networkId":"{{networkId}}","networkConfig":{"guestPortal":{"walledGardens":["walled.example.net"]}},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: GET network - verify walled garden persisted and temporaryConnection preserved
+    command: npx tsx cicd/tests/src/mcp-client.ts get_wifi_network '{"networkId":"{{networkId}}"}'
+    expectPatterns:
+      - "walledGardens"
+      - "walled.example.net"
+      - "temporaryConnectionEnabled"
+    rejectPatterns:
+      - "isError"
+
+  - name: Sub-resource routing - re-attach portal via update_wifi_network
+    command: npx tsx cicd/tests/src/mcp-client.ts update_wifi_network '{"networkId":"{{networkId}}","networkConfig":{"portalServiceProfileId":"{{profileId}}"},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+      - "Associate portal service profile"
+    rejectPatterns:
+      - "isError"
+
   - name: Delete WiFi network
     command: npx tsx cicd/tests/src/mcp-client.ts delete_wifi_network '{"networkId":"{{networkId}}","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
@@ -71,14 +95,18 @@ steps:
 
 criteria: |
   Verifies create_wifi_network supports temporaryConnection for Self Sign-In networks
-  and the fields round-trip through get_wifi_network:
+  and the fields round-trip through get_wifi_network, and that update_wifi_network applies
+  a PARTIAL config via retrieve-then-merge (STORY-022):
   1. Create a self-contained portal service profile
   2. Create a Self Sign-In network with temporaryConnectionEnabled=true and bandwidth caps
   3. GET network — assert temporaryConnectionEnabled, temporaryConnection, duration, maxDownloadRate, maxUploadRate fields are present
-  4. Cleanup: delete network, delete portal profile
+  4. update_wifi_network with ONLY { guestPortal: { walledGardens: ["walled.example.net"] } }
+     — a partial config (no type/name/ssid). The tool retrieves the current config, merges
+     the patch, and PUTs the full body.
+  5. GET network — assert walledGardens contains "walled.example.net" AND temporaryConnectionEnabled
+     is still present (proves the merge added the new field without wiping existing ones).
+  6. Cleanup: delete network, delete portal profile
 
-  Note: update_wifi_network round-trip is not exercised here because update_wifi_network
-  is a pass-through that requires the full network config (type, name, ssid, wlanSecurity,
-  plus existing nested objects) in the PUT body — a partial update with only guestPortal
-  gets rejected by R1 as "missing type id property 'type'". Proper update testing requires
-  a retrieve-then-merge-then-PUT pattern; deferred.
+  This un-defers the update_wifi_network round-trip that was previously impossible: it no
+  longer requires the caller to supply the full config, because the tool now does
+  retrieve-then-merge (JSON Merge Patch) internally.
