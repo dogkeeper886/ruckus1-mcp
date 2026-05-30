@@ -13,11 +13,24 @@ export class SimpleJudge {
     const reasons: string[] = [];
     let pass = true;
 
-    const failedSteps = result.steps.filter((s) => s.exitCode !== 0);
-    if (failedSteps.length > 0) {
+    // Exit-code check, expectError-aware. result.steps is index-aligned with
+    // result.testCase.steps. A normal step must exit 0; an expectError step must
+    // exit non-zero (the tool revealed a failure — see mcp-client.ts / #107).
+    const exitFailures: string[] = [];
+    result.steps.forEach((s, i) => {
+      const expectError = result.testCase.steps[i]?.expectError === true;
+      if (expectError) {
+        if (s.exitCode === 0) {
+          exitFailures.push(`${s.name}(expected error but call succeeded, exit 0)`);
+        }
+      } else if (s.exitCode !== 0) {
+        exitFailures.push(`${s.name}(${s.exitCode})`);
+      }
+    });
+    if (exitFailures.length > 0) {
       pass = false;
       reasons.push(
-        `${failedSteps.length} step(s) failed with non-zero exit code: ${failedSteps.map((s) => `${s.name}(${s.exitCode})`).join(', ')}`
+        `${exitFailures.length} step(s) failed exit-code check: ${exitFailures.join(', ')}`
       );
     }
 

@@ -10,6 +10,7 @@ dependencies: []
 steps:
   - name: Query activity details with an unknown parameter name (no activityId supplied)
     command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_activity_details '{"requestId":"00000000-0000-0000-0000-000000000000"}'
+    expectError: true
     expectPatterns:
       - isError
       - ACTIVITY-10001

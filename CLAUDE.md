@@ -100,6 +100,15 @@ criteria: |
 
 **Pattern-matching gotcha:** `mcp-client.ts` returns double-encoded JSON (the tool's JSON is inside a `text` field). Use **bare strings** in patterns (e.g., `networkId`) — quoted forms like `'"networkId"'` won't match the escaped output `\"networkId\"`. For the same reason, **do not** add `'"status": "failed"'` as a reject pattern — it cannot match the double-encoded stdout and is a dead assertion (see SO-1 in `docs/audit/2026-04-22_audit_report.md`). Use bare `isError` for the real failure signal.
 
+**Failure detection via exit code (#107):** `mcp-client.ts` now **exits non-zero (code 2) when the tool result is `isError`** (sync 4xx via catch, or async `status: failed`/`timeout` via `toolResult` in `mcpServer.ts`, #106). The judge fails any normal step that exits non-zero — so a real tool/API failure can no longer hide behind `[PASS] Exit: 0`. **A negative test that intentionally triggers an error must set `expectError: true` on that step**, which inverts the exit-code check (the step then passes on non-zero exit and fails if the call unexpectedly succeeds). `expectPatterns`/`rejectPatterns` still apply, so keep asserting the specific error code (e.g. `WIFI-xxxxx`, `GUEST-404007`). Example:
+```yaml
+  - name: Create venue without city (required field)
+    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"name":"x"}'
+    expectError: true
+    expectPatterns:
+      - isError
+```
+
 **Fixture naming — always suffix with `{{TEST_RUN_ID}}`:** Any named fixture created by a test (venue, AP group, portal profile, WiFi network, identity group, DPSK service, etc.) must carry the `{{TEST_RUN_ID}}` suffix in every `command:` and `capture:` reference. The test framework auto-injects `TEST_RUN_ID` (GITHUB_RUN_ID in CI; a short random string locally) so each run creates uniquely-named fixtures. Example: `name:"mcp-test-venue-crud-{{TEST_RUN_ID}}"` and `capture.venueId: "data[name=mcp-test-venue-crud-{{TEST_RUN_ID}}].id"`. This prevents cross-run duplicate-name collisions when tenant residue lingers (see the TC-INT-203 RCA on 2026-04-22). For backend-derived companion names (e.g., `-owe-tr`, `-dpsk3-wpa2` suffixes), insert `{{TEST_RUN_ID}}` before the companion suffix: `mcp-test-wifi-owe-{{TEST_RUN_ID}}-owe-tr`. Bare name prefixes still work in `expectPatterns` / `rejectPatterns` because pattern matching is substring-based and the prefix remains present after substitution.
 
 ## MCP Integration Notes

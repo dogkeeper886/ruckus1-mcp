@@ -10,6 +10,7 @@ dependencies: []
 steps:
   - name: Query activity with completely invalid ID format
     command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_activity_details '{"activityId":"not-a-valid-uuid"}'
+    expectError: true
     expectPatterns:
       - isError
       - ACTIVITY-10001

@@ -9,6 +9,11 @@ export interface TestStep {
   expectPatterns?: string[];
   rejectPatterns?: string[];
   capture?: Record<string, string>;
+  // When true, this step is expected to FAIL (the tool reveals an error, so
+  // mcp-client exits non-zero). The judge inverts the exit-code check: the step
+  // passes on non-zero exit and fails on exit 0. expect/reject patterns still
+  // apply, so a negative test can still assert the specific error code. (#107)
+  expectError?: boolean;
 }
 
 export interface TestCase {

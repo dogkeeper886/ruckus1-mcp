@@ -26,6 +26,7 @@ steps:
 
   - name: Create Self Sign-In with all channel flags false - expect validation error
     command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-ssi-nochan-{{TEST_RUN_ID}}","ssid":"MCP-Test-SSI-NoChan","type":"selfSignIn","wlanSecurity":"None","portalServiceProfileId":"{{profileId}}","enableSmsLogin":false,"enableEmailLogin":false,"enableWhatsappLogin":false}'
+    expectError: true
     expectPatterns:
       - "isError"
       - At least one Self Sign-In channel
@@ -35,6 +36,7 @@ steps:
 
   - name: smsPasswordDuration without enableSmsLogin - expect validation error
     command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-ssi-smsdur-nosms-{{TEST_RUN_ID}}","ssid":"MCP-Test-SSI-SmsDurNoSms","type":"selfSignIn","wlanSecurity":"None","portalServiceProfileId":"{{profileId}}","enableEmailLogin":true,"smsPasswordDuration":{"duration":5,"unit":"MINUTE"}}'
+    expectError: true
     expectPatterns:
       - "isError"
       - smsPasswordDuration requires enableSmsLogin
@@ -44,6 +46,7 @@ steps:
 
   - name: allowedEmailDomains without enableEmailLogin - expect validation error
     command: npx tsx cicd/tests/src/mcp-client.ts create_wifi_network '{"name":"mcp-test-ssi-dom-noemail-{{TEST_RUN_ID}}","ssid":"MCP-Test-SSI-DomNoEmail","type":"selfSignIn","wlanSecurity":"None","portalServiceProfileId":"{{profileId}}","enableSmsLogin":true,"enableEmailLogin":false,"allowedEmailDomains":["example.com"]}'
+    expectError: true
     expectPatterns:
       - "isError"
       - allowedEmailDomains requires enableEmailLogin
