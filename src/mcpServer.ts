@@ -62,8 +62,6 @@ import {
   queryGuestPasses,
   createGuestPassWithRetry,
   deleteGuestPassWithRetry,
-  updateWifiNetworkPortalServiceProfileWithRetry,
-  updateWifiNetworkRadiusServerProfileSettingsWithRetry,
   updateWifiNetworkWithRetry,
   queryClients,
   getApPassword,
@@ -2121,62 +2119,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["networkId", "venueConfigs"],
-        },
-      },
-      {
-        name: "update_wifi_network_portal_service_profile",
-        description: "Associate a portal service profile with a WiFi network",
-        inputSchema: {
-          type: "object",
-          properties: {
-            networkId: {
-              type: "string",
-              description: "ID of the WiFi network",
-            },
-            profileId: {
-              type: "string",
-              description: "ID of the portal service profile to associate",
-            },
-            maxRetries: {
-              type: "number",
-              description: "Maximum number of retry attempts (default: 20)",
-            },
-            pollIntervalMs: {
-              type: "number",
-              description: "Polling interval in milliseconds (default: 5000)",
-            },
-          },
-          required: ["networkId", "profileId"],
-        },
-      },
-      {
-        name: "update_wifi_network_radius_server_profile_settings",
-        description: "Update RADIUS server profile settings for a WiFi network",
-        inputSchema: {
-          type: "object",
-          properties: {
-            networkId: {
-              type: "string",
-              description: "ID of the WiFi network",
-            },
-            enableAccountingProxy: {
-              type: "boolean",
-              description: "Enable accounting proxy (default: false)",
-            },
-            enableAuthProxy: {
-              type: "boolean",
-              description: "Enable authentication proxy (default: false)",
-            },
-            maxRetries: {
-              type: "number",
-              description: "Maximum number of retry attempts (default: 20)",
-            },
-            pollIntervalMs: {
-              type: "number",
-              description: "Polling interval in milliseconds (default: 5000)",
-            },
-          },
-          required: ["networkId"],
         },
       },
       {
@@ -6855,122 +6797,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: errorMessage,
             },
           ],
-          isError: true,
-        };
-      }
-    }
-
-    case "update_wifi_network_portal_service_profile": {
-      try {
-        const {
-          networkId,
-          profileId,
-          maxRetries = 20,
-          pollIntervalMs = 5000,
-        } = request.params.arguments as {
-          networkId: string;
-          profileId: string;
-          maxRetries?: number;
-          pollIntervalMs?: number;
-        };
-
-        const token = await tokenService.getValidToken();
-
-        const result = await updateWifiNetworkPortalServiceProfileWithRetry(
-          token,
-          networkId,
-          profileId,
-          process.env.RUCKUS_REGION,
-          maxRetries,
-          pollIntervalMs,
-        );
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      } catch (error: any) {
-        console.error(
-          "[MCP] Error updating WiFi network portal service profile:",
-          error,
-        );
-
-        let errorMessage = `Error updating WiFi network portal service profile: ${error}`;
-
-        if (error.response) {
-          errorMessage += `\nHTTP Status: ${error.response.status}`;
-          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
-          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
-        } else if (error.request) {
-          errorMessage += `\nNo response received: ${error.request}`;
-        }
-
-        return {
-          content: [{ type: "text", text: errorMessage }],
-          isError: true,
-        };
-      }
-    }
-
-    case "update_wifi_network_radius_server_profile_settings": {
-      try {
-        const {
-          networkId,
-          enableAccountingProxy = false,
-          enableAuthProxy = false,
-          maxRetries = 20,
-          pollIntervalMs = 5000,
-        } = request.params.arguments as {
-          networkId: string;
-          enableAccountingProxy?: boolean;
-          enableAuthProxy?: boolean;
-          maxRetries?: number;
-          pollIntervalMs?: number;
-        };
-
-        const token = await tokenService.getValidToken();
-
-        const result =
-          await updateWifiNetworkRadiusServerProfileSettingsWithRetry(
-            token,
-            networkId,
-            process.env.RUCKUS_REGION,
-            enableAccountingProxy,
-            enableAuthProxy,
-            maxRetries,
-            pollIntervalMs,
-          );
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      } catch (error: any) {
-        console.error(
-          "[MCP] Error updating WiFi network RADIUS server profile settings:",
-          error,
-        );
-
-        let errorMessage = `Error updating WiFi network RADIUS server profile settings: ${error}`;
-
-        if (error.response) {
-          errorMessage += `\nHTTP Status: ${error.response.status}`;
-          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
-          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
-        } else if (error.request) {
-          errorMessage += `\nNo response received: ${error.request}`;
-        }
-
-        return {
-          content: [{ type: "text", text: errorMessage }],
           isError: true,
         };
       }
