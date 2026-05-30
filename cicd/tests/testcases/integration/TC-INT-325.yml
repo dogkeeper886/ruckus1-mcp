@@ -50,6 +50,7 @@ steps:
 
   - name: Builder rejects BASIC mode missing required fields
     command: npx tsx cicd/tests/src/mcp-client.ts build_wifi_scheduler_config '{"mode":"BASIC"}'
+    expectError: true
     expectPatterns:
       - "Error building scheduler config"
       - "repeatRule"

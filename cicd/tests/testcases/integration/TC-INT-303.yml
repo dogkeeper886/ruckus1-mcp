@@ -10,6 +10,7 @@ dependencies: []
 steps:
   - name: Delete venue with non-existent ID
     command: npx tsx cicd/tests/src/mcp-client.ts delete_ruckus_venue '{"venueId":"00000000-0000-0000-0000-000000000000","maxRetries":3,"pollIntervalMs":1000}'
+    expectError: true
     expectPatterns:
       - timeout
       - polling timeout
