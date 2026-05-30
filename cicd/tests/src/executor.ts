@@ -283,9 +283,15 @@ export class TestExecutor {
 
       stepResults.push(result);
 
-      const status = result.exitCode === 0 ? '[PASS]' : '[FAIL]';
+      // expectError steps pass on non-zero exit (the tool revealed a failure).
+      // Display matches the judge's exit-code verdict to avoid a confusing [FAIL].
+      const exitOk = step.expectError
+        ? result.exitCode !== 0
+        : result.exitCode === 0;
+      const status = exitOk ? '[PASS]' : '[FAIL]';
       const duration = `${(result.duration / 1000).toFixed(1)}s`;
-      this.progress(`    ${status} Exit: ${result.exitCode} (${duration})`);
+      const note = step.expectError ? ' (expected error)' : '';
+      this.progress(`    ${status} Exit: ${result.exitCode}${note} (${duration})`);
 
       if (result.patternMatches) {
         const expectedMissing = result.patternMatches.expected.filter(

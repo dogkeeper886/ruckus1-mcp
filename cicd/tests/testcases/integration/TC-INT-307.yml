@@ -10,6 +10,7 @@ dependencies: []
 steps:
   - name: Update AP with non-existent serial number
     command: npx tsx cicd/tests/src/mcp-client.ts update_ruckus_ap '{"apSerialNumber":"INVALID000000","apName":"test-name"}'
+    expectError: true
     expectPatterns:
       - isError
       - Failed to update AP
