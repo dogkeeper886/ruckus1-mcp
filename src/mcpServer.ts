@@ -2182,17 +2182,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "update_wifi_network",
         description:
-          "Update a WiFi network with a full configuration object. The networkConfig is passed to R1 verbatim as the PUT body. For Self Sign-In networks, you can toggle temporary pre-OTP internet access by including `guestPortal.temporaryConnectionEnabled` (boolean) and `guestPortal.temporaryConnection` (object with duration 1-15 min, maxDownloadRate in {1000,2000,5000,-1}, maxUploadRate in {256,512,1000,-1}) inside networkConfig.",
+          "Update an existing WiFi network by passing only the fields you want to change. REQUIRED: networkId (use query_wifi_networks to get network ID) + networkConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics; arrays are replaced wholesale, a null value deletes a key). IN-CONFIG ATTRIBUTES: any WLAN config field, e.g. `guestPortal.walledGardens` (string[] of permitted destinations), `wlan.vlanId`, `guestPortal.temporaryConnectionEnabled`/`guestPortal.temporaryConnection` (Self Sign-In). SUB-RESOURCE ASSOCIATIONS (include these keys in networkConfig and they are routed to their own endpoints, NOT merged into the config body): `portalServiceProfileId` (use query_portal_service_profiles), `radiusServiceProfileId` + `accountingRadiusServiceProfileId` (use query_radius_server_profiles) to switch the network's RADIUS profiles, and `enableAuthProxy`/`enableAccountingProxy` for RADIUS proxy settings. FOR FQDN/HOSTNAME RADIUS PROFILES: set enableAuthProxy=true (proxy settings are applied before the profile association, per WIFI-20049). At least one change is required.",
         inputSchema: {
           type: "object",
           properties: {
             networkId: {
               type: "string",
-              description: "ID of the WiFi network to update",
+              description:
+                "ID of the WiFi network to update (use query_wifi_networks to get network ID)",
             },
             networkConfig: {
               type: "object",
-              description: "Full network configuration object",
+              description:
+                "Partial network configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). May also include sub-resource association keys (portalServiceProfileId, radiusServiceProfileId, accountingRadiusServiceProfileId, enableAuthProxy, enableAccountingProxy) which are routed to their own endpoints rather than merged into the config body.",
             },
             maxRetries: {
               type: "number",
