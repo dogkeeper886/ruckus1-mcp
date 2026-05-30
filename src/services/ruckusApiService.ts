@@ -4910,396 +4910,99 @@ export async function activateWifiNetworkAtVenuesWithRetry(
   maxRetries: number = 20,
   pollIntervalMs: number = 5000,
   portalServiceProfileId?: string,
-  fullNetworkConfig?: any,
 ): Promise<any> {
   const baseApiUrl =
     region && region.trim() !== ""
       ? `https://api.${region}.ruckus.cloud`
       : "https://api.ruckus.cloud";
 
-  // Step 0: Retrieve full network configuration if not provided
-  let networkConfig: any;
-  if (fullNetworkConfig) {
-    networkConfig = fullNetworkConfig;
-  } else {
-    console.log("[RUCKUS] Retrieving full network configuration...");
-    networkConfig = await getWifiNetwork(token, networkId, region);
-  }
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
 
-  // Detect network type
-  const networkType = networkConfig.type || networkConfig.nwSubType;
-  const isGuestType = networkType === "guest";
-  const isEnterpriseType = networkType === "aaa";
+  // STORY-024: uniform per-venue activation for ALL network types. Confirmed by GUI
+  // trace that activation is `PUT /venues/{venueId}/wifiNetworks/{networkId}` (carrying
+  // the scheduler, incl. CUSTOM from build_wifi_scheduler_config) plus the per-venue
+  // `/settings` PUT — for every type. No type branch, no full-config `venues[]` PUT, and
+  // no RADIUS-settings step (a create-time concern; re-running it on an FQDN enterprise
+  // net would trip WIFI-20049).
+  const allRequestIds: Array<{ id: string; name: string }> = [];
 
-  // For 802.1x/enterprise networks: simple activation only (1 API call per venue)
-  if (isEnterpriseType) {
-    console.log(
-      "[RUCKUS] Enterprise/802.1x network detected - using simple activation",
-    );
-    const venueRequestIds: Array<{ id: string; name: string }> = [];
-
-    for (const venueConfig of venueConfigs) {
-      const venueId = venueConfig.venueId;
-      console.log(
-        `[RUCKUS] Activating enterprise network at venue ${venueId}...`,
-      );
-
-      const venueActivateUrl = `${baseApiUrl}/venues/${venueId}/wifiNetworks/${networkId}`;
-      const venueActivatePayload = {
-        apGroups: venueConfig.apGroups || [],
-        scheduler: venueConfig.scheduler,
-        isAllApGroups: venueConfig.isAllApGroups,
-        allApGroupsRadio: venueConfig.allApGroupsRadio,
-        allApGroupsRadioTypes: venueConfig.allApGroupsRadioTypes,
-        venueId: venueId,
-        networkId: networkId,
-      };
-
-      const venueActivateResponse = await makeRuckusApiCall(
+  // Optional: (re)associate a portal service profile (e.g. for guest-pass networks).
+  if (portalServiceProfileId) {
+    console.log("[RUCKUS] Associating portal service profile...");
+    const portalRequestId = (
+      await makeRuckusApiCall(
         {
           method: "put",
-          url: venueActivateUrl,
-          data: venueActivatePayload,
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          url: `${baseApiUrl}/wifiNetworks/${networkId}/portalServiceProfiles/${portalServiceProfileId}`,
+          headers,
         },
-        `Activate enterprise network at venue ${venueId}`,
-      );
-
-      const venueActivateData = venueActivateResponse.data;
-      if (venueActivateData.requestId) {
-        venueRequestIds.push({
-          id: venueActivateData.requestId,
-          name: `Activate at venue ${venueId}`,
-        });
-      }
-    }
-
-    // Poll all venue activations for completion
-    let retryCount = 0;
-    const completedActivities: any[] = [];
-
-    while (retryCount < maxRetries) {
-      try {
-        const pendingActivities = venueRequestIds.filter(
-          (req) => !completedActivities.find((c) => c.activityId === req.id),
-        );
-
-        if (pendingActivities.length === 0) {
-          return {
-            networkId,
-            venueIds: venueConfigs.map((v) => v.venueId),
-            status: "completed",
-            message: `Enterprise WiFi network activated successfully at ${venueConfigs.length} venue(s)`,
-            activities: completedActivities,
-          };
-        }
-
-        for (const activity of pendingActivities) {
-          const activityDetails = await getRuckusActivityDetails(
-            token,
-            activity.id,
-            region,
-          );
-          const isCompleted = activityDetails.endDatetime !== undefined;
-          const isFailed =
-            activityDetails.status !== "SUCCESS" &&
-            activityDetails.status !== "INPROGRESS";
-
-          if (isCompleted) {
-            if (activityDetails.status === "SUCCESS") {
-              console.log(`[RUCKUS] ${activity.name} completed successfully`);
-              completedActivities.push({
-                activityId: activity.id,
-                name: activity.name,
-                status: "SUCCESS",
-                details: activityDetails,
-              });
-            } else {
-              return {
-                networkId,
-                venueIds: venueConfigs.map((v) => v.venueId),
-                status: "failed",
-                message: `${activity.name} failed`,
-                error:
-                  activityDetails.error ||
-                  activityDetails.message ||
-                  "Operation completed with non-SUCCESS status",
-                activities: [
-                  ...completedActivities,
-                  {
-                    activityId: activity.id,
-                    name: activity.name,
-                    status: activityDetails.status,
-                    details: activityDetails,
-                  },
-                ],
-              };
-            }
-          } else if (isFailed) {
-            return {
-              networkId,
-              venueIds: venueConfigs.map((v) => v.venueId),
-              status: "failed",
-              message: `${activity.name} failed`,
-              error:
-                activityDetails.error ||
-                activityDetails.message ||
-                "Operation failed",
-              activities: [
-                ...completedActivities,
-                {
-                  activityId: activity.id,
-                  name: activity.name,
-                  status: activityDetails.status,
-                  details: activityDetails,
-                },
-              ],
-            };
-          }
-        }
-
-        retryCount++;
-        console.log(
-          `[RUCKUS] Enterprise activation in progress, attempt ${retryCount}/${maxRetries}`,
-        );
-
-        if (retryCount >= maxRetries) {
-          break;
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-      } catch (error) {
-        retryCount++;
-        console.error(
-          `[RUCKUS] Error polling activity details (attempt ${retryCount}/${maxRetries}):`,
-          error,
-        );
-
-        if (retryCount >= maxRetries) {
-          return {
-            networkId,
-            venueIds: venueConfigs.map((v) => v.venueId),
-            status: "timeout",
-            message:
-              "Enterprise WiFi network activation status unknown - polling timeout",
-            error: "Failed to get activity status after maximum retries",
-            activities: completedActivities,
-          };
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-      }
-    }
-
-    return {
-      networkId,
-      venueIds: venueConfigs.map((v) => v.venueId),
-      status: "timeout",
-      message:
-        "Enterprise WiFi network activation status unknown - polling timeout",
-      activities: completedActivities,
-    };
-  }
-
-  // For PSK/guest networks: use multi-step flow (existing working implementation)
-  // Step 1: Update WiFi network with full config and venues array
-  console.log("[RUCKUS] Updating WiFi network with venue associations...");
-  const updateUrl = `${baseApiUrl}/wifiNetworks/${networkId}`;
-
-  // Build venues array for the payload
-  const venuesArray = venueConfigs.map((config) => ({
-    apGroups: config.apGroups || [],
-    scheduler: config.scheduler,
-    isAllApGroups: config.isAllApGroups,
-    allApGroupsRadio: config.allApGroupsRadio,
-    allApGroupsRadioTypes: config.allApGroupsRadioTypes,
-    venueId: config.venueId,
-  }));
-
-  // Merge full network config with venues array
-  // Remove read-only fields that the API rejects on PUT (e.g., OWE Transition fields)
-  const { owePairNetworkId, isOweMaster, dsaeOnboardNetwork, ...writableConfig } = networkConfig;
-  const updatePayload = {
-    ...writableConfig,
-    venues: venuesArray,
-    id: networkId,
-  };
-
-  const updateResponse = await makeRuckusApiCall(
-    {
-      method: "put",
-      url: updateUrl,
-      data: updatePayload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    },
-    "Update WiFi network with venues",
-  );
-
-  const updateData = updateResponse.data;
-  const updateRequestId = updateData.requestId;
-
-  if (!updateRequestId) {
-    console.warn(
-      "[RUCKUS] No requestId returned from network update (may be synchronous)",
-    );
-  }
-
-  // Step 2: Re-associate portal service profile for guest pass networks
-  let portalRequestId: string | undefined;
-  if (isGuestType && portalServiceProfileId) {
-    console.log("[RUCKUS] Re-associating portal service profile...");
-    const portalUrl = `${baseApiUrl}/wifiNetworks/${networkId}/portalServiceProfiles/${portalServiceProfileId}`;
-
-    const portalResponse = await makeRuckusApiCall(
-      {
-        method: "put",
-        url: portalUrl,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      },
-      "Re-associate portal service profile",
-    );
-
-    const portalData = portalResponse.data;
-    portalRequestId = portalData.requestId;
-
-    if (!portalRequestId) {
-      console.warn(
-        "[RUCKUS] No requestId returned from portal service profile re-association API (may be synchronous)",
-      );
+        "Associate portal service profile",
+      )
+    ).data.requestId;
+    if (portalRequestId) {
+      allRequestIds.push({
+        id: portalRequestId,
+        name: "Associate portal service profile",
+      });
     }
   }
-
-  // Step 3: Update RADIUS server profile settings with correct payload based on network type
-  console.log("[RUCKUS] Updating RADIUS server profile settings...");
-  const radiusUrl = `${baseApiUrl}/wifiNetworks/${networkId}/radiusServerProfileSettings`;
-
-  // Guest pass networks use enableAuthProxy: true, PSK/Enterprise use enableAuthProxy: false
-  const radiusPayload = {
-    enableAccountingProxy: false,
-    enableAuthProxy: isGuestType ? true : false,
-  };
-
-  const radiusResponse = await makeRuckusApiCall(
-    {
-      method: "put",
-      url: radiusUrl,
-      data: radiusPayload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    },
-    "Update RADIUS settings",
-  );
-
-  const radiusData = radiusResponse.data;
-  const radiusRequestId = radiusData.requestId;
-
-  if (!radiusRequestId) {
-    console.warn(
-      "[RUCKUS] No requestId returned from RADIUS settings update (may be synchronous)",
-    );
-  }
-
-  // Steps 3-N: Activate at each venue (2 calls per venue)
-  const venueRequestIds: Array<{ id: string; name: string }> = [];
 
   for (const venueConfig of venueConfigs) {
     const venueId = venueConfig.venueId;
-
-    // Step 3a: Activate network at venue
-    console.log(`[RUCKUS] Activating network at venue ${venueId}...`);
-    const venueActivateUrl = `${baseApiUrl}/venues/${venueId}/wifiNetworks/${networkId}`;
-
-    const venueActivatePayload = {
+    const venuePayload = {
       apGroups: venueConfig.apGroups || [],
       scheduler: venueConfig.scheduler,
       isAllApGroups: venueConfig.isAllApGroups,
       allApGroupsRadio: venueConfig.allApGroupsRadio,
       allApGroupsRadioTypes: venueConfig.allApGroupsRadioTypes,
-      venueId: venueId,
-      networkId: networkId,
+      venueId,
+      networkId,
     };
 
-    const venueActivateResponse = await makeRuckusApiCall(
-      {
-        method: "put",
-        url: venueActivateUrl,
-        data: venueActivatePayload,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+    // Activate the network at the venue.
+    console.log(`[RUCKUS] Activating network at venue ${venueId}...`);
+    const activateRequestId = (
+      await makeRuckusApiCall(
+        {
+          method: "put",
+          url: `${baseApiUrl}/venues/${venueId}/wifiNetworks/${networkId}`,
+          data: venuePayload,
+          headers,
         },
-      },
-      `Activate network at venue ${venueId}`,
-    );
-
-    const venueActivateData = venueActivateResponse.data;
-    const venueActivateRequestId = venueActivateData.requestId;
-
-    if (venueActivateRequestId) {
-      venueRequestIds.push({
-        id: venueActivateRequestId,
+        `Activate network at venue ${venueId}`,
+      )
+    ).data.requestId;
+    if (activateRequestId) {
+      allRequestIds.push({
+        id: activateRequestId,
         name: `Activate at venue ${venueId}`,
       });
     }
 
-    // Step 3b: Update venue-specific settings
+    // Apply venue-level settings — carries the scheduler (required for CUSTOM schedules,
+    // which the per-venue activation alone does not fully apply).
     console.log(`[RUCKUS] Updating settings for venue ${venueId}...`);
-    const venueSettingsUrl = `${baseApiUrl}/venues/${venueId}/wifiNetworks/${networkId}/settings`;
-
-    const venueSettingsPayload = venueActivatePayload; // Same payload
-
-    const venueSettingsResponse = await makeRuckusApiCall(
-      {
-        method: "put",
-        url: venueSettingsUrl,
-        data: venueSettingsPayload,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+    const settingsRequestId = (
+      await makeRuckusApiCall(
+        {
+          method: "put",
+          url: `${baseApiUrl}/venues/${venueId}/wifiNetworks/${networkId}/settings`,
+          data: venuePayload,
+          headers,
         },
-      },
-      `Update settings for venue ${venueId}`,
-    );
-
-    const venueSettingsData = venueSettingsResponse.data;
-    const venueSettingsRequestId = venueSettingsData.requestId;
-
-    if (venueSettingsRequestId) {
-      venueRequestIds.push({
-        id: venueSettingsRequestId,
+        `Update settings for venue ${venueId}`,
+      )
+    ).data.requestId;
+    if (settingsRequestId) {
+      allRequestIds.push({
+        id: settingsRequestId,
         name: `Update settings for venue ${venueId}`,
       });
     }
   }
-
-  // Collect all requestIds for polling
-  const allRequestIds = [
-    ...(updateRequestId
-      ? [{ id: updateRequestId, name: "Update network with venues" }]
-      : []),
-    ...(portalRequestId
-      ? [{ id: portalRequestId, name: "Re-associate portal service profile" }]
-      : []),
-    ...(radiusRequestId
-      ? [{ id: radiusRequestId, name: "Update RADIUS settings" }]
-      : []),
-    ...venueRequestIds,
-  ];
-
-  console.log(
-    `[RUCKUS] Total async operations to poll: ${allRequestIds.length}`,
-  );
 
   // Poll all operations for completion
   let retryCount = 0;
@@ -5307,13 +5010,11 @@ export async function activateWifiNetworkAtVenuesWithRetry(
 
   while (retryCount < maxRetries) {
     try {
-      // Check status of all pending activities
       const pendingActivities = allRequestIds.filter(
         (req) => !completedActivities.find((c) => c.activityId === req.id),
       );
 
       if (pendingActivities.length === 0) {
-        // All activities completed
         return {
           networkId,
           venueIds: venueConfigs.map((v) => v.venueId),
@@ -5323,7 +5024,6 @@ export async function activateWifiNetworkAtVenuesWithRetry(
         };
       }
 
-      // Poll each pending activity
       for (const activity of pendingActivities) {
         const activityDetails = await getRuckusActivityDetails(
           token,
@@ -5346,7 +5046,6 @@ export async function activateWifiNetworkAtVenuesWithRetry(
               details: activityDetails,
             });
           } else {
-            // Operation failed
             return {
               networkId,
               venueIds: venueConfigs.map((v) => v.venueId),
@@ -5368,7 +5067,6 @@ export async function activateWifiNetworkAtVenuesWithRetry(
             };
           }
         } else if (isFailed) {
-          // Operation failed without completion
           return {
             networkId,
             venueIds: venueConfigs.map((v) => v.venueId),
@@ -5391,7 +5089,6 @@ export async function activateWifiNetworkAtVenuesWithRetry(
         }
       }
 
-      // If some activities still pending, increment retry count
       retryCount++;
       console.log(
         `[RUCKUS] WiFi network activation in progress, attempt ${retryCount}/${maxRetries} (${pendingActivities.length} operations pending)`,
@@ -5861,118 +5558,84 @@ export async function deactivateWifiNetworkAtVenuesWithRetry(
       ? `https://api.${region}.ruckus.cloud`
       : "https://api.ruckus.cloud";
 
-  // Step 0: Retrieve full network configuration
-  const networkConfig = await getWifiNetwork(token, networkId, region);
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
 
-  // Detect network type
-  const networkType = networkConfig.type || networkConfig.nwSubType;
-  const isEnterpriseType = networkType === "aaa";
+  // STORY-024: uniform per-venue deactivation for ALL network types — one
+  // `DELETE /venues/{venueId}/wifiNetworks/{networkId}` per venue (confirmed by GUI
+  // trace). No full-config retrieve, no empty-`venues[]` PUT, and no RADIUS-settings
+  // reset (the product does just the DELETE).
+  const venueRequestIds: Array<{ id: string; name: string; venueId: string }> =
+    [];
 
-  // For 802.1x/enterprise networks: simple deactivation only (1 DELETE call per venue)
-  if (isEnterpriseType) {
-    console.log(
-      "[RUCKUS] Enterprise/802.1x network detected - using simple deactivation",
-    );
-    const venueRequestIds: Array<{
-      id: string;
-      name: string;
-      venueId: string;
-    }> = [];
-
-    for (const venueId of venueIds) {
-      console.log(
-        `[RUCKUS] Deactivating enterprise network from venue ${venueId}...`,
-      );
-
-      const deleteUrl = `${baseApiUrl}/venues/${venueId}/wifiNetworks/${networkId}`;
-
-      const deleteResponse = await makeRuckusApiCall(
+  for (const venueId of venueIds) {
+    console.log(`[RUCKUS] Deactivating network from venue ${venueId}...`);
+    const deleteRequestId = (
+      await makeRuckusApiCall(
         {
           method: "delete",
-          url: deleteUrl,
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          url: `${baseApiUrl}/venues/${venueId}/wifiNetworks/${networkId}`,
+          headers,
         },
-        `Deactivate enterprise network from venue ${venueId}`,
+        `Deactivate network from venue ${venueId}`,
+      )
+    ).data.requestId;
+    if (deleteRequestId) {
+      venueRequestIds.push({
+        id: deleteRequestId,
+        name: `Deactivate from venue ${venueId}`,
+        venueId,
+      });
+    }
+  }
+
+  // Poll all venue deactivations for completion
+  let retryCount = 0;
+  const completedActivities: any[] = [];
+
+  while (retryCount < maxRetries) {
+    try {
+      const pendingActivities = venueRequestIds.filter(
+        (req) => !completedActivities.find((c) => c.activityId === req.id),
       );
 
-      if (deleteResponse.data.requestId) {
-        venueRequestIds.push({
-          id: deleteResponse.data.requestId,
-          name: `Deactivate from venue ${venueId}`,
-          venueId,
-        });
+      if (pendingActivities.length === 0) {
+        return {
+          status: "completed",
+          message: `WiFi network deactivated from ${venueIds.length} venue(s) successfully`,
+          networkId,
+          venueIds,
+          venueRequestIds: venueRequestIds.map((v) => ({
+            venueId: v.venueId,
+            requestId: v.id,
+          })),
+          activities: completedActivities,
+        };
       }
-    }
 
-    // Poll all venue deactivations for completion
-    let retryCount = 0;
-    const completedActivities: any[] = [];
-
-    while (retryCount < maxRetries) {
-      try {
-        const pendingActivities = venueRequestIds.filter(
-          (req) => !completedActivities.find((c) => c.activityId === req.id),
+      for (const activity of pendingActivities) {
+        const activityDetails = await getRuckusActivityDetails(
+          token,
+          activity.id,
+          region,
         );
+        const isCompleted = activityDetails.endDatetime !== undefined;
+        const isFailed =
+          activityDetails.status !== "SUCCESS" &&
+          activityDetails.status !== "INPROGRESS";
 
-        if (pendingActivities.length === 0) {
-          return {
-            status: "completed",
-            message: `Enterprise WiFi network deactivated from ${venueIds.length} venue(s) successfully`,
-            networkId,
-            venueIds,
-            venueRequestIds: venueRequestIds.map((v) => ({
-              venueId: v.venueId,
-              requestId: v.id,
-            })),
-            activities: completedActivities,
-          };
-        }
-
-        for (const activity of pendingActivities) {
-          const activityDetails = await getRuckusActivityDetails(
-            token,
-            activity.id,
-            region,
-          );
-          const isCompleted = activityDetails.endDatetime !== undefined;
-          const isFailed =
-            activityDetails.status !== "SUCCESS" &&
-            activityDetails.status !== "INPROGRESS";
-
-          if (isCompleted) {
-            if (activityDetails.status === "SUCCESS") {
-              console.log(`[RUCKUS] ${activity.name} completed successfully`);
-              completedActivities.push({
-                activityId: activity.id,
-                name: activity.name,
-                status: "SUCCESS",
-                details: activityDetails,
-              });
-            } else {
-              return {
-                status: "failed",
-                message: `${activity.name} failed`,
-                networkId,
-                venueIds,
-                error:
-                  activityDetails.error ||
-                  activityDetails.message ||
-                  "Operation completed with non-SUCCESS status",
-                activities: [
-                  ...completedActivities,
-                  {
-                    activityId: activity.id,
-                    name: activity.name,
-                    status: activityDetails.status,
-                    details: activityDetails,
-                  },
-                ],
-              };
-            }
-          } else if (isFailed) {
+        if (isCompleted) {
+          if (activityDetails.status === "SUCCESS") {
+            console.log(`[RUCKUS] ${activity.name} completed successfully`);
+            completedActivities.push({
+              activityId: activity.id,
+              name: activity.name,
+              status: "SUCCESS",
+              details: activityDetails,
+            });
+          } else {
             return {
               status: "failed",
               message: `${activity.name} failed`,
@@ -5981,7 +5644,7 @@ export async function deactivateWifiNetworkAtVenuesWithRetry(
               error:
                 activityDetails.error ||
                 activityDetails.message ||
-                "Operation failed",
+                "Operation completed with non-SUCCESS status",
               activities: [
                 ...completedActivities,
                 {
@@ -5993,238 +5656,57 @@ export async function deactivateWifiNetworkAtVenuesWithRetry(
               ],
             };
           }
-        }
-
-        retryCount++;
-        console.log(
-          `[RUCKUS] Enterprise deactivation in progress, attempt ${retryCount}/${maxRetries}`,
-        );
-
-        if (retryCount >= maxRetries) {
-          break;
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-      } catch (error) {
-        retryCount++;
-        console.error(
-          `[RUCKUS] Error polling activity details (attempt ${retryCount}/${maxRetries}):`,
-          error,
-        );
-
-        if (retryCount >= maxRetries) {
-          return {
-            status: "timeout",
-            message:
-              "Enterprise WiFi network deactivation status unknown - polling timeout",
-            networkId,
-            venueIds,
-            error: "Failed to get activity status after maximum retries",
-            activities: completedActivities,
-          };
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-      }
-    }
-
-    return {
-      status: "timeout",
-      message:
-        "Enterprise WiFi network deactivation status unknown - polling timeout",
-      networkId,
-      venueIds,
-      activities: completedActivities,
-    };
-  }
-
-  // For PSK/guest networks: use multi-step flow (existing working implementation)
-  // Step 1: Update network with empty venues array
-  const updateNetworkUrl =
-    region && region.trim() !== ""
-      ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}`
-      : `https://api.ruckus.cloud/wifiNetworks/${networkId}`;
-
-  // Remove read-only fields that the API rejects on PUT (e.g., OWE Transition fields)
-  const { owePairNetworkId: _owe1, isOweMaster: _owe2, dsaeOnboardNetwork: _dsae1, ...writableNetworkConfig } = networkConfig;
-  const updateNetworkPayload = {
-    ...writableNetworkConfig,
-    venues: [],
-    id: networkId,
-  };
-
-  const updateNetworkResponse = await makeRuckusApiCall(
-    {
-      method: "put",
-      url: updateNetworkUrl,
-      data: updateNetworkPayload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    },
-    "Update WiFi network (deactivate - set venues to empty)",
-  );
-
-  const updateNetworkRequestId = updateNetworkResponse.data.requestId;
-
-  // Step 2: Reset RADIUS server profile settings
-  const radiusUrl =
-    region && region.trim() !== ""
-      ? `https://api.${region}.ruckus.cloud/wifiNetworks/${networkId}/radiusServerProfileSettings`
-      : `https://api.ruckus.cloud/wifiNetworks/${networkId}/radiusServerProfileSettings`;
-
-  const radiusPayload = {};
-
-  const radiusResponse = await makeRuckusApiCall(
-    {
-      method: "put",
-      url: radiusUrl,
-      data: radiusPayload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    },
-    "Update WiFi network RADIUS settings (deactivate - reset to empty)",
-  );
-
-  const radiusRequestId = radiusResponse.data.requestId;
-
-  // Step 3-N: Delete network from each venue
-  const venueRequestIds: Array<{ id: string; name: string; venueId: string }> =
-    [];
-
-  for (const venueId of venueIds) {
-    const deleteVenueNetworkUrl =
-      region && region.trim() !== ""
-        ? `https://api.${region}.ruckus.cloud/venues/${venueId}/wifiNetworks/${networkId}`
-        : `https://api.ruckus.cloud/venues/${venueId}/wifiNetworks/${networkId}`;
-
-    const deleteVenueNetworkResponse = await makeRuckusApiCall(
-      {
-        method: "delete",
-        url: deleteVenueNetworkUrl,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      },
-      `Delete WiFi network from venue ${venueId}`,
-    );
-
-    if (deleteVenueNetworkResponse.data.requestId) {
-      venueRequestIds.push({
-        id: deleteVenueNetworkResponse.data.requestId,
-        name: `Delete from venue ${venueId}`,
-        venueId,
-      });
-    }
-  }
-
-  // Collect all requestIds for polling
-  const requestIds = [
-    { id: updateNetworkRequestId, name: "Update network (empty venues)" },
-    { id: radiusRequestId, name: "Reset RADIUS settings" },
-    ...venueRequestIds,
-  ];
-
-  // Poll all operations for completion
-  let retryCount = 0;
-  const completedActivities: any[] = [];
-
-  while (retryCount < maxRetries) {
-    console.log(`[RUCKUS] Polling attempt ${retryCount + 1}/${maxRetries}...`);
-
-    const pendingActivities = requestIds.filter(
-      (req) => !completedActivities.find((c) => c.activityId === req.id),
-    );
-
-    if (pendingActivities.length === 0) {
-      console.log(
-        "[RUCKUS] All deactivation operations completed successfully",
-      );
-      return {
-        status: "completed",
-        message: `WiFi network deactivated from ${venueIds.length} venue(s) successfully`,
-        networkId,
-        venueIds,
-        updateNetworkRequestId,
-        radiusRequestId,
-        venueRequestIds: venueRequestIds.map((v) => ({
-          venueId: v.venueId,
-          requestId: v.id,
-        })),
-        completedActivities,
-      };
-    }
-
-    for (const request of pendingActivities) {
-      try {
-        const activityDetails = await getRuckusActivityDetails(
-          token,
-          request.id,
-          region,
-        );
-        console.log(
-          `[RUCKUS] Activity ${request.name} (${request.id}) status:`,
-          activityDetails.status,
-        );
-
-        if (
-          activityDetails.status === "COMPLETED" ||
-          activityDetails.status === "SUCCESS"
-        ) {
-          completedActivities.push({
-            activityId: request.id,
-            name: request.name,
-            status: activityDetails.status,
-            details: activityDetails,
-          });
-          console.log(`[RUCKUS] ✓ ${request.name} completed successfully`);
-        } else if (activityDetails.status === "FAIL") {
-          console.error(`[RUCKUS] ✗ ${request.name} failed:`, activityDetails);
+        } else if (isFailed) {
           return {
             status: "failed",
-            message: `WiFi network deactivation failed: ${request.name}`,
+            message: `${activity.name} failed`,
             networkId,
             venueIds,
-            updateNetworkRequestId,
-            radiusRequestId,
-            venueRequestIds: venueRequestIds.map((v) => ({
-              venueId: v.venueId,
-              requestId: v.id,
-            })),
-            failedActivity: activityDetails,
-            completedActivities,
-            error: activityDetails.error || "Operation failed",
-          };
-        }
-      } catch (error: any) {
-        console.error(`[RUCKUS] Error checking activity ${request.id}:`, error);
-        if (retryCount === maxRetries - 1) {
-          return {
-            status: "timeout",
-            message:
-              "WiFi network deactivation status unknown - polling timeout",
-            networkId,
-            venueIds,
-            updateNetworkRequestId,
-            radiusRequestId,
-            venueRequestIds: venueRequestIds.map((v) => ({
-              venueId: v.venueId,
-              requestId: v.id,
-            })),
-            completedActivities,
-            error: "Failed to get activity status after maximum retries",
+            error:
+              activityDetails.error ||
+              activityDetails.message ||
+              "Operation failed",
+            activities: [
+              ...completedActivities,
+              {
+                activityId: activity.id,
+                name: activity.name,
+                status: activityDetails.status,
+                details: activityDetails,
+              },
+            ],
           };
         }
       }
-    }
 
-    retryCount++;
+      retryCount++;
+      console.log(
+        `[RUCKUS] WiFi network deactivation in progress, attempt ${retryCount}/${maxRetries} (${pendingActivities.length} operations pending)`,
+      );
 
-    if (completedActivities.length < requestIds.length) {
+      if (retryCount >= maxRetries) {
+        break;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    } catch (error) {
+      retryCount++;
+      console.error(
+        `[RUCKUS] Error polling activity details (attempt ${retryCount}/${maxRetries}):`,
+        error,
+      );
+
+      if (retryCount >= maxRetries) {
+        return {
+          status: "timeout",
+          message: "WiFi network deactivation status unknown - polling timeout",
+          networkId,
+          venueIds,
+          error: "Failed to get activity status after maximum retries",
+          activities: completedActivities,
+        };
+      }
+
       await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
     }
   }
@@ -6234,20 +5716,10 @@ export async function deactivateWifiNetworkAtVenuesWithRetry(
     message: "WiFi network deactivation status unknown - polling timeout",
     networkId,
     venueIds,
-    updateNetworkRequestId,
-    radiusRequestId,
-    venueRequestIds: venueRequestIds.map((v) => ({
-      venueId: v.venueId,
-      requestId: v.id,
-    })),
-    completedActivities,
+    activities: completedActivities,
   };
 }
 
-/**
- * Delete a WiFi network with automatic retry mechanism
- * This function handles the deletion workflow with polling for completion status
- */
 export async function deleteWifiNetworkWithRetry(
   token: string,
   networkId: string,
