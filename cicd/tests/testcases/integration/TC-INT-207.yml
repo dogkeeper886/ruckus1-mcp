@@ -1,5 +1,5 @@
 id: TC-INT-207
-name: Directory server profile CRUD lifecycle - create, verify, delete
+name: Directory server profile CRUD lifecycle - create, partial-update, verify, delete
 suite: integration
 tags: [directory-server]
 story: STORY-005
@@ -26,6 +26,23 @@ steps:
     rejectPatterns:
       - "isError"
 
+  - name: Partial update - change only host (retrieve-then-merge)
+    command: npx tsx cicd/tests/src/mcp-client.ts update_directory_server_profile '{"profileId":"{{profileId}}","profileConfig":{"host":"10.88.88.88"},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Get profile - verify host changed and unspecified fields preserved
+    command: npx tsx cicd/tests/src/mcp-client.ts get_directory_server_profile '{"profileId":"{{profileId}}"}'
+    expectPatterns:
+      - "10.88.88.88"
+      - "mcp-test-ldap-{{TEST_RUN_ID}}"
+      - "dc=test,dc=com"
+      - "TestPass123"
+    rejectPatterns:
+      - "isError"
+
   - name: Delete directory server profile
     command: npx tsx cicd/tests/src/mcp-client.ts delete_directory_server_profile '{"profileId":"{{profileId}}","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
@@ -41,8 +58,14 @@ steps:
       - "{{profileId}}"
 
 criteria: |
-  Full directory server profile CRUD lifecycle:
-  1. Create LDAP profile "mcp-test-ldap-{{TEST_RUN_ID}}" with test server config
+  Full directory server profile CRUD lifecycle, incl. STORY-023 partial update:
+  1. Create LDAP profile "mcp-test-ldap-{{TEST_RUN_ID}}" (host 10.99.99.99, port 389,
+     adminPassword TestPass123, domainName dc=test,dc=com)
   2. Query to find it and capture profileId
-  3. Delete using captured profileId
-  4. Verify it no longer appears in query results
+  3. Partial update via update_directory_server_profile with profileConfig {host:"10.88.88.88"}
+     only — retrieve-then-merge (JSON Merge Patch).
+  4. GET the profile and verify the new host (10.88.88.88) AND that unspecified fields were
+     preserved (name, domainName, adminPassword) — proving the merge did not clear them,
+     and that the GET-returned adminPassword survives the round-trip.
+  5. Delete using captured profileId
+  6. Verify it no longer appears in query results
