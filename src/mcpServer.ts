@@ -1268,7 +1268,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "update_radius_server_profile",
         description:
-          "Update a RADIUS server profile in RUCKUS One with automatic status checking for async operations. Updates profile name, type, and server configurations. REQUIRED: profileId (use query_radius_server_profiles to get profile ID) + name + type + enableSecondaryServer + primary server config.",
+          "Update a RADIUS server profile by passing only the fields you want to change. REQUIRED: profileId (use query_radius_server_profiles to get profile ID) + profileConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics; a null value deletes a key). IN-CONFIG ATTRIBUTES: name, type ('AUTHENTICATION' | 'ACCOUNTING'), enableSecondaryServer, primary { port, sharedSecret, ip | hostname }, secondary { port, sharedSecret, ip | hostname }. TO CHANGE THE SERVER ADDRESS: send primary.ip OR primary.hostname; when switching between them, set the other to null (e.g. { primary: { hostname: 'radius.example.com', ip: null } }). At least one field is required.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1277,67 +1277,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description:
                 "ID of the RADIUS server profile to update (use query_radius_server_profiles to get profile ID)",
             },
-            name: {
-              type: "string",
-              description: "Name of the RADIUS server profile",
-            },
-            type: {
-              type: "string",
+            profileConfig: {
+              type: "object",
               description:
-                'Type of RADIUS server profile: "AUTHENTICATION" or "ACCOUNTING"',
-            },
-            enableSecondaryServer: {
-              type: "boolean",
-              description: "Whether to enable secondary server",
-            },
-            primary: {
-              type: "object",
-              description: "Primary RADIUS server configuration",
-              properties: {
-                port: {
-                  type: "number",
-                  description: "Port number for the primary server",
-                },
-                sharedSecret: {
-                  type: "string",
-                  description: "Shared secret for the primary server",
-                },
-                hostname: {
-                  type: "string",
-                  description: "Hostname or IP address for the primary server",
-                },
-                ip: {
-                  type: "string",
-                  description:
-                    "IP address for the primary server (provide either hostname or ip, not both unless testing API validation)",
-                },
-              },
-              required: ["port", "sharedSecret"],
-            },
-            secondary: {
-              type: "object",
-              description: "Secondary RADIUS server configuration (optional)",
-              properties: {
-                port: {
-                  type: "number",
-                  description: "Port number for the secondary server",
-                },
-                sharedSecret: {
-                  type: "string",
-                  description: "Shared secret for the secondary server",
-                },
-                hostname: {
-                  type: "string",
-                  description:
-                    "Hostname or IP address for the secondary server",
-                },
-                ip: {
-                  type: "string",
-                  description:
-                    "IP address for the secondary server (provide either hostname or ip, not both unless testing API validation)",
-                },
-              },
-              required: ["port", "sharedSecret"],
+                "Partial RADIUS server profile configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). Keys: name, type ('AUTHENTICATION' | 'ACCOUNTING'), enableSecondaryServer, primary { port, sharedSecret, ip | hostname }, secondary { port, sharedSecret, ip | hostname }. Send primary.ip OR primary.hostname (set the other to null when switching).",
             },
             maxRetries: {
               type: "number",
@@ -1348,13 +1291,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Polling interval in milliseconds (default: 5000)",
             },
           },
-          required: [
-            "profileId",
-            "name",
-            "type",
-            "enableSecondaryServer",
-            "primary",
-          ],
+          required: ["profileId", "profileConfig"],
         },
       },
       {
@@ -5128,67 +5065,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const {
           profileId,
-          name,
-          type,
-          enableSecondaryServer,
-          primary,
-          secondary,
+          profileConfig,
           maxRetries = 20,
           pollIntervalMs = 5000,
         } = request.params.arguments as {
           profileId: string;
-          name: string;
-          type: "AUTHENTICATION" | "ACCOUNTING";
-          enableSecondaryServer: boolean;
-          primary: {
-            port: number;
-            sharedSecret: string;
-            hostname?: string;
-            ip?: string;
-          };
-          secondary?: {
-            port: number;
-            sharedSecret: string;
-            hostname?: string;
-            ip?: string;
-          };
+          profileConfig: any;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
 
         const token = await tokenService.getValidToken();
 
-        const profileData: {
-          name: string;
-          type: "AUTHENTICATION" | "ACCOUNTING";
-          enableSecondaryServer: boolean;
-          primary: {
-            port: number;
-            sharedSecret: string;
-            hostname?: string;
-            ip?: string;
-          };
-          secondary?: {
-            port: number;
-            sharedSecret: string;
-            hostname?: string;
-            ip?: string;
-          };
-        } = {
-          name,
-          type,
-          enableSecondaryServer,
-          primary,
-        };
-
-        if (secondary) {
-          profileData.secondary = secondary;
-        }
-
         const result = await updateRadiusServerProfileWithRetry(
           token,
           profileId,
-          profileData,
+          profileConfig,
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs,
