@@ -3239,6 +3239,8 @@ export async function createWifiNetworkWithRetry(
     // Guest pass specific options
     guestPortal?: any;
     portalServiceProfileId?: string;
+    // Directory (AD/LDAP) captive-portal: directory server profile to bind (#95)
+    directoryServerProfileId?: string;
     // Enterprise 802.1x specific options
     radiusServiceProfileId?: string;
     accountingRadiusServiceProfileId?: string;
@@ -3776,6 +3778,36 @@ export async function createWifiNetworkWithRetry(
     }
   }
 
+  // Step 6: Associate directory server profile for Active Directory/LDAP captive portals (#95).
+  // Confirmed by GUI trace: a Directory WLAN binds its directory profile via
+  // PUT /wifiNetworks/{id}/directoryServerProfiles/{id}, mirroring the portal/DPSK associations.
+  let directoryServiceProfileRequestId: string | undefined;
+  if (isCaptivePortal && networkConfig.directoryServerProfileId) {
+    console.log("[RUCKUS] Associating directory server profile...");
+    const directoryServiceUrl = `${apiUrl}/${networkId}/directoryServerProfiles/${networkConfig.directoryServerProfileId}`;
+
+    const directoryServiceResponse = await makeRuckusApiCall(
+      {
+        method: "put",
+        url: directoryServiceUrl,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+      "Associate directory server profile",
+    );
+
+    directoryServiceProfileRequestId =
+      directoryServiceResponse.data.requestId;
+
+    if (!directoryServiceProfileRequestId) {
+      console.warn(
+        "[RUCKUS] No requestId returned from directory server profile association API (may be synchronous)",
+      );
+    }
+  }
+
   // Poll all operations for completion
   const requestIds = [
     { id: createRequestId, name: "Create WiFi network" },
@@ -3803,6 +3835,14 @@ export async function createWifiNetworkWithRetry(
       : []),
     ...(dpskServiceRequestId
       ? [{ id: dpskServiceRequestId, name: "Associate DPSK service" }]
+      : []),
+    ...(directoryServiceProfileRequestId
+      ? [
+          {
+            id: directoryServiceProfileRequestId,
+            name: "Associate directory server profile",
+          },
+        ]
       : []),
   ];
 
@@ -4346,6 +4386,7 @@ export async function updateWifiNetworkWithRetry(
     portalServiceProfileId,
     radiusServiceProfileId,
     accountingRadiusServiceProfileId,
+    directoryServerProfileId,
     enableAuthProxy,
     enableAccountingProxy,
     ...configBody
@@ -4360,18 +4401,20 @@ export async function updateWifiNetworkWithRetry(
     enableAuthProxy !== undefined || enableAccountingProxy !== undefined;
   const hasRadiusProfile = !!radiusServiceProfileId;
   const hasAccountingRadiusProfile = !!accountingRadiusServiceProfileId;
+  const hasDirectoryProfile = !!directoryServerProfileId;
 
   if (
     !hasConfigBody &&
     !hasPortal &&
     !hasRadiusSettings &&
     !hasRadiusProfile &&
-    !hasAccountingRadiusProfile
+    !hasAccountingRadiusProfile &&
+    !hasDirectoryProfile
   ) {
     throw new Error(
       "update_wifi_network requires at least one change: a networkConfig field to update, " +
         "portalServiceProfileId, radiusServiceProfileId, accountingRadiusServiceProfileId, " +
-        "enableAuthProxy, or enableAccountingProxy.",
+        "directoryServerProfileId, enableAuthProxy, or enableAccountingProxy.",
     );
   }
 
@@ -4458,6 +4501,21 @@ export async function updateWifiNetworkWithRetry(
     ).data.requestId;
   }
 
+  // Step 6: Directory server profile association (Active Directory/LDAP captive portal, #95).
+  let directoryProfileRequestId: string | undefined;
+  if (hasDirectoryProfile) {
+    directoryProfileRequestId = (
+      await makeRuckusApiCall(
+        {
+          method: "put",
+          url: `${baseUrl}/directoryServerProfiles/${directoryServerProfileId}`,
+          headers,
+        },
+        "Associate directory server profile",
+      )
+    ).data.requestId;
+  }
+
   const requestIds = [
     ...(updateRequestId
       ? [{ id: updateRequestId, name: "Update WiFi network" }]
@@ -4484,6 +4542,14 @@ export async function updateWifiNetworkWithRetry(
           },
         ]
       : []),
+    ...(directoryProfileRequestId
+      ? [
+          {
+            id: directoryProfileRequestId,
+            name: "Associate directory server profile",
+          },
+        ]
+      : []),
   ];
 
   const responseIds = {
@@ -4493,6 +4559,7 @@ export async function updateWifiNetworkWithRetry(
     portalRequestId,
     radiusProfileRequestId,
     accountingRadiusProfileRequestId,
+    directoryProfileRequestId,
   };
 
   // All operations were synchronous (no requestId to poll).
