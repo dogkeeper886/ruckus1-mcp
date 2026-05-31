@@ -20,11 +20,16 @@ Shared infrastructure: `updateResourceWithMerge` (retrieve-then-merge), `createR
 
 **Deliberate divergences (principle #7 — documented, not forced):**
 - **Access point (`update_ruckus_ap`)** stays a specialized retrieve-then-update, **not** config-object retrieve-then-merge. Its "GET" (`getApDetailsBySerial` via the AP query) returns status/telemetry (clientCount, radioStatuses, firmwareVersion, uptime, …) that does **not** round-trip on PUT, and it has genuine move-vs-property-update semantics (venue/AP-group changes hit a different endpoint). Forcing the generic pattern would be worse. APs have no create (physical/claimed), so AP is query/get/update only.
+- **Custom role (`create_custom_role` / `update_custom_role`)** stays as-is — a full-config PUT update plus permission-enrichment on create — **not** retrieve-then-merge. Confirmed by a live GUI trace (DEV tenant, 2026-05-31):
+  - Update is `PUT /roleAuthentications/customRoles/{id}` with the **full** body `{name, description, features[], preDefinedRole}` — the product sends the entire config, not a delta. Our `update_custom_role` already matches this.
+  - There is **no id-scoped GET**; the GUI loads current state from the **list** (`GET /roleAuthentications/customRoles`) and finds the role client-side — so there is nothing to cleanly retrieve-then-merge against.
+  - Permission-enrichment is a **real product rule**: the GUI baselines read-only across *all* categories (`wifi-r, switch-r, edge-r, ai-r, admin-r, templates-r`) plus the selected perms (e.g. `wifi-c`). Our `create_custom_role` mirrors this (lighter: it adds the parent read for selected advanced perms; both produce valid roles). Converging roles to retrieve-then-merge would diverge from the product for a tiny config — worse, not better.
+  - Privilege group (`update_privilege_group`) is a separate assignment op, likewise left as-is.
 
 **Create+delete-only resources (verify + document, no update to converge):**
 - **Identity group, DPSK service, guest pass** have no update tool today (R1 update support unverified). Per the acceptance criteria these should be confirmed against R1 and explicitly documented as create+delete-only if R1 has no update endpoint. Their *creates* could still be converged to config-object if/when touched.
 
-**Remaining update-convergence candidate:** roles / privilege group (`update_custom_role`, `update_privilege_group`).
+**Convergence status:** every resource where the config-object pattern fits is done (6 resources). The remaining tools are deliberate, evidence-backed divergences (AP, custom role, privilege group) or create+delete-only resources (identity group, DPSK, guest pass) — no further update-convergence candidates remain.
 
 ## Goal
 
