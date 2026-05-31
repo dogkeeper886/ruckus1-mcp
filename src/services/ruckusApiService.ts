@@ -2864,6 +2864,9 @@ export async function updateResourceWithMerge(opts: {
   resourceName: string;
   maxRetries?: number;
   pollIntervalMs?: number;
+  // Read-only fields the GET returns but the PUT rejects (e.g. portal profiles
+  // reject `networkIds` with GUEST-400000). Stripped from the merged body before PUT.
+  omitKeys?: string[];
 }): Promise<any> {
   const {
     token,
@@ -2876,6 +2879,7 @@ export async function updateResourceWithMerge(opts: {
     resourceName,
     maxRetries = 20,
     pollIntervalMs = 5000,
+    omitKeys,
   } = opts;
 
   if (
@@ -2891,6 +2895,9 @@ export async function updateResourceWithMerge(opts: {
 
   const current = await getFn(token, id, region);
   const merged = applyMergePatch(current, partial);
+  if (omitKeys) {
+    for (const key of omitKeys) delete merged[key];
+  }
 
   const putResp = await makeRuckusApiCall(
     { method: "put", url: putUrl, data: merged, headers },
@@ -3138,124 +3145,40 @@ export async function createPortalServiceProfileWithRetry(
 export async function updatePortalServiceProfileWithRetry(
   token: string,
   profileId: string,
-  profileData: {
-    name: string;
-    content: any;
-  },
+  profileConfig: any = {},
   region: string = "",
   maxRetries: number = 20,
   pollIntervalMs: number = 5000,
 ): Promise<any> {
-  const apiUrl =
+  // STORY-023: config-driven retrieve-then-merge (generalizes update_wifi_network).
+  // Caller passes a PARTIAL profile config; getPortalServiceProfile + applyMergePatch
+  // preserve unspecified fields. R1 accepts the GET-shaped body verbatim on PUT.
+  // NOTE on T&C modes: content.termsConditionConfig (rich doc) and content.termsConditionUrl
+  // are mutually exclusive (GUEST-422xxx). To SWITCH modes via merge, set the new mode's
+  // field and null the other, e.g. { content: { termsConditionUrl: "...", termsConditionConfig: null } }.
+  const baseApiUrl =
     region && region.trim() !== ""
-      ? `https://api.${region}.ruckus.cloud/portalServiceProfiles/${profileId}`
-      : `https://api.ruckus.cloud/portalServiceProfiles/${profileId}`;
+      ? `https://api.${region}.ruckus.cloud`
+      : "https://api.ruckus.cloud";
 
-  const payload = {
-    serviceName: profileData.name,
-    content: profileData.content,
-  };
-
-  const response = await makeRuckusApiCall(
-    {
-      method: "put",
-      url: apiUrl,
-      data: payload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+  return updateResourceWithMerge({
+    token,
+    id: profileId,
+    partial: profileConfig,
+    region,
+    getFn: getPortalServiceProfile,
+    putUrl: `${baseApiUrl}/portalServiceProfiles/${profileId}`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
-    "Update portal service profile",
-  );
-
-  const updateResponse = response.data;
-
-  const activityId = updateResponse.requestId;
-
-  if (!activityId) {
-    return {
-      ...updateResponse,
-      status: "completed",
-      message:
-        "Portal service profile updated successfully (synchronous operation)",
-    };
-  }
-
-  console.log(
-    `Starting portal service profile update status polling for activity ${activityId}`,
-  );
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(
-      `Polling attempt ${attempt}/${maxRetries} for portal service profile update activity ${activityId}`,
-    );
-
-    try {
-      const activityDetails = await getRuckusActivityDetails(
-        token,
-        activityId,
-        region,
-      );
-      console.log(`Activity status: ${activityDetails.status}`);
-
-      if (
-        activityDetails.status === "COMPLETED" ||
-        activityDetails.status === "SUCCESS"
-      ) {
-        return {
-          ...updateResponse,
-          status: "completed",
-          message: "Portal service profile updated successfully",
-          activityDetails,
-        };
-      } else if (activityDetails.status === "FAIL") {
-        return {
-          ...updateResponse,
-          status: "failed",
-          message: "Portal service profile update failed",
-          error: activityDetails.error || "Unknown error occurred",
-          activityDetails,
-        };
-      }
-
-      if (attempt === maxRetries) {
-        return {
-          ...updateResponse,
-          status: "timeout",
-          message:
-            "Portal service profile update status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    } catch (error: any) {
-      console.error(
-        `Error polling portal service profile update activity (attempt ${attempt}):`,
-        error.message,
-      );
-
-      if (attempt === maxRetries) {
-        return {
-          ...updateResponse,
-          status: "timeout",
-          message:
-            "Portal service profile update status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    }
-  }
-
-  return {
-    ...updateResponse,
-    status: "timeout",
-    message: "Portal service profile update status unknown - polling timeout",
-    activityId,
-  };
+    resourceName: "portal_service_profile",
+    // Portal PUT is strict: it rejects the read-only id/networkIds the GET returns
+    // (GUEST-400000). Strip them so the merged body matches the accepted shape.
+    omitKeys: ["id", "networkIds"],
+    maxRetries,
+    pollIntervalMs,
+  });
 }
 
 export async function deletePortalServiceProfileWithRetry(
