@@ -521,6 +521,35 @@ export async function deleteVenueWithRetry(
   };
 }
 
+/**
+ * Fetch a single venue by id (GET /venues/{id}). Used as the getFn for
+ * update_ruckus_venue's retrieve-then-merge (STORY-023) and exposed via get_ruckus_venue.
+ */
+export async function getVenue(
+  token: string,
+  venueId: string,
+  region: string = "",
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/venues/${venueId}`
+      : `https://api.ruckus.cloud/venues/${venueId}`;
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "get",
+      url: apiUrl,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Get venue",
+  );
+
+  return response.data;
+}
+
 export async function createVenueWithRetry(
   token: string,
   venueData: {
@@ -675,141 +704,35 @@ export async function createVenueWithRetry(
 export async function updateVenueWithRetry(
   token: string,
   venueId: string,
-  venueData: {
-    name: string;
-    description?: string;
-    addressLine: string;
-    city: string;
-    country: string;
-    countryCode?: string;
-    latitude?: number;
-    longitude?: number;
-    timezone?: string;
-  },
+  venueConfig: any = {},
   region: string = "",
   maxRetries: number = 20,
   pollIntervalMs: number = 5000,
 ): Promise<any> {
-  const apiUrl =
+  // STORY-023: config-driven retrieve-then-merge (generalizes update_wifi_network).
+  // Caller passes a PARTIAL venue config (e.g. { description, address: { city } });
+  // getVenue + applyMergePatch preserve unspecified fields. Address fields are nested
+  // under `address` (matching the GET/PUT shape).
+  const baseApiUrl =
     region && region.trim() !== ""
-      ? `https://api.${region}.ruckus.cloud/venues/${venueId}`
-      : `https://api.ruckus.cloud/venues/${venueId}`;
+      ? `https://api.${region}.ruckus.cloud`
+      : "https://api.ruckus.cloud";
 
-  const payload = {
-    name: venueData.name,
-    ...(venueData.description !== undefined && {
-      description: venueData.description,
-    }),
-    address: {
-      addressLine: venueData.addressLine,
-      city: venueData.city,
-      country: venueData.country,
-      ...(venueData.countryCode && { countryCode: venueData.countryCode }),
-      ...(venueData.latitude !== undefined && { latitude: venueData.latitude }),
-      ...(venueData.longitude !== undefined && {
-        longitude: venueData.longitude,
-      }),
-      ...(venueData.timezone && { timezone: venueData.timezone }),
+  return updateResourceWithMerge({
+    token,
+    id: venueId,
+    partial: venueConfig,
+    region,
+    getFn: getVenue,
+    putUrl: `${baseApiUrl}/venues/${venueId}`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
-  };
-
-  const response = await makeRuckusApiCall(
-    {
-      method: "put",
-      url: apiUrl,
-      data: payload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    },
-    "Update venue",
-  );
-
-  const updateResponse = response.data;
-
-  const activityId = updateResponse.requestId;
-
-  if (!activityId) {
-    return {
-      ...updateResponse,
-      status: "completed",
-      message: "Venue updated successfully (synchronous operation)",
-    };
-  }
-
-  console.log(
-    `Starting venue update status polling for activity ${activityId}`,
-  );
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(
-      `Polling attempt ${attempt}/${maxRetries} for venue update activity ${activityId}`,
-    );
-
-    try {
-      const activityDetails = await getRuckusActivityDetails(
-        token,
-        activityId,
-        region,
-      );
-      console.log(`Activity status: ${activityDetails.status}`);
-
-      if (
-        activityDetails.status === "COMPLETED" ||
-        activityDetails.status === "SUCCESS"
-      ) {
-        return {
-          ...updateResponse,
-          status: "completed",
-          message: "Venue updated successfully",
-          activityDetails,
-        };
-      } else if (activityDetails.status === "FAIL") {
-        return {
-          ...updateResponse,
-          status: "failed",
-          message: "Venue update failed",
-          error: activityDetails.error || "Unknown error occurred",
-          activityDetails,
-        };
-      }
-
-      if (attempt === maxRetries) {
-        return {
-          ...updateResponse,
-          status: "timeout",
-          message: "Venue update status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    } catch (error: any) {
-      console.error(
-        `Error polling venue update activity (attempt ${attempt}):`,
-        error.message,
-      );
-
-      if (attempt === maxRetries) {
-        return {
-          ...updateResponse,
-          status: "timeout",
-          message: "Venue update status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    }
-  }
-
-  return {
-    ...updateResponse,
-    status: "timeout",
-    message: "Venue update status unknown - polling timeout",
-    activityId,
-  };
+    resourceName: "venue",
+    maxRetries,
+    pollIntervalMs,
+  });
 }
 
 export async function createApGroupWithRetry(
