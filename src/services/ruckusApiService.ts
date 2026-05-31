@@ -19,6 +19,62 @@ const PORTAL_TYPE_TO_WIRE: Record<string, string> = {
   workflow: "Workflow",
 };
 
+// Cloudpath captive portal default walled-garden allowlist (#94). The admin GUI
+// pre-populates this exact list of Apple/Google/Microsoft captive-portal probe
+// hosts (+ Google IP ranges) so the OS connectivity check can reach the enrollment
+// flow pre-auth. Injected when the caller doesn't supply their own walledGardens.
+// Captured verbatim from a live Cloudpath create (DEV tenant, 2026-05-31).
+const CLOUDPATH_DEFAULT_WALLED_GARDENS: string[] = [
+  "*.Ggpht.com",
+  "*.accounts.google.com",
+  "*.airport.us",
+  "*.android.clients.google.com",
+  "*.android.com",
+  "*.appengine.google.com",
+  "*.apple.com",
+  "*.apple.com.edgekey.net",
+  "*.appleiphonecell.com",
+  "*.captive.apple.com",
+  "*.clients.google.com",
+  "*.clients3.google.com",
+  "*.cloud.google.com",
+  "*.cloudpath.net",
+  "*.geotrust.com",
+  "*.googleapis.com",
+  "*.googleusercontent.com",
+  "*.gsp1.apple.com",
+  "*.gvt1.com",
+  "*.gstatic.com",
+  "*.ibook.info",
+  "*.itools.info",
+  "*.myaccount.google.com",
+  "*.ocsp.godaddy.com",
+  "*.play.google.com",
+  "*.play.googleapis.com",
+  "*.ruckuswireless.com",
+  "*.ruckus.cloud",
+  "*.settings.crashlytics.com",
+  "*.ssl.gstatic.com",
+  "Android.clients.google.com",
+  "Android.l.google.com",
+  "Ggpht.com",
+  "captive.apple.com",
+  "clients3.google.com",
+  "connectivitycheck.android.com",
+  "connectivitycheck.gstatic.com",
+  "play.googleapis.com",
+  "urs.microsoft.com",
+  "w.apprep.smartscreen.microsoft.com",
+  "www.airport.us",
+  "www.appleiphonecell.com",
+  "www.googleapis.com",
+  "www.ibook.info",
+  "www.itools.info",
+  "www.thinkdifferent.us",
+  "172.217.0.0/16",
+  "216.58.0.0/16",
+];
+
 // WISPr integration key — a 16-char alphanumeric token shared with the external
 // 3rd-party captive portal. The admin GUI pre-generates one on the create form;
 // we mirror that when the caller doesn't supply their own (#96).
@@ -3263,6 +3319,12 @@ export async function createWifiNetworkWithRetry(
       redirectUrl?: string;
       integrationKey?: string;
     };
+    // Cloudpath captive-portal enrollment config (#94). The RADIUS auth server is
+    // supplied via radiusServiceProfileId, reusing the enterprise association path.
+    cloudpathConfig?: {
+      enrollmentUrl: string;
+      walledGardens?: string[];
+    };
     // Enterprise 802.1x specific options
     radiusServiceProfileId?: string;
     accountingRadiusServiceProfileId?: string;
@@ -3317,6 +3379,7 @@ export async function createWifiNetworkWithRetry(
   const isSelfSignInType = networkConfig.type === "selfSignIn";
   const isSimplePortalType = isCaptivePortal && !isSelfSignInType;
   const isWisprType = networkConfig.type === "wispr";
+  const isCloudpathType = networkConfig.type === "cloudpath";
   const isEnterpriseType = networkConfig.type === "enterprise";
   const isOweTransition =
     networkConfig.type === "open" &&
@@ -3566,6 +3629,21 @@ export async function createWifiNetworkWithRetry(
       !!networkConfig.accountingRadiusServiceProfileId;
   }
 
+  // Cloudpath captive portal (#94): the enrollment workflow URL goes in
+  // guestPortal.externalPortalUrl, and the WLAN ships the default captive-portal
+  // probe walled-garden list (caller can override). The RADIUS auth server is
+  // associated via radiusServiceProfileId below (same path as enterprise/WISPr).
+  // Confirmed by GUI trace: the discriminator is guestNetworkType="Cloudpath" —
+  // the top-level isCloudpathEnabled flag stays false (a separate feature).
+  if (isCloudpathType && networkConfig.cloudpathConfig) {
+    const c = networkConfig.cloudpathConfig;
+    basePayload.guestPortal.externalPortalUrl = c.enrollmentUrl;
+    basePayload.guestPortal.walledGardens =
+      c.walledGardens && c.walledGardens.length > 0
+        ? c.walledGardens
+        : CLOUDPATH_DEFAULT_WALLED_GARDENS;
+  }
+
   // Add guest portal configuration for Self Sign-In (Email / SMS / WhatsApp)
   if (isSelfSignInType) {
     // Back-compat default: Email-only when no channel flag is specified.
@@ -3716,7 +3794,8 @@ export async function createWifiNetworkWithRetry(
   // For enterprise networks with RADIUS, use provided proxy settings (required for FQDN-based RADIUS)
   // For other network types, send empty object
   const radiusPayload =
-    isEnterpriseType && networkConfig.radiusServiceProfileId
+    (isEnterpriseType || isWisprType || isCloudpathType) &&
+    networkConfig.radiusServiceProfileId
       ? {
           enableAccountingProxy: networkConfig.enableAccountingProxy ?? false,
           enableAuthProxy: networkConfig.enableAuthProxy ?? false,
@@ -3745,12 +3824,13 @@ export async function createWifiNetworkWithRetry(
     );
   }
 
-  // Step 3: Associate RADIUS service profile for enterprise 802.1x AND WISPr networks
-  // (AFTER proxy settings are configured). WISPr uses the same /radiusServerProfiles/{id}
-  // endpoint as enterprise to bind its 3rd-party AAA authentication server (#96).
+  // Step 3: Associate RADIUS service profile for enterprise 802.1x, WISPr AND Cloudpath
+  // networks (AFTER proxy settings are configured). WISPr (#96) and Cloudpath (#94) both
+  // bind their AAA authentication server via the same /radiusServerProfiles/{id} endpoint
+  // as enterprise.
   let radiusServiceProfileRequestId: string | undefined;
   if (
-    (isEnterpriseType || isWisprType) &&
+    (isEnterpriseType || isWisprType || isCloudpathType) &&
     networkConfig.radiusServiceProfileId
   ) {
     console.log("[RUCKUS] Associating RADIUS service profile for 802.1x...");
@@ -3777,10 +3857,10 @@ export async function createWifiNetworkWithRetry(
     }
   }
 
-  // Step 4: Associate accounting RADIUS service profile for enterprise 802.1x AND WISPr networks
+  // Step 4: Associate accounting RADIUS service profile for enterprise 802.1x, WISPr AND Cloudpath networks
   let accountingRadiusServiceProfileRequestId: string | undefined;
   if (
-    (isEnterpriseType || isWisprType) &&
+    (isEnterpriseType || isWisprType || isCloudpathType) &&
     networkConfig.accountingRadiusServiceProfileId
   ) {
     console.log(
