@@ -21,7 +21,7 @@ steps:
 
   - name: Create portal profile with rich-doc T&C (RICH DOC mode + display toggle)
     command: |
-      npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"name":"mcp-test-portal-tc-{{TEST_RUN_ID}}","content":{},"termsConditionConfig":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"By connecting to this network, you agree to use it lawfully and responsibly. Read our privacy policy for details."}]}]},"termsConditionsDisplay":true,"maxRetries":10,"pollIntervalMs":3000}'
+      npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"profileConfig":{"serviceName":"mcp-test-portal-tc-{{TEST_RUN_ID}}","content":{"termsConditionConfig":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"By connecting to this network, you agree to use it lawfully and responsibly. Read our privacy policy for details."}]}]},"componentDisplay":{"termsConditions":true}}},"maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - requestId
       - completed
@@ -108,9 +108,10 @@ criteria: |
   build_terms_condition_config pure builder, covering all three T&C modes:
 
   1. build_terms_condition_config(mode=PLAIN) returns a valid Tiptap doc
-  2. create_portal_service_profile accepts termsConditionConfig + termsConditionsDisplay
-     and the rich-doc round-trips through get_portal_service_profile
-     (server preserves doc/paragraph/text structure and componentDisplay.termsConditions=true)
+  2. create_portal_service_profile (config-object) accepts content.termsConditionConfig +
+     content.componentDisplay.termsConditions and the rich-doc round-trips through
+     get_portal_service_profile (server preserves doc/paragraph/text structure and
+     componentDisplay.termsConditions=true)
   3. update_portal_service_profile (STORY-023 partial merge) switches mode to LINK TO URL
      by sending profileConfig.content.termsConditionUrl AND nulling termsConditionConfig
      in the same call; GET confirms the URL round-trips and the rich-doc is gone.

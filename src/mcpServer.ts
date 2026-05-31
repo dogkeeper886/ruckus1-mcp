@@ -107,42 +107,6 @@ function toolResult(payload: any) {
   };
 }
 
-function mergeTermsConditionFields(
-  content: any,
-  fields: {
-    termsConditionConfig?: any | undefined;
-    termsConditionUrl?: string | undefined;
-    termsConditionsDisplay?: boolean | undefined;
-  },
-): any {
-  const base: any = {};
-  if (fields.termsConditionConfig !== undefined)
-    base.termsConditionConfig = fields.termsConditionConfig;
-  if (fields.termsConditionUrl !== undefined)
-    base.termsConditionUrl = fields.termsConditionUrl;
-
-  const callerComponentDisplay =
-    content && typeof content === "object" ? content.componentDisplay : undefined;
-  const mergedComponentDisplay =
-    fields.termsConditionsDisplay !== undefined ||
-    callerComponentDisplay !== undefined
-      ? {
-          ...(fields.termsConditionsDisplay !== undefined
-            ? { termsConditions: fields.termsConditionsDisplay }
-            : {}),
-          ...(callerComponentDisplay || {}),
-        }
-      : undefined;
-
-  return {
-    ...base,
-    ...(content || {}),
-    ...(mergedComponentDisplay !== undefined
-      ? { componentDisplay: mergedComponentDisplay }
-      : {}),
-  };
-}
-
 const server = new Server(
   {
     name: "ruckus1-mcp",
@@ -1140,33 +1104,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_portal_service_profile",
         description:
-          "Create a new portal service profile in RUCKUS One with automatic status checking for async operations. REQUIRED: name + content (free-form portal content configuration object with styling/text/display settings). FOR TERMS & CONDITIONS: pass exactly one of three modes — (1) LEGACY PLAIN TEXT: set content.termsCondition to the plain string; (2) RICH DOC: pass termsConditionConfig as a Tiptap doc JSON (use build_terms_condition_config to construct it correctly with paragraph / hardBreak / link-mark support); (3) LINK TO URL: pass termsConditionUrl as a single http/https URL. The server enforces mutual exclusion via GUEST-422xxx codes. Also pass termsConditionsDisplay=true to show the T&C checkbox in the captive portal (the componentDisplay.termsConditions toggle). Top-level params merge into content first; caller's content fields win on collision.",
+          "Create a portal service profile by passing a single profileConfig object (full config). REQUIRED: profileConfig with serviceName (the profile name) + content (the portal content object — styling/text/display settings). FOR TERMS & CONDITIONS, set them inside content: content.termsConditionConfig (RICH DOC — a Tiptap doc JSON, use build_terms_condition_config) OR content.termsConditionUrl (LINK TO URL) — mutually exclusive (server enforces GUEST-422xxx). content.componentDisplay.termsConditions=true shows the T&C checkbox. Symmetric with update_portal_service_profile (which takes the same object as a partial). Use query_portal_service_profiles to verify creation.",
         inputSchema: {
           type: "object",
           properties: {
-            name: {
-              type: "string",
-              description: "Name of the portal service profile",
-            },
-            content: {
+            profileConfig: {
               type: "object",
               description:
-                "Portal content configuration object with styling, text, and display settings. Free-form pass-through. Fields set here override the merged top-level params (termsConditionConfig, termsConditionUrl, termsConditionsDisplay).",
-            },
-            termsConditionConfig: {
-              type: "object",
-              description:
-                "Tiptap rich-doc JSON for Terms & Conditions (RICH DOC mode). Shape: {type:'doc', content:[{type:'paragraph', content:[{type:'text', text:'...'}, ...]}, ...]}. Allowed node types: doc, paragraph, text, hardBreak. Allowed marks on text: link (with attrs.href, http/https only). Server validates depth ≤10, ≤700 paragraphs, ≤100 text nodes/paragraph, ≤60k chars total. Use build_terms_condition_config to construct this object. Mutually exclusive with termsCondition (legacy) and termsConditionUrl.",
-            },
-            termsConditionUrl: {
-              type: "string",
-              description:
-                "Single http/https URL for the LINK TO URL Terms & Conditions mode. Must include a host. Mutually exclusive with termsCondition (legacy) and termsConditionConfig.",
-            },
-            termsConditionsDisplay: {
-              type: "boolean",
-              description:
-                "Whether the T&C checkbox component renders in the captive portal (sets content.componentDisplay.termsConditions). Default behavior follows the backend (typically false when omitted on create).",
+                "Full portal service profile configuration. Keys: serviceName (profile name), content (portal content object). For T&C, set content.termsConditionConfig (rich-doc Tiptap JSON, use build_terms_condition_config) OR content.termsConditionUrl (URL) — mutually exclusive (GUEST-422xxx); content.componentDisplay.termsConditions toggles the checkbox.",
             },
             maxRetries: {
               type: "number",
@@ -1177,7 +1122,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Polling interval in milliseconds (default: 5000)",
             },
           },
-          required: ["name", "content"],
+          required: ["profileConfig"],
         },
       },
       {
@@ -4858,37 +4803,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "create_portal_service_profile": {
       try {
         const {
-          name,
-          content,
-          termsConditionConfig,
-          termsConditionUrl,
-          termsConditionsDisplay,
+          profileConfig,
           maxRetries = 20,
           pollIntervalMs = 5000,
         } = request.params.arguments as {
-          name: string;
-          content: any;
-          termsConditionConfig?: any;
-          termsConditionUrl?: string;
-          termsConditionsDisplay?: boolean;
+          profileConfig: any;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
 
         const token = await tokenService.getValidToken();
 
-        const mergedContent = mergeTermsConditionFields(content, {
-          termsConditionConfig,
-          termsConditionUrl,
-          termsConditionsDisplay,
-        });
-
         const result = await createPortalServiceProfileWithRetry(
           token,
-          {
-            name,
-            content: mergedContent,
-          },
+          profileConfig,
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs,
