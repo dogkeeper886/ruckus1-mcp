@@ -2148,6 +2148,11 @@ export async function updateResourceWithMerge(opts: {
   // Read-only fields the GET returns but the PUT rejects (e.g. portal profiles
   // reject `networkIds` with GUEST-400000). Stripped from the merged body before PUT.
   omitKeys?: string[];
+  // When the PUT body shape differs from the GET shape by more than dropped keys
+  // (e.g. a renamed/derived field — DPSK's GET `identityGroupId` becomes the PUT's
+  // `identityIds` array), provide a reshape applied to the merged body before PUT.
+  // Runs after omitKeys; receives the merged config, returns the PUT body.
+  reshapeForPut?: (merged: any) => any;
 }): Promise<any> {
   const {
     token,
@@ -2161,6 +2166,7 @@ export async function updateResourceWithMerge(opts: {
     maxRetries = 20,
     pollIntervalMs = 5000,
     omitKeys,
+    reshapeForPut,
   } = opts;
 
   if (
@@ -2179,9 +2185,10 @@ export async function updateResourceWithMerge(opts: {
   if (omitKeys) {
     for (const key of omitKeys) delete merged[key];
   }
+  const putBody = reshapeForPut ? reshapeForPut(merged) : merged;
 
   const putResp = await makeRuckusApiCall(
-    { method: "put", url: putUrl, data: merged, headers },
+    { method: "put", url: putUrl, data: putBody, headers },
     `Update ${resourceName}`,
   );
   const requestId = putResp.data?.requestId;
@@ -5654,6 +5661,89 @@ export async function createDpskServiceWithRetry(
     status: "timeout",
     message: "DPSK service creation status unknown - polling timeout",
   };
+}
+
+/**
+ * Fetch a single DPSK service by id (GET /dpskServices/{id}). Exposed via get_dpsk_service;
+ * used as the getFn for update_dpsk_service's retrieve-then-merge (STORY-023 / #127).
+ */
+export async function getDpskService(
+  token: string,
+  dpskServiceId: string,
+  region: string = "",
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/dpskServices/${dpskServiceId}`
+      : `https://api.ruckus.cloud/dpskServices/${dpskServiceId}`;
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "get",
+      url: apiUrl,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Get DPSK service",
+  );
+
+  return response.data;
+}
+
+/**
+ * STORY-023 / #127: config-driven retrieve-then-merge update for DPSK services.
+ * Caller passes a PARTIAL service config; getDpskService + applyMergePatch preserve the rest.
+ * (Verified via GUI trace that R1 exposes GET/PUT /dpskServices/{id}.)
+ */
+export async function updateDpskServiceWithRetry(
+  token: string,
+  dpskServiceId: string,
+  serviceConfig: any = {},
+  region: string = "",
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
+): Promise<any> {
+  const baseApiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud`
+      : "https://api.ruckus.cloud";
+
+  return updateResourceWithMerge({
+    token,
+    id: dpskServiceId,
+    partial: serviceConfig,
+    region,
+    getFn: getDpskService,
+    putUrl: `${baseApiUrl}/dpskServices/${dpskServiceId}`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    resourceName: "dpsk_service",
+    // GET≠PUT for DPSK (confirmed by GUI trace): the PUT accepts a specific subset and
+    // expects `identityIds` (array) where the GET returns scalar `identityGroupId`.
+    // Reshape the merged config to the accepted body; merge still preserves unspecified
+    // fields from the current GET.
+    reshapeForPut: (m: any) => {
+      const body: any = {
+        name: m.name,
+        identityIds: m.identityGroupId ? [m.identityGroupId] : m.identityIds,
+        autoNotificationsEnabled: m.autoNotificationsEnabled,
+        passphraseFormat: m.passphraseFormat,
+        passphraseLength: m.passphraseLength,
+        numericSuffixEnabled: m.numericSuffixEnabled,
+        expirationType: m.expirationType,
+      };
+      if (m.expirationOffset !== undefined && m.expirationOffset !== null) {
+        body.expirationOffset = m.expirationOffset;
+      }
+      return body;
+    },
+    maxRetries,
+    pollIntervalMs,
+  });
 }
 
 export async function queryDpskServices(

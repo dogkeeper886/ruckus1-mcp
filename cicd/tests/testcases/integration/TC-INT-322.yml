@@ -1,5 +1,5 @@
 id: TC-INT-322
-name: DPSK Service lifecycle - create, query, delete
+name: DPSK Service lifecycle - create, partial-update, query, delete
 suite: integration
 tags: [dpsk-services, identity-groups]
 story: STORY-012
@@ -43,6 +43,22 @@ steps:
     rejectPatterns:
       - "isError"
 
+  - name: Partial update - change only passphraseLength (retrieve-then-merge + reshape)
+    command: npx tsx cicd/tests/src/mcp-client.ts update_dpsk_service '{"dpskServiceId":"{{dpskServiceId}}","serviceConfig":{"passphraseLength":20},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Get DPSK service - verify length changed and name/identity preserved
+    command: npx tsx cicd/tests/src/mcp-client.ts get_dpsk_service '{"dpskServiceId":"{{dpskServiceId}}"}'
+    expectPatterns:
+      - "mcp-test-dpsk-ci-{{TEST_RUN_ID}}"
+      - "passphraseLength[^0-9]*20"
+      - "{{identityGroupId}}"
+    rejectPatterns:
+      - "isError"
+
   - name: Delete DPSK service
     command: npx tsx cicd/tests/src/mcp-client.ts delete_dpsk_service '{"dpskServiceId":"{{dpskServiceId}}","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
@@ -58,9 +74,14 @@ steps:
       - "isError"
 
 criteria: |
-  Full DPSK Service lifecycle with identity group dependency:
+  Full DPSK Service lifecycle with identity group dependency, incl. STORY-023 partial update:
   1. Create identity group (prerequisite)
-  2. Create DPSK service under identity group
+  2. Create DPSK service under identity group (defaults: passphraseLength 18)
   3. Query to verify it exists and capture ID
-  4. Delete DPSK service
-  5. Delete identity group (cleanup)
+  4. Partial update via update_dpsk_service with serviceConfig {passphraseLength:20} only —
+     retrieve-then-merge with a GET→PUT reshape (the PUT uses identityIds[] where the GET
+     returns scalar identityGroupId).
+  5. get_dpsk_service and verify the new length (20) AND that name + identity group were
+     preserved through the reshape.
+  6. Delete DPSK service
+  7. Delete identity group (cleanup)

@@ -71,6 +71,8 @@ import {
   queryIdentityGroups,
   deleteIdentityGroupWithRetry,
   createDpskServiceWithRetry,
+  getDpskService,
+  updateDpskServiceWithRetry,
   queryDpskServices,
   deleteDpskServiceWithRetry,
   getVenueWifiNetworkSettings,
@@ -2181,6 +2183,51 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["identityGroupId", "name"],
+        },
+      },
+      {
+        name: "get_dpsk_service",
+        description:
+          "Get a single DPSK service's full configuration by ID (id-scoped fetch). REQUIRED: dpskServiceId (use query_dpsk_services to get the ID). Returns the service config; use this to inspect a service or see current state before an update_dpsk_service partial change.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            dpskServiceId: {
+              type: "string",
+              description:
+                "ID of the DPSK service to fetch (use query_dpsk_services to get the ID)",
+            },
+          },
+          required: ["dpskServiceId"],
+        },
+      },
+      {
+        name: "update_dpsk_service",
+        description:
+          "Update a DPSK service by passing only the fields you want to change. REQUIRED: dpskServiceId (use query_dpsk_services to get the ID) + serviceConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics; a null value deletes a key). IN-CONFIG ATTRIBUTES: name, passphraseFormat ('MOST_SECURED' | 'SECURED' | 'NUMBERS_ONLY'), passphraseLength, autoNotificationsEnabled, expirationType. At least one field is required.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            dpskServiceId: {
+              type: "string",
+              description:
+                "ID of the DPSK service to update (use query_dpsk_services to get the ID)",
+            },
+            serviceConfig: {
+              type: "object",
+              description:
+                "Partial DPSK service configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). Keys: name, passphraseFormat, passphraseLength, autoNotificationsEnabled, expirationType.",
+            },
+            maxRetries: {
+              type: "number",
+              description: "Maximum number of retry attempts (default: 20)",
+            },
+            pollIntervalMs: {
+              type: "number",
+              description: "Polling interval in milliseconds (default: 5000)",
+            },
+          },
+          required: ["dpskServiceId", "serviceConfig"],
         },
       },
       {
@@ -6293,6 +6340,67 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     }
 
+    case "get_dpsk_service": {
+      try {
+        const { dpskServiceId } = request.params.arguments as {
+          dpskServiceId: string;
+        };
+        const token = await tokenService.getValidToken();
+        const result = await getDpskService(
+          token,
+          dpskServiceId,
+          process.env.RUCKUS_REGION,
+        );
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error getting DPSK service:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error getting DPSK service: ${error.message || error}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+    case "update_dpsk_service": {
+      try {
+        const {
+          dpskServiceId,
+          serviceConfig,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
+        } = request.params.arguments as {
+          dpskServiceId: string;
+          serviceConfig: any;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+        const token = await tokenService.getValidToken();
+        const result = await updateDpskServiceWithRetry(
+          token,
+          dpskServiceId,
+          serviceConfig,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+        );
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error updating DPSK service:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error updating DPSK service: ${error.message || error}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
     case "query_dpsk_services": {
       try {
         const {
