@@ -159,40 +159,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_ruckus_venue",
         description:
-          "Create a new venue in RUCKUS One with automatic status checking for async operations",
+          "Create a venue by passing a single venueConfig object (full config). REQUIRED: venueConfig with name + address { addressLine, city, country }. OPTIONAL in address: countryCode, latitude, longitude, timezone. NOTE: city and country must match a real location to pass RUCKUS validation; addressLine can be a city name for reliability. Symmetric with update_ruckus_venue (which takes the same object as a partial). Use get_ruckus_venues / get_ruckus_venue to verify.",
         inputSchema: {
           type: "object",
           properties: {
-            name: {
-              type: "string",
-              description: "Name of the venue",
-            },
-            addressLine: {
-              type: "string",
+            venueConfig: {
+              type: "object",
               description:
-                'Street address of the venue. IMPORTANT: Use city name for reliability (e.g., "Paris" instead of "123 Rue de la Paix") to avoid RUCKUS API validation failures.',
-            },
-            city: {
-              type: "string",
-              description:
-                "City where the venue is located. Must match the country location to pass RUCKUS validation.",
-            },
-            country: {
-              type: "string",
-              description:
-                'Country where the venue is located. Must match the actual country where the city is located (e.g., city: "Paris", country: "France").',
-            },
-            latitude: {
-              type: "number",
-              description: "Latitude coordinate (optional)",
-            },
-            longitude: {
-              type: "number",
-              description: "Longitude coordinate (optional)",
-            },
-            timezone: {
-              type: "string",
-              description: "Timezone for the venue (optional)",
+                "Full venue configuration. Keys: name, description (optional), and address { addressLine, city, country, countryCode?, latitude?, longitude?, timezone? }. Address fields are nested under `address`. city/country must match a real location (RUCKUS validation).",
             },
             maxRetries: {
               type: "number",
@@ -203,7 +177,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Polling interval in milliseconds (default: 5000)",
             },
           },
-          required: ["name", "addressLine", "city", "country"],
+          required: ["venueConfig"],
         },
       },
       {
@@ -2806,42 +2780,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "create_ruckus_venue": {
       try {
         const {
-          name,
-          addressLine,
-          city,
-          country,
-          latitude,
-          longitude,
-          timezone,
+          venueConfig,
           maxRetries = 20,
           pollIntervalMs = 5000,
         } = request.params.arguments as {
-          name: string;
-          addressLine: string;
-          city: string;
-          country: string;
-          latitude?: number;
-          longitude?: number;
-          timezone?: string;
+          venueConfig: any;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
 
         const token = await tokenService.getValidToken();
 
-        const venueData: any = {
-          name,
-          addressLine,
-          city,
-          country,
-        };
-        if (latitude !== undefined) venueData.latitude = latitude;
-        if (longitude !== undefined) venueData.longitude = longitude;
-        if (timezone !== undefined) venueData.timezone = timezone;
-
         const result = await createVenueWithRetry(
           token,
-          venueData,
+          venueConfig,
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs,
