@@ -14,6 +14,7 @@ import {
   updateVenueWithRetry,
   deleteVenueWithRetry,
   createApGroupWithRetry,
+  getApGroup,
   addApToGroupWithRetry,
   removeApWithRetry,
   updateApGroupWithRetry,
@@ -251,38 +252,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_ruckus_ap_group",
         description:
-          "Create a new AP group in a RUCKUS One venue with automatic status checking for async operations",
+          "Create an AP group in a venue by passing venueId + a single apGroupConfig object (full config). REQUIRED: venueId (use get_ruckus_venues to get the ID) + apGroupConfig with name (2-64 chars, no special chars). OPTIONAL in apGroupConfig: description (2-180 chars), apSerialNumbers (string[] of AP serial numbers — same shape as get_ruckus_ap_group returns; or manage membership later via add_ap_to_group / update_ruckus_ap_group). Symmetric with update_ruckus_ap_group (same object as a partial).",
         inputSchema: {
           type: "object",
           properties: {
             venueId: {
               type: "string",
-              description: "ID of the venue where the AP group will be created",
-            },
-            name: {
-              type: "string",
               description:
-                "Name of the AP group (2-64 characters, no special characters like backticks or dollar signs)",
+                "ID of the venue where the AP group will be created (use get_ruckus_venues to get venue ID)",
             },
-            description: {
-              type: "string",
+            apGroupConfig: {
+              type: "object",
               description:
-                "Optional description of the AP group (2-180 characters)",
-            },
-            apSerialNumbers: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  serialNumber: {
-                    type: "string",
-                    description: "Serial number of the access point",
-                  },
-                },
-                required: ["serialNumber"],
-              },
-              description:
-                "Optional array of AP serial numbers to include in the group",
+                "Full AP group configuration. Keys: name (required, 2-64 chars), description (optional, 2-180 chars), apSerialNumbers (optional string[] of AP serial numbers).",
             },
             maxRetries: {
               type: "number",
@@ -293,7 +275,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Polling interval in milliseconds (default: 5000)",
             },
           },
-          required: ["venueId", "name"],
+          required: ["venueId", "apGroupConfig"],
         },
       },
       {
@@ -392,6 +374,27 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: "get_ruckus_ap_group",
+        description:
+          "Get a single AP group's full configuration by ID (id-scoped fetch). REQUIRED: venueId + apGroupId (use get_ruckus_ap_groups to find IDs, get_ruckus_venues for the venue). Returns the AP group config; use this to inspect a group or see current state before an update.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            venueId: {
+              type: "string",
+              description:
+                "ID of the venue containing the AP group (use get_ruckus_venues to get venue ID)",
+            },
+            apGroupId: {
+              type: "string",
+              description:
+                "ID of the AP group to fetch (use get_ruckus_ap_groups to get AP group ID)",
+            },
+          },
+          required: ["venueId", "apGroupId"],
+        },
+      },
+      {
         name: "delete_ruckus_ap_group",
         description:
           "Delete an AP group from a RUCKUS One venue with automatic status checking for async operations",
@@ -421,7 +424,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "update_ruckus_ap_group",
         description:
-          "Update an AP group in a RUCKUS One venue. By default, preserves existing APs in the group when updating (e.g., renaming). REQUIRED: venueId (use get_ruckus_venues) + apGroupId (use get_ruckus_ap_groups). To replace APs entirely, provide apSerialNumbers array. To clear all APs, set preserveExistingAps to false without providing apSerialNumbers.",
+          "Update an AP group by passing only the fields you want to change. REQUIRED: venueId (use get_ruckus_venues) + apGroupId (use get_ruckus_ap_groups) + apGroupConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics). IN-CONFIG ATTRIBUTES: name, description, apSerialNumbers (string[] of AP serial numbers; arrays replace wholesale). PRESERVING APs: member APs are preserved automatically when you don't send apSerialNumbers (they come from the current config). To replace membership, send apSerialNumbers with the full desired list; to clear it, send an empty array. At least one field is required.",
         inputSchema: {
           type: "object",
           properties: {
@@ -435,33 +438,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description:
                 "ID of the AP group to update (use get_ruckus_ap_groups to get AP group IDs)",
             },
-            name: {
-              type: "string",
-              description: "Name of the AP group",
-            },
-            description: {
-              type: "string",
-              description: "Optional description of the AP group",
-            },
-            apSerialNumbers: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  serialNumber: {
-                    type: "string",
-                    description: "Serial number of the access point",
-                  },
-                },
-                required: ["serialNumber"],
-              },
+            apGroupConfig: {
+              type: "object",
               description:
-                "Optional array of AP serial numbers to include in the group. If not provided and preserveExistingAps is true (default), existing APs will be preserved",
-            },
-            preserveExistingAps: {
-              type: "boolean",
-              description:
-                "Preserve existing APs in the group when updating. When true (default), if apSerialNumbers is not provided, existing APs will be retrieved and preserved. Set to false to explicitly clear all APs from the group",
+                "Partial AP group configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). Keys: name, description, apSerialNumbers (string[]; replaces wholesale). Omit apSerialNumbers to preserve current members.",
             },
             maxRetries: {
               type: "number",
@@ -472,7 +452,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Polling interval in milliseconds (default: 5000)",
             },
           },
-          required: ["venueId", "apGroupId", "name"],
+          required: ["venueId", "apGroupId", "apGroupConfig"],
         },
       },
       {
@@ -3012,31 +2992,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const {
           venueId,
-          name,
-          description,
-          apSerialNumbers,
+          apGroupConfig,
           maxRetries = 20,
           pollIntervalMs = 5000,
         } = request.params.arguments as {
           venueId: string;
-          name: string;
-          description?: string;
-          apSerialNumbers?: Array<{ serialNumber: string }>;
+          apGroupConfig: any;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
 
         const token = await tokenService.getValidToken();
 
-        const apGroupData: any = { name };
-        if (description !== undefined) apGroupData.description = description;
-        if (apSerialNumbers !== undefined)
-          apGroupData.apSerialNumbers = apSerialNumbers;
-
         const result = await createApGroupWithRetry(
           token,
           venueId,
-          apGroupData,
+          apGroupConfig,
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs,
@@ -3270,6 +3241,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
     }
+    case "get_ruckus_ap_group": {
+      try {
+        const { venueId, apGroupId } = request.params.arguments as {
+          venueId: string;
+          apGroupId: string;
+        };
+        const token = await tokenService.getValidToken();
+        const result = await getApGroup(
+          token,
+          venueId,
+          apGroupId,
+          process.env.RUCKUS_REGION,
+        );
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error getting AP group:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error getting AP group: ${error.message || error}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
     case "get_ruckus_ap_groups": {
       try {
         const {
@@ -3413,19 +3411,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const {
           venueId,
           apGroupId,
-          name,
-          description,
-          apSerialNumbers,
-          preserveExistingAps = true,
+          apGroupConfig,
           maxRetries = 20,
           pollIntervalMs = 5000,
         } = request.params.arguments as {
           venueId: string;
           apGroupId: string;
-          name: string;
-          description?: string;
-          apSerialNumbers?: Array<{ serialNumber: string }>;
-          preserveExistingAps?: boolean;
+          apGroupConfig: any;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
@@ -3436,15 +3428,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           token,
           venueId,
           apGroupId,
-          {
-            name,
-            ...(description !== undefined && { description }),
-            ...(apSerialNumbers !== undefined && { apSerialNumbers }),
-          },
+          apGroupConfig,
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs,
-          preserveExistingAps,
         );
 
         return toolResult(result);

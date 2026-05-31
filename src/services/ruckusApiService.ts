@@ -617,147 +617,31 @@ export async function updateVenueWithRetry(
 export async function createApGroupWithRetry(
   token: string,
   venueId: string,
-  apGroupData: {
-    name: string;
-    description?: string;
-    apSerialNumbers?: Array<{ serialNumber: string }>;
-  },
+  apGroupConfig: any = {},
   region: string = "",
   maxRetries: number = 20,
   pollIntervalMs: number = 5000,
 ): Promise<any> {
-  const apiUrl =
+  // STORY-023: config-object create — symmetric with update_ruckus_ap_group.
+  // POST the AP group config (venueId injected into the body) via createResourceWithPoll.
+  const baseApiUrl =
     region && region.trim() !== ""
-      ? `https://api.${region}.ruckus.cloud/venues/${venueId}/apGroups`
-      : `https://api.ruckus.cloud/venues/${venueId}/apGroups`;
+      ? `https://api.${region}.ruckus.cloud`
+      : "https://api.ruckus.cloud";
 
-  const payload = {
-    name: apGroupData.name,
-    venueId: venueId,
-    apSerialNumbers: apGroupData.apSerialNumbers || [],
-    ...(apGroupData.description && { description: apGroupData.description }),
-  };
-
-  const response = await makeRuckusApiCall(
-    {
-      method: "post",
-      url: apiUrl,
-      data: payload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+  return createResourceWithPoll({
+    token,
+    config: { ...(apGroupConfig || {}), venueId },
+    region,
+    postUrl: `${baseApiUrl}/venues/${venueId}/apGroups`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
-    "Create AP group",
-  );
-
-  const createResponse = response.data;
-
-  // Check if this is an async operation (has requestId)
-  const activityId = createResponse.requestId;
-
-  if (!activityId) {
-    // If no requestId, it's a synchronous operation, return immediately
-    return {
-      ...createResponse,
-      status: "completed",
-      message: "AP group created successfully (synchronous operation)",
-    };
-  }
-
-  // Poll for completion status (async operation)
-  let retryCount = 0;
-  while (retryCount < maxRetries) {
-    try {
-      const activityDetails = await getRuckusActivityDetails(
-        token,
-        activityId,
-        region,
-      );
-
-      // Check if operation is completed (has endDatetime populated)
-      const isCompleted = activityDetails.endDatetime !== undefined;
-
-      // Check if operation failed (status is not SUCCESS or INPROGRESS)
-      const isFailed =
-        activityDetails.status !== "SUCCESS" &&
-        activityDetails.status !== "INPROGRESS";
-
-      if (isCompleted) {
-        // Check if it completed successfully
-        if (activityDetails.status === "SUCCESS") {
-          return {
-            ...createResponse,
-            activityDetails,
-            status: "completed",
-            message: "AP group created successfully",
-          };
-        } else {
-          return {
-            ...createResponse,
-            activityDetails,
-            status: "failed",
-            message: "AP group creation failed",
-            error:
-              activityDetails.error ||
-              activityDetails.message ||
-              "Operation completed with non-SUCCESS status",
-          };
-        }
-      }
-
-      if (isFailed) {
-        return {
-          ...createResponse,
-          activityDetails,
-          status: "failed",
-          message: "AP group creation failed",
-          error:
-            activityDetails.error || activityDetails.message || "Unknown error",
-        };
-      }
-
-      // If still in progress, increment retry count and continue
-      retryCount++;
-      console.log(
-        `[RUCKUS] AP group creation in progress, attempt ${retryCount}/${maxRetries}`,
-      );
-
-      // If we've reached max retries, exit loop
-      if (retryCount >= maxRetries) {
-        break;
-      }
-
-      // Wait before next poll
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    } catch (error) {
-      retryCount++;
-      console.error(
-        `[RUCKUS] Error polling activity details (attempt ${retryCount}/${maxRetries}):`,
-        error,
-      );
-
-      // If we've reached max retries, return error
-      if (retryCount >= maxRetries) {
-        return {
-          ...createResponse,
-          status: "timeout",
-          message: "AP group creation status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      // Wait before next retry
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    }
-  }
-
-  return {
-    ...createResponse,
-    status: "timeout",
-    message: "AP group creation status unknown - polling timeout",
-    activityId,
-  };
+    resourceName: "ap_group",
+    maxRetries,
+    pollIntervalMs,
+  });
 }
 
 export async function addApToGroupWithRetry(
@@ -909,186 +793,70 @@ export async function addApToGroupWithRetry(
 }
 
 /**
- * Get AP group details including the list of APs currently in the group.
- * Used by updateApGroupWithRetry to preserve existing APs during updates.
+ * Fetch a single AP group's config by id (GET /venues/{venueId}/apGroups/{apGroupId}).
+ * Exposed via get_ruckus_ap_group; used to inspect/verify the AP group config shape.
  */
-export async function getApGroupDetails(
-  token: string,
-  apGroupId: string,
-  region: string = "",
-): Promise<{ apSerialNumbers: Array<{ serialNumber: string }> }> {
-  // Query APs filtered by apGroupId to get serial numbers
-  const apsResult = await queryAPs(
-    token,
-    region,
-    { apGroupId: [apGroupId] },
-    ["serialNumber"],
-    "",
-    [],
-    1,
-    10000, // Get all APs in group
-  );
-
-  const apSerialNumbers =
-    apsResult.data?.map((ap: any) => ({
-      serialNumber: ap.serialNumber,
-    })) || [];
-
-  console.log(
-    `[RUCKUS] Retrieved ${apSerialNumbers.length} APs from AP group ${apGroupId}`,
-  );
-
-  return { apSerialNumbers };
-}
-
-export async function updateApGroupWithRetry(
+export async function getApGroup(
   token: string,
   venueId: string,
   apGroupId: string,
-  apGroupData: {
-    name: string;
-    description?: string;
-    apSerialNumbers?: Array<{ serialNumber: string }>;
-  },
   region: string = "",
-  maxRetries: number = 20,
-  pollIntervalMs: number = 5000,
-  preserveExistingAps: boolean = true,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
       ? `https://api.${region}.ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}`
       : `https://api.ruckus.cloud/venues/${venueId}/apGroups/${apGroupId}`;
 
-  // Step 0: Retrieve existing APs if not provided and preservation is enabled
-  let effectiveApSerialNumbers = apGroupData.apSerialNumbers;
-
-  if (effectiveApSerialNumbers === undefined && preserveExistingAps) {
-    console.log(
-      "[RUCKUS] Retrieving existing APs to preserve during update...",
-    );
-    const existingData = await getApGroupDetails(token, apGroupId, region);
-    effectiveApSerialNumbers = existingData.apSerialNumbers;
-    console.log(
-      `[RUCKUS] Found ${effectiveApSerialNumbers.length} existing APs to preserve`,
-    );
-  }
-
-  // Convert from Array<{ serialNumber: string }> to string[] for API
-  const serialNumbersArray = (effectiveApSerialNumbers || []).map(
-    (ap) => ap.serialNumber,
-  );
-
-  const payload = {
-    name: apGroupData.name,
-    venueId: venueId,
-    ...(apGroupData.description !== undefined && {
-      description: apGroupData.description,
-    }),
-    apSerialNumbers: serialNumbersArray,
-  };
-
   const response = await makeRuckusApiCall(
     {
-      method: "put",
+      method: "get",
       url: apiUrl,
-      data: payload,
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     },
-    "Update AP group",
+    "Get AP group",
   );
 
-  const updateResponse = response.data;
+  return response.data;
+}
 
-  const activityId = updateResponse.requestId;
+export async function updateApGroupWithRetry(
+  token: string,
+  venueId: string,
+  apGroupId: string,
+  apGroupConfig: any = {},
+  region: string = "",
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
+): Promise<any> {
+  // STORY-023: config-driven retrieve-then-merge. getApGroup returns the full AP group
+  // config including apSerialNumbers as a string[] (already PUT-ready), so unspecified
+  // fields — and member-AP preservation — come for free via the merge (no separate AP
+  // query / objects->strings conversion needed). venueId is injected into the body (the GET
+  // omits it but the PUT expects it); read-only id/isDefault/isEnforced are stripped.
+  const baseApiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud`
+      : "https://api.ruckus.cloud";
 
-  if (!activityId) {
-    return {
-      ...updateResponse,
-      status: "completed",
-      message: "AP group updated successfully (synchronous operation)",
-    };
-  }
-
-  console.log(
-    `Starting AP group update status polling for activity ${activityId}`,
-  );
-  let retryCount = 0;
-
-  while (retryCount < maxRetries) {
-    try {
-      const activityDetails = await getRuckusActivityDetails(
-        token,
-        activityId,
-        region,
-      );
-      console.log(
-        `[RUCKUS] AP group update activity ${activityId} status: ${activityDetails.status}`,
-      );
-
-      if (
-        activityDetails.status === "COMPLETED" ||
-        activityDetails.status === "SUCCESS"
-      ) {
-        console.log(
-          `[RUCKUS] AP group updated successfully after ${retryCount + 1} attempts`,
-        );
-        return {
-          ...updateResponse,
-          status: "completed",
-          message: "AP group updated successfully",
-          activityDetails,
-        };
-      } else if (activityDetails.status === "FAIL") {
-        console.error(`[RUCKUS] AP group update failed:`, activityDetails);
-        return {
-          ...updateResponse,
-          status: "failed",
-          message: "AP group update failed",
-          error: activityDetails.error || "Unknown error occurred",
-          activityDetails,
-        };
-      }
-
-      retryCount++;
-      console.log(
-        `[RUCKUS] AP group update in progress, attempt ${retryCount}/${maxRetries}`,
-      );
-
-      if (retryCount >= maxRetries) {
-        break;
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    } catch (error) {
-      retryCount++;
-      console.error(
-        `[RUCKUS] Error polling activity details (attempt ${retryCount}/${maxRetries}):`,
-        error,
-      );
-
-      if (retryCount >= maxRetries) {
-        return {
-          ...updateResponse,
-          status: "timeout",
-          message: "AP group update status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    }
-  }
-
-  return {
-    ...updateResponse,
-    status: "timeout",
-    message: "AP group update status unknown - polling timeout",
-    activityId,
-  };
+  return updateResourceWithMerge({
+    token,
+    id: apGroupId,
+    partial: { ...(apGroupConfig || {}), venueId },
+    region,
+    getFn: (t, _id, r) => getApGroup(t, venueId, apGroupId, r),
+    putUrl: `${baseApiUrl}/venues/${venueId}/apGroups/${apGroupId}`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    resourceName: "ap_group",
+    omitKeys: ["id", "isDefault", "isEnforced"],
+    maxRetries,
+    pollIntervalMs,
+  });
 }
 
 export async function queryApGroups(
