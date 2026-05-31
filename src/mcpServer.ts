@@ -1372,7 +1372,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_wifi_network",
         description:
-          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. CAPTIVE PORTAL TYPES — pick the specific portal-type value, do NOT use a generic 'guest' value (no longer accepted). FOR GUEST PASS: type=guestPass + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. End users sign in with a pre-issued password. FOR CLICK-THROUGH: type=clickThrough + portalServiceProfileId + wlanSecurity=None. End users see only a T&C checkbox + Connect button — no credential entry. FOR SELF SIGN-IN: type=selfSignIn + portalServiceProfileId + wlanSecurity=None. Pick at least one OTP channel via enableSmsLogin, enableEmailLogin, and/or enableWhatsappLogin (defaults to Email-only when none specified). FOR SELF SIGN-IN WITH EMAIL: also provide allowedEmailDomains. FOR SELF SIGN-IN WITH SMS: optionally provide smsPasswordDuration={duration,unit} where unit is MINUTE/HOUR/DAY (default {12, HOUR}). FOR SELF SIGN-IN WITH WHATSAPP: set enableWhatsappLogin=true. Optional temporaryConnectionEnabled + temporaryConnection to grant pre-OTP limited internet access (Self Sign-In only). FOR HOST APPROVAL: type=hostApproval + portalServiceProfileId + wlanSecurity=None. Companion fields (host contacts: domain or specific emails) not yet exposed as top-level params — pass them inside the guestPortal object until a dedicated parameter is added. FOR CLOUDPATH: type=cloudpath + wlanSecurity=None. Requires a Cloudpath enrollment URL and RADIUS authentication server; companion fields not yet exposed — pass via guestPortal until added. FOR WISPR (3rd party captive portal): type=wispr + wlanSecurity=None. Requires a 3rd-party AAA server reference; companion fields not yet exposed. FOR DIRECTORY (Active Directory / LDAP): type=directory + wlanSecurity=None. Requires a directory server profile (use create_directory_server_profile); companion fields not yet exposed. FOR SAML IDP: type=saml + wlanSecurity=None. Requires SAML IdP metadata; companion fields not yet exposed. FOR WORKFLOW: type=workflow + wlanSecurity=None. Companion fields not yet exposed. FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId, enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId). FOR OWE TRANSITION: Requires type=open + wlanSecurity=Open + oweEnabled=true + oweTransitionEnabled=true. Creates a dual-network pair: OWE-encrypted primary + Open companion with '-owe-tr' suffix. FOR DSAE (DPSK WPA2/WPA3-Mixed): Requires type=dpsk + wlanSecurity=WPA23Mixed + dpskServiceId (use query_dpsk_services to get ID). Creates a dual-network pair: WPA2/WPA3-Mixed primary + WPA2 onboard companion with '-dpsk3-wpa2' suffix.",
+          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. CAPTIVE PORTAL TYPES — pick the specific portal-type value, do NOT use a generic 'guest' value (no longer accepted). FOR GUEST PASS: type=guestPass + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. End users sign in with a pre-issued password. FOR CLICK-THROUGH: type=clickThrough + portalServiceProfileId + wlanSecurity=None. End users see only a T&C checkbox + Connect button — no credential entry. FOR SELF SIGN-IN: type=selfSignIn + portalServiceProfileId + wlanSecurity=None. Pick at least one OTP channel via enableSmsLogin, enableEmailLogin, and/or enableWhatsappLogin (defaults to Email-only when none specified). FOR SELF SIGN-IN WITH EMAIL: also provide allowedEmailDomains. FOR SELF SIGN-IN WITH SMS: optionally provide smsPasswordDuration={duration,unit} where unit is MINUTE/HOUR/DAY (default {12, HOUR}). FOR SELF SIGN-IN WITH WHATSAPP: set enableWhatsappLogin=true. Optional temporaryConnectionEnabled + temporaryConnection to grant pre-OTP limited internet access (Self Sign-In only). FOR HOST APPROVAL: type=hostApproval + portalServiceProfileId + wlanSecurity=None. Companion fields (host contacts: domain or specific emails) not yet exposed as top-level params — pass them inside the guestPortal object until a dedicated parameter is added. FOR CLOUDPATH: type=cloudpath + wlanSecurity=None. Requires a Cloudpath enrollment URL and RADIUS authentication server; companion fields not yet exposed — pass via guestPortal until added. FOR WISPR (3rd party captive portal): type=wispr + wlanSecurity=None. Requires a 3rd-party AAA server reference; companion fields not yet exposed. FOR DIRECTORY (Active Directory / LDAP): type=directory + wlanSecurity=None + portalServiceProfileId (use query_portal_service_profiles) + directoryServerProfileId (use query_directory_server_profiles or create_directory_server_profile). End users authenticate with an organizational username/password against the directory. FOR SAML IDP: type=saml + wlanSecurity=None. Requires SAML IdP metadata; companion fields not yet exposed. FOR WORKFLOW: type=workflow + wlanSecurity=None. Companion fields not yet exposed. FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId, enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId). FOR OWE TRANSITION: Requires type=open + wlanSecurity=Open + oweEnabled=true + oweTransitionEnabled=true. Creates a dual-network pair: OWE-encrypted primary + Open companion with '-owe-tr' suffix. FOR DSAE (DPSK WPA2/WPA3-Mixed): Requires type=dpsk + wlanSecurity=WPA23Mixed + dpskServiceId (use query_dpsk_services to get ID). Creates a dual-network pair: WPA2/WPA3-Mixed primary + WPA2 onboard companion with '-dpsk3-wpa2' suffix.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1432,6 +1432,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description:
                 "Portal service profile ID (REQUIRED for every captive-portal sub-type: guestPass, clickThrough, selfSignIn, hostApproval, cloudpath, wispr, directory, saml, workflow). Use query_portal_service_profiles to get available IDs. Portal service profiles are portal-type-agnostic — the same profile can back any captive-portal sub-type; the WLAN's type field is what drives the captive-portal rendering.",
+            },
+            directoryServerProfileId: {
+              type: "string",
+              description:
+                "Directory server profile ID (REQUIRED for type=directory — binds the Active Directory/LDAP server end users authenticate against). Use query_directory_server_profiles or create_directory_server_profile to get the ID.",
             },
             radiusServiceProfileId: {
               type: "string",
@@ -1738,7 +1743,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "update_wifi_network",
         description:
-          "Update an existing WiFi network by passing only the fields you want to change. REQUIRED: networkId (use query_wifi_networks to get network ID) + networkConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics; arrays are replaced wholesale, a null value deletes a key). IN-CONFIG ATTRIBUTES: any WLAN config field, e.g. `guestPortal.walledGardens` (string[] of permitted destinations), `wlan.vlanId`, `guestPortal.temporaryConnectionEnabled`/`guestPortal.temporaryConnection` (Self Sign-In). SUB-RESOURCE ASSOCIATIONS (include these keys in networkConfig and they are routed to their own endpoints, NOT merged into the config body): `portalServiceProfileId` (use query_portal_service_profiles), `radiusServiceProfileId` + `accountingRadiusServiceProfileId` (use query_radius_server_profiles) to switch the network's RADIUS profiles, and `enableAuthProxy`/`enableAccountingProxy` for RADIUS proxy settings. FOR FQDN/HOSTNAME RADIUS PROFILES: set enableAuthProxy=true (proxy settings are applied before the profile association, per WIFI-20049). At least one change is required.",
+          "Update an existing WiFi network by passing only the fields you want to change. REQUIRED: networkId (use query_wifi_networks to get network ID) + networkConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics; arrays are replaced wholesale, a null value deletes a key). IN-CONFIG ATTRIBUTES: any WLAN config field, e.g. `guestPortal.walledGardens` (string[] of permitted destinations), `wlan.vlanId`, `guestPortal.temporaryConnectionEnabled`/`guestPortal.temporaryConnection` (Self Sign-In). SUB-RESOURCE ASSOCIATIONS (include these keys in networkConfig and they are routed to their own endpoints, NOT merged into the config body): `portalServiceProfileId` (use query_portal_service_profiles), `radiusServiceProfileId` + `accountingRadiusServiceProfileId` (use query_radius_server_profiles) to switch the network's RADIUS profiles, `directoryServerProfileId` (use query_directory_server_profiles) to bind/switch the Active Directory/LDAP server on a directory captive portal, and `enableAuthProxy`/`enableAccountingProxy` for RADIUS proxy settings. FOR FQDN/HOSTNAME RADIUS PROFILES: set enableAuthProxy=true (proxy settings are applied before the profile association, per WIFI-20049). At least one change is required.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1750,7 +1755,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             networkConfig: {
               type: "object",
               description:
-                "Partial network configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). May also include sub-resource association keys (portalServiceProfileId, radiusServiceProfileId, accountingRadiusServiceProfileId, enableAuthProxy, enableAccountingProxy) which are routed to their own endpoints rather than merged into the config body.",
+                "Partial network configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). May also include sub-resource association keys (portalServiceProfileId, radiusServiceProfileId, accountingRadiusServiceProfileId, directoryServerProfileId, enableAuthProxy, enableAccountingProxy) which are routed to their own endpoints rather than merged into the config body.",
             },
             maxRetries: {
               type: "number",
@@ -5409,6 +5414,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           temporaryConnection,
           guestPortal,
           portalServiceProfileId,
+          directoryServerProfileId,
           radiusServiceProfileId,
           accountingRadiusServiceProfileId,
           enableAuthProxy,
@@ -5470,6 +5476,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
           guestPortal?: any;
           portalServiceProfileId?: string;
+          directoryServerProfileId?: string;
           radiusServiceProfileId?: string;
           accountingRadiusServiceProfileId?: string;
           enableAuthProxy?: boolean;
@@ -5542,6 +5549,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (guestPortal !== undefined) networkConfig.guestPortal = guestPortal;
         if (portalServiceProfileId !== undefined)
           networkConfig.portalServiceProfileId = portalServiceProfileId;
+        if (directoryServerProfileId !== undefined)
+          networkConfig.directoryServerProfileId = directoryServerProfileId;
         if (radiusServiceProfileId !== undefined)
           networkConfig.radiusServiceProfileId = radiusServiceProfileId;
         if (accountingRadiusServiceProfileId !== undefined)
