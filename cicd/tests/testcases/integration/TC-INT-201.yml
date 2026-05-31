@@ -1,5 +1,5 @@
 id: TC-INT-201
-name: Venue CRUD lifecycle - create, verify, delete
+name: Venue CRUD lifecycle - create, partial-update, verify, delete
 suite: integration
 tags: [venues]
 story: STORY-002
@@ -26,6 +26,23 @@ steps:
     rejectPatterns:
       - "isError"
 
+  - name: Partial update - change only address.city (retrieve-then-merge)
+    command: npx tsx cicd/tests/src/mcp-client.ts update_ruckus_venue '{"venueId":"{{venueId}}","venueConfig":{"address":{"city":"Osaka"}},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Get venue - verify city changed and unspecified fields preserved
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venue '{"venueId":"{{venueId}}"}'
+    expectPatterns:
+      - "Osaka"
+      - "mcp-test-venue-crud-{{TEST_RUN_ID}}"
+      - "1 Test Street"
+      - "Japan"
+    rejectPatterns:
+      - "isError"
+
   - name: Delete test venue
     command: npx tsx cicd/tests/src/mcp-client.ts delete_ruckus_venue '{"venueId":"{{venueId}}","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
@@ -41,8 +58,13 @@ steps:
       - "{{venueId}}"
 
 criteria: |
-  Full venue CRUD lifecycle:
-  1. Create venue "mcp-test-venue-crud-{{TEST_RUN_ID}}" with required fields
+  Full venue CRUD lifecycle, incl. STORY-023 partial update:
+  1. Create venue "mcp-test-venue-crud-{{TEST_RUN_ID}}" (addressLine "1 Test Street",
+     city Tokyo, country Japan)
   2. List venues and extract the created venue's ID using array find
-  3. Delete the venue using captured venueId
-  4. Verify venue no longer appears in list
+  3. Partial update via update_ruckus_venue with venueConfig {address:{city:"Osaka"}} only —
+     retrieve-then-merge (JSON Merge Patch).
+  4. get_ruckus_venue and verify the new city (Osaka) AND that unspecified fields were
+     preserved (name, addressLine, country) — proving the merge did not clear them.
+  5. Delete the venue using captured venueId
+  6. Verify venue no longer appears in list

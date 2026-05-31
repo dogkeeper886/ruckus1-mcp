@@ -10,6 +10,7 @@ import {
   getRuckusJwtToken,
   getRuckusActivityDetails,
   createVenueWithRetry,
+  getVenue,
   updateVenueWithRetry,
   deleteVenueWithRetry,
   createApGroupWithRetry,
@@ -229,51 +230,37 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: "update_ruckus_venue",
+        name: "get_ruckus_venue",
         description:
-          "Update a venue in RUCKUS One with automatic status checking for async operations",
+          "Get a single venue's full configuration by ID (id-scoped fetch). REQUIRED: venueId (use get_ruckus_venues to find the ID). Returns the venue config including the nested address object; use this to inspect a venue or to see the current state before an update_ruckus_venue partial change.",
         inputSchema: {
           type: "object",
           properties: {
             venueId: {
               type: "string",
-              description: "ID of the venue to update",
+              description:
+                "ID of the venue to fetch (use get_ruckus_venues to get venue ID)",
             },
-            name: {
+          },
+          required: ["venueId"],
+        },
+      },
+      {
+        name: "update_ruckus_venue",
+        description:
+          "Update a venue by passing only the fields you want to change. REQUIRED: venueId (use get_ruckus_venues to get venue ID) + venueConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics; a null value deletes a key). IN-CONFIG ATTRIBUTES: name, description, and address (a nested object: address.addressLine, address.city, address.country, address.countryCode, address.latitude, address.longitude, address.timezone). Example to change just the city: { address: { city: 'Osaka' } }. At least one field is required.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            venueId: {
               type: "string",
-              description: "Name of the venue",
+              description:
+                "ID of the venue to update (use get_ruckus_venues to get venue ID)",
             },
-            description: {
-              type: "string",
-              description: "Optional description of the venue",
-            },
-            addressLine: {
-              type: "string",
-              description: "Street address of the venue",
-            },
-            city: {
-              type: "string",
-              description: "City where the venue is located",
-            },
-            country: {
-              type: "string",
-              description: "Country where the venue is located",
-            },
-            countryCode: {
-              type: "string",
-              description: 'Country code (optional, e.g., "US")',
-            },
-            latitude: {
-              type: "number",
-              description: "Latitude coordinate (optional)",
-            },
-            longitude: {
-              type: "number",
-              description: "Longitude coordinate (optional)",
-            },
-            timezone: {
-              type: "string",
-              description: "Timezone for the venue (optional)",
+            venueConfig: {
+              type: "object",
+              description:
+                "Partial venue configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). Keys: name, description, address { addressLine, city, country, countryCode, latitude, longitude, timezone }.",
             },
             maxRetries: {
               type: "number",
@@ -284,7 +271,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Polling interval in milliseconds (default: 5000)",
             },
           },
-          required: ["venueId", "name", "addressLine", "city", "country"],
+          required: ["venueId", "venueConfig"],
         },
       },
       {
@@ -3008,32 +2995,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
     }
+    case "get_ruckus_venue": {
+      try {
+        const { venueId } = request.params.arguments as { venueId: string };
+        const token = await tokenService.getValidToken();
+        const result = await getVenue(token, venueId, process.env.RUCKUS_REGION);
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error getting venue:", error);
+        return {
+          content: [
+            { type: "text", text: `Error getting venue: ${error.message || error}` },
+          ],
+          isError: true,
+        };
+      }
+    }
     case "update_ruckus_venue": {
       try {
         const {
           venueId,
-          name,
-          description,
-          addressLine,
-          city,
-          country,
-          countryCode,
-          latitude,
-          longitude,
-          timezone,
+          venueConfig,
           maxRetries = 20,
           pollIntervalMs = 5000,
         } = request.params.arguments as {
           venueId: string;
-          name: string;
-          description?: string;
-          addressLine: string;
-          city: string;
-          country: string;
-          countryCode?: string;
-          latitude?: number;
-          longitude?: number;
-          timezone?: string;
+          venueConfig: any;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
@@ -3043,17 +3030,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const result = await updateVenueWithRetry(
           token,
           venueId,
-          {
-            name,
-            ...(description !== undefined && { description }),
-            addressLine,
-            city,
-            country,
-            ...(countryCode !== undefined && { countryCode }),
-            ...(latitude !== undefined && { latitude }),
-            ...(longitude !== undefined && { longitude }),
-            ...(timezone !== undefined && { timezone }),
-          },
+          venueConfig,
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs,
