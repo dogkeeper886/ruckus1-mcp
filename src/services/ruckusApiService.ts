@@ -2790,124 +2790,32 @@ export async function getPortalServiceProfile(
 
 export async function createPortalServiceProfileWithRetry(
   token: string,
-  profileData: {
-    name: string;
-    content: any;
-  },
+  profileConfig: any = {},
   region: string = "",
   maxRetries: number = 20,
   pollIntervalMs: number = 5000,
 ): Promise<any> {
-  const apiUrl =
+  // STORY-023: config-object create — symmetric with update_portal_service_profile.
+  // Caller passes the full profile config (serviceName + content, with any T&C inside
+  // content) and POSTs it verbatim via createResourceWithPoll.
+  const baseApiUrl =
     region && region.trim() !== ""
-      ? `https://api.${region}.ruckus.cloud/portalServiceProfiles`
-      : "https://api.ruckus.cloud/portalServiceProfiles";
+      ? `https://api.${region}.ruckus.cloud`
+      : "https://api.ruckus.cloud";
 
-  const payload = {
-    serviceName: profileData.name,
-    content: profileData.content,
-  };
-
-  const response = await makeRuckusApiCall(
-    {
-      method: "post",
-      url: apiUrl,
-      data: payload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+  return createResourceWithPoll({
+    token,
+    config: profileConfig,
+    region,
+    postUrl: `${baseApiUrl}/portalServiceProfiles`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
-    "Create portal service profile",
-  );
-
-  const createResponse = response.data;
-
-  const activityId = createResponse.requestId;
-
-  if (!activityId) {
-    return {
-      ...createResponse,
-      status: "completed",
-      message:
-        "Portal service profile created successfully (synchronous operation)",
-    };
-  }
-
-  console.log(
-    `Starting portal service profile creation status polling for activity ${activityId}`,
-  );
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(
-      `Polling attempt ${attempt}/${maxRetries} for portal service profile creation activity ${activityId}`,
-    );
-
-    try {
-      const activityDetails = await getRuckusActivityDetails(
-        token,
-        activityId,
-        region,
-      );
-      console.log(`Activity status: ${activityDetails.status}`);
-
-      if (
-        activityDetails.status === "COMPLETED" ||
-        activityDetails.status === "SUCCESS"
-      ) {
-        return {
-          ...createResponse,
-          status: "completed",
-          message: "Portal service profile created successfully",
-          activityDetails,
-        };
-      } else if (activityDetails.status === "FAIL") {
-        return {
-          ...createResponse,
-          status: "failed",
-          message: "Portal service profile creation failed",
-          error: activityDetails.error || "Unknown error occurred",
-          activityDetails,
-        };
-      }
-
-      if (attempt === maxRetries) {
-        return {
-          ...createResponse,
-          status: "timeout",
-          message:
-            "Portal service profile creation status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    } catch (error: any) {
-      console.error(
-        `Error polling portal service profile creation activity (attempt ${attempt}):`,
-        error.message,
-      );
-
-      if (attempt === maxRetries) {
-        return {
-          ...createResponse,
-          status: "timeout",
-          message:
-            "Portal service profile creation status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    }
-  }
-
-  return {
-    ...createResponse,
-    status: "timeout",
-    message: "Portal service profile creation status unknown - polling timeout",
-    activityId,
-  };
+    resourceName: "portal_service_profile",
+    maxRetries,
+    pollIntervalMs,
+  });
 }
 
 export async function updatePortalServiceProfileWithRetry(
