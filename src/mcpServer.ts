@@ -1372,7 +1372,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_wifi_network",
         description:
-          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. CAPTIVE PORTAL TYPES — pick the specific portal-type value, do NOT use a generic 'guest' value (no longer accepted). FOR GUEST PASS: type=guestPass + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. End users sign in with a pre-issued password. FOR CLICK-THROUGH: type=clickThrough + portalServiceProfileId + wlanSecurity=None. End users see only a T&C checkbox + Connect button — no credential entry. FOR SELF SIGN-IN: type=selfSignIn + portalServiceProfileId + wlanSecurity=None. Pick at least one OTP channel via enableSmsLogin, enableEmailLogin, and/or enableWhatsappLogin (defaults to Email-only when none specified). FOR SELF SIGN-IN WITH EMAIL: also provide allowedEmailDomains. FOR SELF SIGN-IN WITH SMS: optionally provide smsPasswordDuration={duration,unit} where unit is MINUTE/HOUR/DAY (default {12, HOUR}). FOR SELF SIGN-IN WITH WHATSAPP: set enableWhatsappLogin=true. Optional temporaryConnectionEnabled + temporaryConnection to grant pre-OTP limited internet access (Self Sign-In only). FOR HOST APPROVAL: type=hostApproval + portalServiceProfileId + wlanSecurity=None. Companion fields (host contacts: domain or specific emails) not yet exposed as top-level params — pass them inside the guestPortal object until a dedicated parameter is added. FOR CLOUDPATH: type=cloudpath + wlanSecurity=None. Requires a Cloudpath enrollment URL and RADIUS authentication server; companion fields not yet exposed — pass via guestPortal until added. FOR WISPR (3rd party captive portal): type=wispr + wlanSecurity=None + wisprConfig (object; captivePortalUrl REQUIRED — your 3rd-party portal's login URL; optional providerName default 'Custom Provider', redirectUrl, integrationKey) + radiusServiceProfileId (REQUIRED — the 3rd-party AAA authentication server; use query_radius_server_profiles to get an AUTHENTICATION-type ID). Optional accountingRadiusServiceProfileId for accounting. No portalServiceProfileId (WISPr uses the external captive-portal URL, not an R1 portal profile). FOR DIRECTORY (Active Directory / LDAP): type=directory + wlanSecurity=None + portalServiceProfileId (use query_portal_service_profiles) + directoryServerProfileId (use query_directory_server_profiles or create_directory_server_profile). End users authenticate with an organizational username/password against the directory. FOR SAML IDP: type=saml + wlanSecurity=None. Requires SAML IdP metadata; companion fields not yet exposed. FOR WORKFLOW: type=workflow + wlanSecurity=None. Companion fields not yet exposed. FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId, enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId). FOR OWE TRANSITION: Requires type=open + wlanSecurity=Open + oweEnabled=true + oweTransitionEnabled=true. Creates a dual-network pair: OWE-encrypted primary + Open companion with '-owe-tr' suffix. FOR DSAE (DPSK WPA2/WPA3-Mixed): Requires type=dpsk + wlanSecurity=WPA23Mixed + dpskServiceId (use query_dpsk_services to get ID). Creates a dual-network pair: WPA2/WPA3-Mixed primary + WPA2 onboard companion with '-dpsk3-wpa2' suffix.",
+          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. CAPTIVE PORTAL TYPES — pick the specific portal-type value, do NOT use a generic 'guest' value (no longer accepted). FOR GUEST PASS: type=guestPass + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. End users sign in with a pre-issued password. FOR CLICK-THROUGH: type=clickThrough + portalServiceProfileId + wlanSecurity=None. End users see only a T&C checkbox + Connect button — no credential entry. FOR SELF SIGN-IN: type=selfSignIn + portalServiceProfileId + wlanSecurity=None. Pick at least one OTP channel via enableSmsLogin, enableEmailLogin, and/or enableWhatsappLogin (defaults to Email-only when none specified). FOR SELF SIGN-IN WITH EMAIL: also provide allowedEmailDomains. FOR SELF SIGN-IN WITH SMS: optionally provide smsPasswordDuration={duration,unit} where unit is MINUTE/HOUR/DAY (default {12, HOUR}). FOR SELF SIGN-IN WITH WHATSAPP: set enableWhatsappLogin=true. Optional temporaryConnectionEnabled + temporaryConnection to grant pre-OTP limited internet access (Self Sign-In only). FOR HOST APPROVAL: type=hostApproval + portalServiceProfileId + wlanSecurity=None. Companion fields (host contacts: domain or specific emails) not yet exposed as top-level params — pass them inside the guestPortal object until a dedicated parameter is added. FOR CLOUDPATH: type=cloudpath + wlanSecurity=None + cloudpathConfig (object; enrollmentUrl REQUIRED — your Cloudpath enrollment workflow URL; optional walledGardens to override the default Apple/Google/Microsoft captive-portal probe allowlist) + radiusServiceProfileId (REQUIRED — the Cloudpath RADIUS authentication server; use query_radius_server_profiles to get an AUTHENTICATION-type ID). Optional accountingRadiusServiceProfileId. No portalServiceProfileId (Cloudpath redirects to the external enrollment URL). FOR WISPR (3rd party captive portal): type=wispr + wlanSecurity=None + wisprConfig (object; captivePortalUrl REQUIRED — your 3rd-party portal's login URL; optional providerName default 'Custom Provider', redirectUrl, integrationKey) + radiusServiceProfileId (REQUIRED — the 3rd-party AAA authentication server; use query_radius_server_profiles to get an AUTHENTICATION-type ID). Optional accountingRadiusServiceProfileId for accounting. No portalServiceProfileId (WISPr uses the external captive-portal URL, not an R1 portal profile). FOR DIRECTORY (Active Directory / LDAP): type=directory + wlanSecurity=None + portalServiceProfileId (use query_portal_service_profiles) + directoryServerProfileId (use query_directory_server_profiles or create_directory_server_profile). End users authenticate with an organizational username/password against the directory. FOR SAML IDP: type=saml + wlanSecurity=None. Requires SAML IdP metadata; companion fields not yet exposed. FOR WORKFLOW: type=workflow + wlanSecurity=None. Companion fields not yet exposed. FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId, enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId). FOR OWE TRANSITION: Requires type=open + wlanSecurity=Open + oweEnabled=true + oweTransitionEnabled=true. Creates a dual-network pair: OWE-encrypted primary + Open companion with '-owe-tr' suffix. FOR DSAE (DPSK WPA2/WPA3-Mixed): Requires type=dpsk + wlanSecurity=WPA23Mixed + dpskServiceId (use query_dpsk_services to get ID). Creates a dual-network pair: WPA2/WPA3-Mixed primary + WPA2 onboard companion with '-dpsk3-wpa2' suffix.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1465,6 +1465,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 },
               },
               required: ["captivePortalUrl"],
+            },
+            cloudpathConfig: {
+              type: "object",
+              description:
+                "Cloudpath captive-portal enrollment config (REQUIRED for type=cloudpath). The RADIUS auth server is supplied separately via radiusServiceProfileId (authentication) + accountingRadiusServiceProfileId (accounting), reusing the enterprise association path.",
+              properties: {
+                enrollmentUrl: {
+                  type: "string",
+                  description:
+                    "REQUIRED. The Cloudpath enrollment workflow URL end users are redirected to (copy from your Cloudpath configuration).",
+                },
+                walledGardens: {
+                  type: "array",
+                  items: { type: "string" },
+                  description:
+                    "Optional. Pre-auth allowlist (hostnames/wildcards/IP subnets). Defaults to the standard Apple/Google/Microsoft captive-portal probe list (plus Google IP ranges) the admin GUI ships — override only if you need a different set.",
+                },
+              },
+              required: ["enrollmentUrl"],
             },
             radiusServiceProfileId: {
               type: "string",
@@ -5444,6 +5463,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           portalServiceProfileId,
           directoryServerProfileId,
           wisprConfig,
+          cloudpathConfig,
           radiusServiceProfileId,
           accountingRadiusServiceProfileId,
           enableAuthProxy,
@@ -5511,6 +5531,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             providerName?: string;
             redirectUrl?: string;
             integrationKey?: string;
+          };
+          cloudpathConfig?: {
+            enrollmentUrl: string;
+            walledGardens?: string[];
           };
           radiusServiceProfileId?: string;
           accountingRadiusServiceProfileId?: string;
@@ -5587,6 +5611,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (directoryServerProfileId !== undefined)
           networkConfig.directoryServerProfileId = directoryServerProfileId;
         if (wisprConfig !== undefined) networkConfig.wisprConfig = wisprConfig;
+        if (cloudpathConfig !== undefined)
+          networkConfig.cloudpathConfig = cloudpathConfig;
         if (radiusServiceProfileId !== undefined)
           networkConfig.radiusServiceProfileId = radiusServiceProfileId;
         if (accountingRadiusServiceProfileId !== undefined)
