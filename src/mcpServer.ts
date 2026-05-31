@@ -1321,7 +1321,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "update_portal_service_profile",
         description:
-          "Update a portal service profile in RUCKUS One with automatic status checking for async operations. REQUIRED: profileId (use query_portal_service_profiles to get ID) + name + content (full portal content configuration; PUT replaces the whole content blob). FOR TERMS & CONDITIONS: pass exactly one of three modes — (1) LEGACY PLAIN TEXT: set content.termsCondition; (2) RICH DOC: pass termsConditionConfig as a Tiptap doc JSON (use build_terms_condition_config to construct); (3) LINK TO URL: pass termsConditionUrl. The server enforces mutual exclusion via GUEST-422xxx codes. Also pass termsConditionsDisplay to toggle the T&C checkbox visibility (content.componentDisplay.termsConditions). Top-level params merge into content first; caller's content fields win on collision.",
+          "Update a portal service profile by passing only the fields you want to change. REQUIRED: profileId (use query_portal_service_profiles to get ID) + profileConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics; a null value deletes a key, arrays are replaced wholesale). IN-CONFIG ATTRIBUTES: serviceName (the profile name) and content (the portal content object, e.g. content.componentDisplay, content.termsConditionConfig, content.termsConditionUrl). FOR TERMS & CONDITIONS: content.termsConditionConfig (RICH DOC — a Tiptap doc JSON, use build_terms_condition_config) and content.termsConditionUrl (LINK TO URL) are mutually exclusive (server enforces GUEST-422xxx). To SWITCH T&C modes you MUST null the other mode in the same call, e.g. { content: { termsConditionUrl: \"https://...\", termsConditionConfig: null, componentDisplay: { termsConditions: true } } }. content.componentDisplay.termsConditions toggles the T&C checkbox visibility. At least one field is required.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1330,29 +1330,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description:
                 "ID of the portal service profile to update (use query_portal_service_profiles to find profile ID)",
             },
-            name: {
-              type: "string",
-              description: "Name of the portal service profile",
-            },
-            content: {
+            profileConfig: {
               type: "object",
               description:
-                "Portal content configuration object with styling, text, and display settings. Free-form pass-through. Fields set here override the merged top-level params (termsConditionConfig, termsConditionUrl, termsConditionsDisplay).",
-            },
-            termsConditionConfig: {
-              type: "object",
-              description:
-                "Tiptap rich-doc JSON for Terms & Conditions (RICH DOC mode). Use build_terms_condition_config to construct. Mutually exclusive with termsCondition (legacy) and termsConditionUrl.",
-            },
-            termsConditionUrl: {
-              type: "string",
-              description:
-                "Single http/https URL for the LINK TO URL Terms & Conditions mode. Mutually exclusive with termsCondition (legacy) and termsConditionConfig.",
-            },
-            termsConditionsDisplay: {
-              type: "boolean",
-              description:
-                "Whether the T&C checkbox component renders in the captive portal (sets content.componentDisplay.termsConditions).",
+                "Partial portal service profile configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). Keys: serviceName (profile name), content (portal content object). For T&C, set content.termsConditionConfig (rich doc) OR content.termsConditionUrl (URL) and null the other when switching modes (they are mutually exclusive, GUEST-422xxx); content.componentDisplay.termsConditions toggles the checkbox.",
             },
             maxRetries: {
               type: "number",
@@ -1363,7 +1344,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Polling interval in milliseconds (default: 5000)",
             },
           },
-          required: ["profileId", "name", "content"],
+          required: ["profileId", "profileConfig"],
         },
       },
       {
@@ -5143,39 +5124,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const {
           profileId,
-          name,
-          content,
-          termsConditionConfig,
-          termsConditionUrl,
-          termsConditionsDisplay,
+          profileConfig,
           maxRetries = 20,
           pollIntervalMs = 5000,
         } = request.params.arguments as {
           profileId: string;
-          name: string;
-          content: any;
-          termsConditionConfig?: any;
-          termsConditionUrl?: string;
-          termsConditionsDisplay?: boolean;
+          profileConfig: any;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
 
         const token = await tokenService.getValidToken();
 
-        const mergedContent = mergeTermsConditionFields(content, {
-          termsConditionConfig,
-          termsConditionUrl,
-          termsConditionsDisplay,
-        });
-
         const result = await updatePortalServiceProfileWithRetry(
           token,
           profileId,
-          {
-            name,
-            content: mergedContent,
-          },
+          profileConfig,
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs,
