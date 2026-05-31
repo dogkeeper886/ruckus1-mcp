@@ -2128,152 +2128,31 @@ export async function getRadiusServerProfile(
 
 export async function createDirectoryServerProfileWithRetry(
   token: string,
-  profileData: {
-    name: string;
-    type: string;
-    tlsEnabled: boolean;
-    host: string;
-    port: number;
-    domainName: string;
-    adminDomainName: string;
-    adminPassword: string;
-    identityName: string;
-    identityEmail: string;
-    identityPhone: string;
-    keyAttribute: string;
-    searchFilter?: string;
-    attributeMappings: Array<{
-      name: string;
-      mappedByName: string;
-    }>;
-  },
+  profileConfig: any = {},
   region: string = "",
   maxRetries: number = 20,
   pollIntervalMs: number = 5000,
 ): Promise<any> {
-  const apiUrl =
+  // STORY-023: config-object create — symmetric with update_directory_server_profile.
+  // Caller passes the full profile config and POSTs it verbatim via createResourceWithPoll.
+  const baseApiUrl =
     region && region.trim() !== ""
-      ? `https://api.${region}.ruckus.cloud/directoryServerProfiles`
-      : "https://api.ruckus.cloud/directoryServerProfiles";
+      ? `https://api.${region}.ruckus.cloud`
+      : "https://api.ruckus.cloud";
 
-  const payload = {
-    name: profileData.name,
-    type: profileData.type,
-    tlsEnabled: profileData.tlsEnabled,
-    host: profileData.host,
-    port: profileData.port,
-    domainName: profileData.domainName,
-    adminDomainName: profileData.adminDomainName,
-    adminPassword: profileData.adminPassword,
-    identityName: profileData.identityName,
-    identityEmail: profileData.identityEmail,
-    identityPhone: profileData.identityPhone,
-    keyAttribute: profileData.keyAttribute,
-    searchFilter: profileData.searchFilter || "",
-    attributeMappings: profileData.attributeMappings,
-  };
-
-  const response = await makeRuckusApiCall(
-    {
-      method: "post",
-      url: apiUrl,
-      data: payload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+  return createResourceWithPoll({
+    token,
+    config: profileConfig,
+    region,
+    postUrl: `${baseApiUrl}/directoryServerProfiles`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
-    "Create directory server profile",
-  );
-
-  const createResponse = response.data;
-
-  const activityId = createResponse.requestId;
-
-  if (!activityId) {
-    return {
-      ...createResponse,
-      status: "completed",
-      message:
-        "Directory server profile created successfully (synchronous operation)",
-    };
-  }
-
-  console.log(
-    `Starting directory server profile creation status polling for activity ${activityId}`,
-  );
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(
-      `Polling attempt ${attempt}/${maxRetries} for directory server profile creation activity ${activityId}`,
-    );
-
-    try {
-      const activityDetails = await getRuckusActivityDetails(
-        token,
-        activityId,
-        region,
-      );
-      console.log(`Activity status: ${activityDetails.status}`);
-
-      if (
-        activityDetails.status === "COMPLETED" ||
-        activityDetails.status === "SUCCESS"
-      ) {
-        return {
-          ...createResponse,
-          status: "completed",
-          message: "Directory server profile created successfully",
-          activityDetails,
-        };
-      } else if (activityDetails.status === "FAIL") {
-        return {
-          ...createResponse,
-          status: "failed",
-          message: "Directory server profile creation failed",
-          error: activityDetails.error || "Unknown error occurred",
-          activityDetails,
-        };
-      }
-
-      if (attempt === maxRetries) {
-        return {
-          ...createResponse,
-          status: "timeout",
-          message:
-            "Directory server profile creation status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    } catch (error: any) {
-      console.error(
-        `Error polling directory server profile creation activity (attempt ${attempt}):`,
-        error.message,
-      );
-
-      if (attempt === maxRetries) {
-        return {
-          ...createResponse,
-          status: "timeout",
-          message:
-            "Directory server profile creation status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    }
-  }
-
-  return {
-    ...createResponse,
-    status: "timeout",
-    message:
-      "Directory server profile creation status unknown - polling timeout",
-    activityId,
-  };
+    resourceName: "directory_server_profile",
+    maxRetries,
+    pollIntervalMs,
+  });
 }
 
 export async function createRadiusServerProfileWithRetry(

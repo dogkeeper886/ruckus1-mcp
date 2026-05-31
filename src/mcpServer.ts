@@ -891,80 +891,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_directory_server_profile",
         description:
-          "Create a new directory server profile in RUCKUS One with automatic status checking for async operations",
+          "Create a directory server profile by passing a single profileConfig object (full config). REQUIRED: profileConfig with name + type (e.g. 'LDAP') + tlsEnabled + host + port + domainName + adminDomainName + adminPassword + identityName + identityEmail + identityPhone + keyAttribute + attributeMappings (array of { name, mappedByName }). OPTIONAL: searchFilter. Symmetric with update_directory_server_profile (which takes the same object as a partial). Use query_directory_server_profiles to verify creation.",
         inputSchema: {
           type: "object",
           properties: {
-            name: {
-              type: "string",
-              description: "Name of the directory server profile",
-            },
-            type: {
-              type: "string",
-              description: 'Type of directory server (e.g., "LDAP")',
-            },
-            tlsEnabled: {
-              type: "boolean",
-              description: "Whether TLS is enabled",
-            },
-            host: {
-              type: "string",
-              description: "Directory server hostname",
-            },
-            port: {
-              type: "number",
-              description: "Directory server port number",
-            },
-            domainName: {
-              type: "string",
-              description: 'Domain name (e.g., "dc=example,dc=com")',
-            },
-            adminDomainName: {
-              type: "string",
+            profileConfig: {
+              type: "object",
               description:
-                'Admin domain name (e.g., "cn=admin,dc=example,dc=com")',
-            },
-            adminPassword: {
-              type: "string",
-              description: "Admin password",
-            },
-            identityName: {
-              type: "string",
-              description: "Identity name field",
-            },
-            identityEmail: {
-              type: "string",
-              description: "Identity email field",
-            },
-            identityPhone: {
-              type: "string",
-              description: "Identity phone field",
-            },
-            keyAttribute: {
-              type: "string",
-              description: 'Key attribute (e.g., "uid")',
-            },
-            searchFilter: {
-              type: "string",
-              description: "Optional search filter",
-            },
-            attributeMappings: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  name: {
-                    type: "string",
-                    description: "Attribute name",
-                  },
-                  mappedByName: {
-                    type: "string",
-                    description: "Mapped attribute name",
-                  },
-                },
-                required: ["name", "mappedByName"],
-              },
-              description: "Array of attribute mappings",
+                "Full directory server profile configuration. Keys: name, type (e.g. 'LDAP'), tlsEnabled, host, port, domainName, adminDomainName, adminPassword, identityName, identityEmail, identityPhone, keyAttribute, attributeMappings (array of { name, mappedByName }), searchFilter (optional).",
             },
             maxRetries: {
               type: "number",
@@ -975,21 +909,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Polling interval in milliseconds (default: 5000)",
             },
           },
-          required: [
-            "name",
-            "type",
-            "tlsEnabled",
-            "host",
-            "port",
-            "domainName",
-            "adminDomainName",
-            "adminPassword",
-            "identityName",
-            "identityEmail",
-            "identityPhone",
-            "keyAttribute",
-            "attributeMappings",
-          ],
+          required: ["profileConfig"],
         },
       },
       {
@@ -4502,40 +4422,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "create_directory_server_profile": {
       try {
         const {
-          name,
-          type,
-          tlsEnabled,
-          host,
-          port,
-          domainName,
-          adminDomainName,
-          adminPassword,
-          identityName,
-          identityEmail,
-          identityPhone,
-          keyAttribute,
-          searchFilter,
-          attributeMappings,
+          profileConfig,
           maxRetries = 20,
           pollIntervalMs = 5000,
         } = request.params.arguments as {
-          name: string;
-          type: string;
-          tlsEnabled: boolean;
-          host: string;
-          port: number;
-          domainName: string;
-          adminDomainName: string;
-          adminPassword: string;
-          identityName: string;
-          identityEmail: string;
-          identityPhone: string;
-          keyAttribute: string;
-          searchFilter?: string;
-          attributeMappings: Array<{
-            name: string;
-            mappedByName: string;
-          }>;
+          profileConfig: any;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
@@ -4544,22 +4435,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         const result = await createDirectoryServerProfileWithRetry(
           token,
-          {
-            name,
-            type,
-            tlsEnabled,
-            host,
-            port,
-            domainName,
-            adminDomainName,
-            adminPassword,
-            identityName,
-            identityEmail,
-            identityPhone,
-            keyAttribute,
-            ...(searchFilter !== undefined && { searchFilter }),
-            attributeMappings,
-          },
+          profileConfig,
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs,
