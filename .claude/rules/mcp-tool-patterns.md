@@ -362,6 +362,37 @@ case 'your_new_tool': {
 - No extra response metadata.
 - Check if one of the Advanced Patterns below applies.
 
+## Config-Object CRUD (preferred default for mutable resources) — STORY-023
+
+For a resource with a create/update/delete lifecycle, **prefer** one config-object shape over hand-rolled per-field payloads. This is guidance to apply with judgment, not a mandate — see "When NOT to converge" below, and lean on the live wire over any rule here.
+
+**The shape (one mental model — "send the slice you want to change"):**
+- `create_<resource>(<resource>Config)` — the full config object in.
+- `update_<resource>(id, <resource>Config)` — a **partial** of the *same* object; unspecified fields are preserved.
+- `get_<resource>(id)` (id-scoped) + `query_<resource>` (list).
+
+**Shared helpers (in `ruckusApiService.ts`) — delegate to these rather than re-implementing the POST/PUT/poll by hand:**
+- `updateResourceWithMerge({ token, id, partial, getFn, putUrl, headers, resourceName, omitKeys?, maxRetries?, pollIntervalMs? })` — GET current via `getFn` → `applyMergePatch(current, partial)` (RFC 7386: objects merge recursively, arrays/scalars replace wholesale, `null` deletes a key) → PUT merged body → poll.
+- `createResourceWithPoll({ token, config, postUrl, headers, resourceName, maxRetries?, pollIntervalMs? })` — POST the full config → poll.
+- `pollActivities(token, region, requestIds, maxRetries, pollIntervalMs, { resource, action })` — consolidated polling; returns `{ status: "completed" | "failed" | "timeout", ... }` (failed/timeout surface as `isError` at the handler via `toolResult`).
+
+A converged resource's service fn becomes a thin wrapper (build base URL + headers, delegate). Reference implementations: `update_radius_server_profile`, `create_ruckus_venue`, AP group, and `update_wifi_network` (the original).
+
+**Verify the wire before adopting — do NOT assume GET == PUT.** Confirm against the live API or a GUI trace that the resource's GET body PUTs back. Common reshapes, each handled in the thin wrapper:
+- PUT rejects read-only GET fields → list them in `omitKeys` (precedent: portal strips `id`, `networkIds` — `GUEST-400000`).
+- The PUT needs a field the GET omits → inject it in the wrapper before delegating (precedent: AP group injects `venueId`).
+- Secrets: confirm the GET returns them so the merge preserves them (RADIUS `sharedSecret`, directory `adminPassword` do; verify per resource).
+
+**When NOT to converge (symmetry is the aim, not dogma — keep it specialized and document why):**
+- The GET is status/telemetry that doesn't round-trip on PUT (precedent: access point — `clientCount`, `radioStatuses`, …).
+- The operation has move/assignment semantics hitting a different endpoint (precedent: AP venue/group moves).
+- The product itself does a full-replace PUT with no id-scoped GET (precedent: custom role — confirmed by GUI trace).
+- Create carries genuine business logic the generic POST would drop (precedent: custom role permission-enrichment).
+
+In those cases keep the existing specialized implementation and record the divergence with evidence (see STORY-023). Forcing the generic pattern there makes the code worse, not better.
+
+**Discoverability tradeoff:** a free-form config object can't express per-field `required`/types in the MCP input schema — compensate with a thorough tool description (see `tool-descriptions.md`): enumerate the important fields, required-by-type fields, sub-resource association keys, and the producer tool for each ID.
+
 ## Advanced Async Patterns
 
 ### 1. Conditional async steps
@@ -389,6 +420,8 @@ const requestIds = [
 **Precedent:** `createWifiNetworkWithRetry` conditionally associates the portal service profile for guest networks. Use the spread-with-conditional idiom and include all requestIds (even undefined) in the response.
 
 ### 2. Retrieve-then-update for full config preservation
+
+> **Prefer the shared `updateResourceWithMerge` helper** (see "Config-Object CRUD" above) for new/refactored update tools — it generalizes this pattern (GET → JSON Merge Patch → PUT → poll) and handles reshapes via `omitKeys`. The hand-rolled form below remains valid for resources that legitimately diverge (verify the wire first).
 
 When an update must preserve **all** existing fields (not just specific ones).
 
@@ -501,6 +534,7 @@ if (isEnterpriseType) {
 - [ ] Determined operation type (read-only vs async vs builder).
 - [ ] Picked a similar existing tool to copy from (read-only: `queryApGroups` / `getRuckusActivityDetails`; async: `createVenueWithRetry`).
 - [ ] Parameter order, defaults, and error handling match the pattern.
+- [ ] For a create/update on a mutable resource: considered **Config-Object CRUD** first (delegate to `updateResourceWithMerge` / `createResourceWithPoll`); verified the GET→PUT wire shape; or documented why the resource diverges.
 - [ ] For async: checked which advanced patterns apply:
   - [ ] Multi-step operation with conditional steps? (pattern 1 / 5)
   - [ ] Type-based conditional logic in the payload? (pattern 4)
