@@ -1,5 +1,5 @@
 id: TC-INT-206
-name: RADIUS server profile CRUD lifecycle - create, verify, delete
+name: RADIUS server profile CRUD lifecycle - create, partial-update, verify, delete
 suite: integration
 tags: [radius-server]
 story: STORY-006
@@ -26,6 +26,23 @@ steps:
     rejectPatterns:
       - "isError"
 
+  - name: Partial update - change only primary.port (retrieve-then-merge)
+    command: npx tsx cicd/tests/src/mcp-client.ts update_radius_server_profile '{"profileId":"{{profileId}}","profileConfig":{"primary":{"port":1814}},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Get profile - verify port changed and unspecified fields preserved
+    command: npx tsx cicd/tests/src/mcp-client.ts get_radius_server_profile '{"profileId":"{{profileId}}"}'
+    expectPatterns:
+      - "1814"
+      - "10.99.99.99"
+      - "TestSecret123"
+      - "mcp-test-radius-{{TEST_RUN_ID}}"
+    rejectPatterns:
+      - "isError"
+
   - name: Delete RADIUS server profile
     command: npx tsx cicd/tests/src/mcp-client.ts delete_radius_server_profile '{"profileId":"{{profileId}}","maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
@@ -41,8 +58,14 @@ steps:
       - "{{profileId}}"
 
 criteria: |
-  Full RADIUS server profile CRUD lifecycle:
+  Full RADIUS server profile CRUD lifecycle, incl. STORY-023 partial update:
   1. Create AUTHENTICATION profile "mcp-test-radius-{{TEST_RUN_ID}}" with primary server
+     (port 1812, ip 10.99.99.99, sharedSecret TestSecret123)
   2. Query to find it and capture profileId
-  3. Delete using captured profileId
-  4. Verify it no longer appears in query results
+  3. Partial update via update_radius_server_profile with profileConfig {primary:{port:1814}}
+     only — retrieve-then-merge (JSON Merge Patch).
+  4. GET the profile and verify the new port (1814) AND that unspecified fields were
+     preserved (ip 10.99.99.99, sharedSecret TestSecret123, name) — proving the merge
+     did not clear them.
+  5. Delete using captured profileId
+  6. Verify it no longer appears in query results
