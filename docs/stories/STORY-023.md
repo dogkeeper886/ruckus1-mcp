@@ -4,9 +4,27 @@ Follow-up to STORY-022. STORY-022 made `update_wifi_network` config-driven (retr
 
 ## Progress
 
-- **Update side (config-driven retrieve-then-merge) — landed for the reference + server-profile trio:** `update_wifi_network` (STORY-022), `update_radius_server_profile` (#113), `update_directory_server_profile` (#114), `update_portal_service_profile` (#115). All delegate to a shared `updateResourceWithMerge` + `pollActivities`.
-- **Learned (and it shapes the create side too):** the GET→PUT round-trip is **not** uniform across resources. RADIUS/Directory tolerate the read-only fields their GET returns; portal's PUT rejects `id`/`networkIds` (`GUEST-400000`), handled by an `omitKeys` reshape hook on the helper. Takeaway: **verify each resource's wire shape; don't assume.**
-- **Create side — not started.** It is the other half of the Goal; the principles for it are in "Create-side alignment" below.
+**Fully converged to config-object CRUD (create full + update partial, shared helpers):**
+- **WiFi network** — `update_wifi_network` (STORY-022, reference).
+- **RADIUS server profile** — update #113, create #117.
+- **Directory server profile** — update #114, create #118.
+- **Portal service profile** — update #115, create #119.
+- **Venue** — update + `get_ruckus_venue` #120, create #121.
+- **AP group** — update + create + `get_ruckus_ap_group` #122.
+
+Shared infrastructure: `updateResourceWithMerge` (retrieve-then-merge), `createResourceWithPoll` (config POST), `pollActivities` (consolidated polling, action-parameterized), and an `omitKeys` reshape hook for resources whose PUT rejects read-only GET fields.
+
+**Key lessons:**
+- The GET→PUT round-trip is **not** uniform — verify each resource's wire shape; don't assume. RADIUS/Directory tolerate their GET-only fields; portal's PUT rejects `id`/`networkIds` (`GUEST-400000`); AP group's GET turned out to return PUT-ready data (apSerialNumbers as `string[]`), letting us delete the old AP-query + objects→strings conversion + `preserveExistingAps` flag.
+- New id-scoped reads added where missing: `get_ruckus_venue`, `get_ruckus_ap_group`.
+
+**Deliberate divergences (principle #7 — documented, not forced):**
+- **Access point (`update_ruckus_ap`)** stays a specialized retrieve-then-update, **not** config-object retrieve-then-merge. Its "GET" (`getApDetailsBySerial` via the AP query) returns status/telemetry (clientCount, radioStatuses, firmwareVersion, uptime, …) that does **not** round-trip on PUT, and it has genuine move-vs-property-update semantics (venue/AP-group changes hit a different endpoint). Forcing the generic pattern would be worse. APs have no create (physical/claimed), so AP is query/get/update only.
+
+**Create+delete-only resources (verify + document, no update to converge):**
+- **Identity group, DPSK service, guest pass** have no update tool today (R1 update support unverified). Per the acceptance criteria these should be confirmed against R1 and explicitly documented as create+delete-only if R1 has no update endpoint. Their *creates* could still be converged to config-object if/when touched.
+
+**Remaining update-convergence candidate:** roles / privilege group (`update_custom_role`, `update_privilege_group`).
 
 ## Goal
 
