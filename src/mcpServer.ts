@@ -1082,72 +1082,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_radius_server_profile",
         description:
-          'Create a new RADIUS server profile in RUCKUS One with automatic status checking for async operations. REQUIRED: name (string) + type ("AUTHENTICATION" or "ACCOUNTING") + enableSecondaryServer (boolean) + primary (object with port, sharedSecret, hostname). Optional: secondary (object with port, sharedSecret, hostname). Use query_radius_server_profiles to verify the profile was created.',
+          "Create a RADIUS server profile by passing a single profileConfig object (full config). REQUIRED: profileConfig with name + type ('AUTHENTICATION' | 'ACCOUNTING') + enableSecondaryServer (boolean) + primary { port, sharedSecret, ip | hostname }. OPTIONAL: secondary { port, sharedSecret, ip | hostname } when enableSecondaryServer is true. For each server send EITHER ip OR hostname (not both). Symmetric with update_radius_server_profile (which takes the same object as a partial). Use query_radius_server_profiles to verify creation.",
         inputSchema: {
           type: "object",
           properties: {
-            name: {
-              type: "string",
-              description: "Name of the RADIUS server profile",
-            },
-            type: {
-              type: "string",
+            profileConfig: {
+              type: "object",
               description:
-                'Type of RADIUS server profile: "AUTHENTICATION" or "ACCOUNTING"',
-            },
-            enableSecondaryServer: {
-              type: "boolean",
-              description: "Whether to enable secondary server",
-            },
-            primary: {
-              type: "object",
-              description: "Primary RADIUS server configuration",
-              properties: {
-                port: {
-                  type: "number",
-                  description: "Port number for the primary server",
-                },
-                sharedSecret: {
-                  type: "string",
-                  description: "Shared secret for the primary server",
-                },
-                hostname: {
-                  type: "string",
-                  description:
-                    "Hostname for the primary server (provide either hostname or ip, not both unless testing API validation)",
-                },
-                ip: {
-                  type: "string",
-                  description:
-                    "IP address for the primary server (provide either hostname or ip, not both unless testing API validation)",
-                },
-              },
-              required: ["port", "sharedSecret"],
-            },
-            secondary: {
-              type: "object",
-              description: "Secondary RADIUS server configuration (optional)",
-              properties: {
-                port: {
-                  type: "number",
-                  description: "Port number for the secondary server",
-                },
-                sharedSecret: {
-                  type: "string",
-                  description: "Shared secret for the secondary server",
-                },
-                hostname: {
-                  type: "string",
-                  description:
-                    "Hostname for the secondary server (provide either hostname or ip, not both unless testing API validation)",
-                },
-                ip: {
-                  type: "string",
-                  description:
-                    "IP address for the secondary server (provide either hostname or ip, not both unless testing API validation)",
-                },
-              },
-              required: ["port", "sharedSecret"],
+                "Full RADIUS server profile configuration. Keys: name, type ('AUTHENTICATION' | 'ACCOUNTING'), enableSecondaryServer (boolean), primary { port, sharedSecret, ip | hostname }, secondary { port, sharedSecret, ip | hostname }. Send ip OR hostname per server, not both.",
             },
             maxRetries: {
               type: "number",
@@ -1158,7 +1100,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Polling interval in milliseconds (default: 5000)",
             },
           },
-          required: ["name", "type", "enableSecondaryServer", "primary"],
+          required: ["profileConfig"],
         },
       },
       {
@@ -4813,29 +4755,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "create_radius_server_profile": {
       try {
         const {
-          name,
-          type,
-          enableSecondaryServer,
-          primary,
-          secondary,
+          profileConfig,
           maxRetries = 20,
           pollIntervalMs = 5000,
         } = request.params.arguments as {
-          name: string;
-          type: string;
-          enableSecondaryServer: boolean;
-          primary: {
-            port: number;
-            sharedSecret: string;
-            hostname?: string;
-            ip?: string;
-          };
-          secondary?: {
-            port: number;
-            sharedSecret: string;
-            hostname?: string;
-            ip?: string;
-          };
+          profileConfig: any;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
@@ -4844,13 +4768,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         const result = await createRadiusServerProfileWithRetry(
           token,
-          {
-            name,
-            type: type as "AUTHENTICATION" | "ACCOUNTING",
-            enableSecondaryServer,
-            primary,
-            ...(secondary !== undefined && { secondary }),
-          },
+          profileConfig,
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs,

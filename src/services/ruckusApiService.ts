@@ -2278,203 +2278,34 @@ export async function createDirectoryServerProfileWithRetry(
 
 export async function createRadiusServerProfileWithRetry(
   token: string,
-  profileData: {
-    name: string;
-    type: "AUTHENTICATION" | "ACCOUNTING";
-    enableSecondaryServer: boolean;
-    primary: {
-      port: number;
-      sharedSecret: string;
-      hostname?: string;
-      ip?: string;
-    };
-    secondary?: {
-      port: number;
-      sharedSecret: string;
-      hostname?: string;
-      ip?: string;
-    };
-  },
+  profileConfig: any = {},
   region: string = "",
   maxRetries: number = 20,
   pollIntervalMs: number = 5000,
 ): Promise<any> {
-  const apiUrl =
+  // STORY-023: config-object create — symmetric with update_radius_server_profile.
+  // Caller passes the full profile config and POSTs it verbatim via createResourceWithPoll.
+  // For primary/secondary send ip OR hostname explicitly (no auto-detection; same convention
+  // as the update side).
+  const baseApiUrl =
     region && region.trim() !== ""
-      ? `https://api.${region}.ruckus.cloud/radiusServerProfiles`
-      : "https://api.ruckus.cloud/radiusServerProfiles";
+      ? `https://api.${region}.ruckus.cloud`
+      : "https://api.ruckus.cloud";
 
-  // Helper to detect if value is an IP address (IPv4 or IPv6) vs hostname/FQDN
-  const isIpAddress = (value: string): boolean => {
-    // IPv4 pattern
-    const ipv4Pattern =
-      /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-    // IPv6 pattern (simplified)
-    const ipv6Pattern = /^[0-9a-fA-F:]+$/;
-    return (
-      ipv4Pattern.test(value) ||
-      (value.includes(":") && ipv6Pattern.test(value))
-    );
-  };
-
-  // Build primary server config with correct field (ip vs hostname)
-  const primaryConfig: any = {
-    port: profileData.primary.port,
-    sharedSecret: profileData.primary.sharedSecret,
-  };
-
-  // If both ip AND hostname provided, send both (for mutual exclusivity testing)
-  if (profileData.primary.ip && profileData.primary.hostname) {
-    primaryConfig.ip = profileData.primary.ip;
-    primaryConfig.hostname = profileData.primary.hostname;
-  }
-  // If only ip provided, use it directly
-  else if (profileData.primary.ip) {
-    primaryConfig.ip = profileData.primary.ip;
-  }
-  // If only hostname provided, use auto-detection (existing logic)
-  else if (profileData.primary.hostname) {
-    if (isIpAddress(profileData.primary.hostname)) {
-      primaryConfig.ip = profileData.primary.hostname;
-    } else {
-      primaryConfig.hostname = profileData.primary.hostname;
-    }
-  }
-
-  const payload: any = {
-    name: profileData.name,
-    type: profileData.type,
-    enableSecondaryServer: profileData.enableSecondaryServer,
-    primary: primaryConfig,
-  };
-
-  if (profileData.secondary) {
-    const secondaryConfig: any = {
-      port: profileData.secondary.port,
-      sharedSecret: profileData.secondary.sharedSecret,
-    };
-
-    // If both ip AND hostname provided, send both (for mutual exclusivity testing)
-    if (profileData.secondary.ip && profileData.secondary.hostname) {
-      secondaryConfig.ip = profileData.secondary.ip;
-      secondaryConfig.hostname = profileData.secondary.hostname;
-    }
-    // If only ip provided, use it directly
-    else if (profileData.secondary.ip) {
-      secondaryConfig.ip = profileData.secondary.ip;
-    }
-    // If only hostname provided, use auto-detection (existing logic)
-    else if (profileData.secondary.hostname) {
-      if (isIpAddress(profileData.secondary.hostname)) {
-        secondaryConfig.ip = profileData.secondary.hostname;
-      } else {
-        secondaryConfig.hostname = profileData.secondary.hostname;
-      }
-    }
-    payload.secondary = secondaryConfig;
-  }
-
-  const response = await makeRuckusApiCall(
-    {
-      method: "post",
-      url: apiUrl,
-      data: payload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/vnd.ruckus.v1.1+json",
-        Accept: "application/vnd.ruckus.v1.1+json",
-      },
+  return createResourceWithPoll({
+    token,
+    config: profileConfig,
+    region,
+    postUrl: `${baseApiUrl}/radiusServerProfiles`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/vnd.ruckus.v1.1+json",
+      Accept: "application/vnd.ruckus.v1.1+json",
     },
-    "Create RADIUS server profile",
-  );
-
-  const createResponse = response.data;
-
-  const activityId = createResponse.requestId;
-
-  if (!activityId) {
-    return {
-      ...createResponse,
-      status: "completed",
-      message:
-        "RADIUS server profile created successfully (synchronous operation)",
-    };
-  }
-
-  console.log(
-    `Starting RADIUS server profile creation status polling for activity ${activityId}`,
-  );
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(
-      `Polling attempt ${attempt}/${maxRetries} for RADIUS server profile creation activity ${activityId}`,
-    );
-
-    try {
-      const activityDetails = await getRuckusActivityDetails(
-        token,
-        activityId,
-        region,
-      );
-      console.log(`Activity status: ${activityDetails.status}`);
-
-      if (
-        activityDetails.status === "COMPLETED" ||
-        activityDetails.status === "SUCCESS"
-      ) {
-        return {
-          ...createResponse,
-          status: "completed",
-          message: "RADIUS server profile created successfully",
-          activityDetails,
-        };
-      } else if (activityDetails.status === "FAIL") {
-        return {
-          ...createResponse,
-          status: "failed",
-          message: "RADIUS server profile creation failed",
-          error: activityDetails.error || "Unknown error occurred",
-          activityDetails,
-        };
-      }
-
-      if (attempt === maxRetries) {
-        return {
-          ...createResponse,
-          status: "timeout",
-          message:
-            "RADIUS server profile creation status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    } catch (error: any) {
-      console.error(
-        `Error polling RADIUS server profile creation activity (attempt ${attempt}):`,
-        error.message,
-      );
-
-      if (attempt === maxRetries) {
-        return {
-          ...createResponse,
-          status: "timeout",
-          message:
-            "RADIUS server profile creation status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    }
-  }
-
-  return {
-    ...createResponse,
-    status: "timeout",
-    message: "RADIUS server profile creation status unknown - polling timeout",
-    activityId,
-  };
+    resourceName: "radius_server_profile",
+    maxRetries,
+    pollIntervalMs,
+  });
 }
 
 export async function updateDirectoryServerProfileWithRetry(
@@ -2750,12 +2581,13 @@ export async function pollActivities(
   requestIds: Array<{ id: string; name: string }>,
   maxRetries: number,
   pollIntervalMs: number,
-  labels: { resource: string },
+  labels: { resource: string; action?: string },
 ): Promise<{ status: string; message: string; activities: any[]; error?: string }> {
+  const verb = labels.action ?? "updated";
   if (requestIds.length === 0) {
     return {
       status: "completed",
-      message: `${labels.resource} updated successfully (synchronous operation)`,
+      message: `${labels.resource} ${verb} successfully (synchronous operation)`,
       activities: [],
     };
   }
@@ -2770,7 +2602,7 @@ export async function pollActivities(
       if (pending.length === 0) {
         return {
           status: "completed",
-          message: `${labels.resource} updated successfully`,
+          message: `${labels.resource} ${verb} successfully`,
           activities: completedActivities,
         };
       }
@@ -2825,7 +2657,7 @@ export async function pollActivities(
       if (retryCount >= maxRetries) {
         return {
           status: "timeout",
-          message: `${labels.resource} update status unknown - polling timeout`,
+          message: `${labels.resource} ${verb} status unknown - polling timeout`,
           error: "Failed to get activity status after maximum retries",
           activities: completedActivities,
         };
@@ -2915,6 +2747,63 @@ export async function updateResourceWithMerge(opts: {
   );
 
   return { id, requestId, ...poll };
+}
+
+/**
+ * Generic config-object create (STORY-023, create-side analogue of updateResourceWithMerge):
+ * POST the full config to the resource collection endpoint, then poll the resulting activity.
+ * The caller passes the full config object (symmetric with the partial that update takes).
+ * Resource-specific reshaping/orchestration (sub-resource association chains, business-rule
+ * ordering) belongs in the thin per-resource wrapper that calls this — not here.
+ */
+export async function createResourceWithPoll(opts: {
+  token: string;
+  config: any;
+  region?: string;
+  postUrl: string;
+  headers: Record<string, string>;
+  resourceName: string;
+  maxRetries?: number;
+  pollIntervalMs?: number;
+}): Promise<any> {
+  const {
+    token,
+    config,
+    region = "",
+    postUrl,
+    headers,
+    resourceName,
+    maxRetries = 20,
+    pollIntervalMs = 5000,
+  } = opts;
+
+  if (
+    !config ||
+    typeof config !== "object" ||
+    Array.isArray(config) ||
+    Object.keys(config).length === 0
+  ) {
+    throw new Error(
+      `create_${resourceName} requires a config object with at least the required fields.`,
+    );
+  }
+
+  const postResp = await makeRuckusApiCall(
+    { method: "post", url: postUrl, data: config, headers },
+    `Create ${resourceName}`,
+  );
+  const requestId = postResp.data?.requestId;
+
+  const poll = await pollActivities(
+    token,
+    region,
+    requestId ? [{ id: requestId, name: `Create ${resourceName}` }] : [],
+    maxRetries,
+    pollIntervalMs,
+    { resource: resourceName, action: "created" },
+  );
+
+  return { ...postResp.data, requestId, ...poll };
 }
 
 export async function updateRadiusServerProfileWithRetry(
