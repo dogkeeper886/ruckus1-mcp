@@ -2,6 +2,12 @@
 
 Follow-up to STORY-022. STORY-022 made `update_wifi_network` config-driven (retrieve-then-merge + sub-resource orchestration). This story generalizes that pattern so **every mutable resource exposes uniform, predictable CRUD**, instead of the five different update styles in the current surface.
 
+## Progress
+
+- **Update side (config-driven retrieve-then-merge) — landed for the reference + server-profile trio:** `update_wifi_network` (STORY-022), `update_radius_server_profile` (#113), `update_directory_server_profile` (#114), `update_portal_service_profile` (#115). All delegate to a shared `updateResourceWithMerge` + `pollActivities`.
+- **Learned (and it shapes the create side too):** the GET→PUT round-trip is **not** uniform across resources. RADIUS/Directory tolerate the read-only fields their GET returns; portal's PUT rejects `id`/`networkIds` (`GUEST-400000`), handled by an `omitKeys` reshape hook on the helper. Takeaway: **verify each resource's wire shape; don't assume.**
+- **Create side — not started.** It is the other half of the Goal; the principles for it are in "Create-side alignment" below.
+
 ## Goal
 
 For each resource family, converge on a consistent CRUD contract:
@@ -45,6 +51,24 @@ The current surface has (see the inventory below) **five distinct update styles*
 4. **Standardize reads** — ensure each resource has `query_<resource>` and, where an id-scoped fetch exists, `get_<resource>`.
 5. Land the complementary **boilerplate helpers** from `docs/architecture.md` ("Internal Consolidation": `regionalUrl`, `formatToolError`, `pollActivities`) so each refactored resource is thin.
 
+## Create-side alignment — principles (guidelines, not a spec)
+
+The Goal calls for `create_<resource>(config)` symmetric with `update_<resource>(id, config)`. The following are **guiding principles** for getting there — direction and intent, to apply with judgment per resource, **not rigid rules to hardcode**. Where a resource's reality conflicts with a principle, follow the reality and note why.
+
+1. **One interface: the config object.** Lean toward a single full-config argument for create, named to match that resource's update partial (the same `…Config` object). The intent is that an agent learns *one* shape per resource and picks `create` (full) vs `update` (partial) without relearning fields. Avoid reintroducing per-attribute or per-sub-resource create variants — that's the proliferation this story exists to prevent.
+
+2. **Thin resources over bespoke code.** Prefer a shared create helper (the create analogue of `updateResourceWithMerge`: POST config → consolidated `pollActivities` → orchestrate any sub-resource chain) so each `create_<resource>` is a thin delegation. The goal is maintainability/extensibility, not a mandated signature — if a resource genuinely needs more, that's allowed; justify it in the wrapper rather than bending the shared helper for everyone.
+
+3. **Compact, CRUD-only surface.** Aim for exactly `query / get / create / update / delete` per resource. When folding capability in, prefer **removing** now-redundant tools to adding new ones; record the net tool-count change. Fewer, more powerful tools beat many narrow ones.
+
+4. **Verify the wire per resource — don't assume uniformity.** The update side already proved this (portal's `omitKeys`). Create bodies may differ from GET/update shapes, and key rules are schema-absent (e.g. the DSAE band-balancing default that caused #105, the `WIFI-20049` proxy-before-FQDN ordering). Confirm each resource's create shape + business rules against the live API/GUI before converging it. Per-resource reshapes/orchestration live in that resource's thin wrapper, not forced onto all.
+
+5. **Discoverability is the accepted tradeoff — compensate in the description.** A free-form config object cannot express per-field `required`/types in the MCP input schema. This is a deliberate choice (per-attribute schemas don't scale to ~1,500 R1 operations), already made for `update_wifi_network`'s `networkConfig`. Compensate with a thorough tool description per `.claude/rules/tool-descriptions.md`: enumerate the important fields, the required-by-type fields, sub-resource association keys, and the producer tool for each ID. **The description is the contract** — treat it as a first-class deliverable, not an afterthought.
+
+6. **Incremental, test-gated, one resource per PR.** Same cadence as the update side: trace/verify the wire → implement onto the shared helper → round-trip test (create asserts the resource exists with the sent config; pairs naturally with the existing update round-trip test) → one PR. No big-bang rewrite.
+
+7. **Symmetry is the aim, not dogma.** The point is a predictable mental model, not byte-identical signatures. If create and update legitimately diverge for a resource (e.g. a field only settable at create), keep them as close as the API allows and document the divergence rather than forcing false uniformity.
+
 ## Acceptance criteria
 
 - A shared retrieve-then-merge update helper exists and is unit-tested, reused by ≥2 resources.
@@ -52,6 +76,7 @@ The current surface has (see the inventory below) **five distinct update styles*
 - Missing update tools added where R1 supports update; resources without R1 update support are explicitly documented as create+delete-only (not silently missing).
 - `npm run build` + unit tests green; integration tests cover at least the partial-update round-trip for each newly-refactored resource.
 - No agent-facing behavior regressions for create/read/delete.
+- **(Create side, as goals not gates)** A converged `create_<resource>` accepts the resource's config object; a shared create helper is reused by ≥2 resources; create and update use the symmetric `…Config` argument name; a create round-trip is covered by a test; the resource keeps a CRUD-only surface (net tool count flat or lower). Where a resource can't meet one of these cleanly, the divergence is documented rather than forced.
 
 ## Risks and what to watch
 
