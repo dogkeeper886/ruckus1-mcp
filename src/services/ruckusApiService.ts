@@ -19,6 +19,19 @@ const PORTAL_TYPE_TO_WIRE: Record<string, string> = {
   workflow: "Workflow",
 };
 
+// WISPr integration key — a 16-char alphanumeric token shared with the external
+// 3rd-party captive portal. The admin GUI pre-generates one on the create form;
+// we mirror that when the caller doesn't supply their own (#96).
+function generateWisprIntegrationKey(): string {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let key = "";
+  for (let i = 0; i < 16; i++) {
+    key += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return key;
+}
+
 async function makeRuckusApiCall<T = any>(
   config: AxiosRequestConfig,
   operationName: string,
@@ -3241,6 +3254,15 @@ export async function createWifiNetworkWithRetry(
     portalServiceProfileId?: string;
     // Directory (AD/LDAP) captive-portal: directory server profile to bind (#95)
     directoryServerProfileId?: string;
+    // WISPr (3rd-party captive portal) external-provider config (#96). The AAA
+    // server is supplied via radiusServiceProfileId (auth) + accountingRadiusServiceProfileId
+    // (accounting), reusing the enterprise association path.
+    wisprConfig?: {
+      captivePortalUrl: string;
+      providerName?: string;
+      redirectUrl?: string;
+      integrationKey?: string;
+    };
     // Enterprise 802.1x specific options
     radiusServiceProfileId?: string;
     accountingRadiusServiceProfileId?: string;
@@ -3294,6 +3316,7 @@ export async function createWifiNetworkWithRetry(
   const isCaptivePortal = networkConfig.type in PORTAL_TYPE_TO_WIRE;
   const isSelfSignInType = networkConfig.type === "selfSignIn";
   const isSimplePortalType = isCaptivePortal && !isSelfSignInType;
+  const isWisprType = networkConfig.type === "wispr";
   const isEnterpriseType = networkConfig.type === "enterprise";
   const isOweTransition =
     networkConfig.type === "open" &&
@@ -3515,6 +3538,34 @@ export async function createWifiNetworkWithRetry(
     basePayload.enableDhcp = false;
   }
 
+  // WISPr (3rd-party captive portal, #96): build the guestPortal.wisprPage block.
+  // Confirmed by GUI trace (Custom Provider): the WLAN carries an external-provider
+  // descriptor + a 3rd-party captive-portal URL; the AAA server is associated
+  // separately via PUT /radiusServerProfiles/{id} (radiusServiceProfileId, below) —
+  // exactly the enterprise path. Accounting rides accountingRadiusServiceProfileId.
+  if (isWisprType && networkConfig.wisprConfig) {
+    const w = networkConfig.wisprConfig;
+    const providerName = w.providerName || "Custom Provider";
+    basePayload.guestPortal.wisprPage = {
+      authType: "RADIUS",
+      externalProviderName: providerName,
+      externalProviderRegion: "",
+      customExternalProvider: true,
+      captivePortalUrl: w.captivePortalUrl,
+      integrationKey: w.integrationKey || generateWisprIntegrationKey(),
+      encryptMacIpEnabled: true,
+      providerName,
+      // Caller-provided wisprPage fields (via guestPortal passthrough) win.
+      ...(networkConfig.guestPortal?.wisprPage || {}),
+    };
+    if (w.redirectUrl) {
+      basePayload.guestPortal.redirectUrl = w.redirectUrl;
+      basePayload.redirectCheckbox = true;
+    }
+    basePayload.enableAccountingService =
+      !!networkConfig.accountingRadiusServiceProfileId;
+  }
+
   // Add guest portal configuration for Self Sign-In (Email / SMS / WhatsApp)
   if (isSelfSignInType) {
     // Back-compat default: Email-only when no channel flag is specified.
@@ -3694,9 +3745,14 @@ export async function createWifiNetworkWithRetry(
     );
   }
 
-  // Step 3: Associate RADIUS service profile for enterprise 802.1x networks (AFTER proxy settings are configured)
+  // Step 3: Associate RADIUS service profile for enterprise 802.1x AND WISPr networks
+  // (AFTER proxy settings are configured). WISPr uses the same /radiusServerProfiles/{id}
+  // endpoint as enterprise to bind its 3rd-party AAA authentication server (#96).
   let radiusServiceProfileRequestId: string | undefined;
-  if (isEnterpriseType && networkConfig.radiusServiceProfileId) {
+  if (
+    (isEnterpriseType || isWisprType) &&
+    networkConfig.radiusServiceProfileId
+  ) {
     console.log("[RUCKUS] Associating RADIUS service profile for 802.1x...");
     const radiusServiceUrl = `${apiUrl}/${networkId}/radiusServerProfiles/${networkConfig.radiusServiceProfileId}`;
 
@@ -3721,9 +3777,12 @@ export async function createWifiNetworkWithRetry(
     }
   }
 
-  // Step 4: Associate accounting RADIUS service profile for enterprise 802.1x networks
+  // Step 4: Associate accounting RADIUS service profile for enterprise 802.1x AND WISPr networks
   let accountingRadiusServiceProfileRequestId: string | undefined;
-  if (isEnterpriseType && networkConfig.accountingRadiusServiceProfileId) {
+  if (
+    (isEnterpriseType || isWisprType) &&
+    networkConfig.accountingRadiusServiceProfileId
+  ) {
     console.log(
       "[RUCKUS] Associating accounting RADIUS service profile for 802.1x...",
     );
