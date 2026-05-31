@@ -9,7 +9,7 @@ dependencies: []
 
 steps:
   - name: Create venue without city (required field)
-    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"name":"test-incomplete"}'
+    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"venueConfig":{"name":"test-incomplete"}}'
     expectError: true
     expectPatterns:
       - "isError"

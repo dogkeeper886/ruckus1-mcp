@@ -552,153 +552,32 @@ export async function getVenue(
 
 export async function createVenueWithRetry(
   token: string,
-  venueData: {
-    name: string;
-    addressLine: string;
-    city: string;
-    country: string;
-    latitude?: number;
-    longitude?: number;
-    timezone?: string;
-  },
+  venueConfig: any = {},
   region: string = "",
   maxRetries: number = 20,
   pollIntervalMs: number = 5000,
 ): Promise<any> {
-  const apiUrl =
+  // STORY-023: config-object create — symmetric with update_ruckus_venue.
+  // Caller passes the full venue config (name + nested address) and POSTs it verbatim
+  // via createResourceWithPoll.
+  const baseApiUrl =
     region && region.trim() !== ""
-      ? `https://api.${region}.ruckus.cloud/venues`
-      : "https://api.ruckus.cloud/venues";
+      ? `https://api.${region}.ruckus.cloud`
+      : "https://api.ruckus.cloud";
 
-  const payload = {
-    name: venueData.name,
-    address: {
-      addressLine: venueData.addressLine,
-      city: venueData.city,
-      country: venueData.country,
-      ...(venueData.latitude !== undefined && { latitude: venueData.latitude }),
-      ...(venueData.longitude !== undefined && {
-        longitude: venueData.longitude,
-      }),
-      ...(venueData.timezone && { timezone: venueData.timezone }),
+  return createResourceWithPoll({
+    token,
+    config: venueConfig,
+    region,
+    postUrl: `${baseApiUrl}/venues`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
-  };
-
-  const response = await makeRuckusApiCall(
-    {
-      method: "post",
-      url: apiUrl,
-      data: payload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    },
-    "Create venue",
-  );
-
-  const createResponse = response.data;
-
-  // Always get requestId for async tracking (create operations always return requestId)
-  const activityId = createResponse.requestId;
-
-  if (!activityId) {
-    throw new Error("No requestId returned from venue creation API");
-  }
-
-  // Poll for completion status
-  let retryCount = 0;
-  while (retryCount < maxRetries) {
-    try {
-      const activityDetails = await getRuckusActivityDetails(
-        token,
-        activityId,
-        region,
-      );
-
-      // Check if operation is completed (has endDatetime populated)
-      const isCompleted = activityDetails.endDatetime !== undefined;
-
-      // Check if operation failed (status is not SUCCESS or INPROGRESS)
-      const isFailed =
-        activityDetails.status !== "SUCCESS" &&
-        activityDetails.status !== "INPROGRESS";
-
-      if (isCompleted) {
-        // Check if it completed successfully
-        if (activityDetails.status === "SUCCESS") {
-          return {
-            ...createResponse,
-            activityDetails,
-            status: "completed",
-            message: "Venue created successfully",
-          };
-        } else {
-          return {
-            ...createResponse,
-            activityDetails,
-            status: "failed",
-            message: "Venue creation failed",
-            error:
-              activityDetails.error ||
-              activityDetails.message ||
-              "Operation completed with non-SUCCESS status",
-          };
-        }
-      }
-
-      if (isFailed) {
-        return {
-          ...createResponse,
-          activityDetails,
-          status: "failed",
-          message: "Venue creation failed",
-          error:
-            activityDetails.error || activityDetails.message || "Unknown error",
-        };
-      }
-
-      // If still in progress, increment retry count and continue
-      retryCount++;
-      console.log(
-        `[RUCKUS] Venue creation in progress, attempt ${retryCount}/${maxRetries}`,
-      );
-
-      // If we've reached max retries, exit loop
-      if (retryCount >= maxRetries) {
-        break;
-      }
-
-      // Wait before next poll
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    } catch (error) {
-      retryCount++;
-      console.error(
-        `[RUCKUS] Error polling activity details (attempt ${retryCount}/${maxRetries}):`,
-        error,
-      );
-
-      // If we've reached max retries, return error
-      if (retryCount >= maxRetries) {
-        return {
-          ...createResponse,
-          status: "timeout",
-          message: "Venue creation status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      // Wait before next retry
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    }
-  }
-
-  return {
-    ...createResponse,
-    status: "timeout",
-    message: "Venue creation status unknown - polling timeout",
-    activityId,
-  };
+    resourceName: "venue",
+    maxRetries,
+    pollIntervalMs,
+  });
 }
 
 export async function updateVenueWithRetry(
