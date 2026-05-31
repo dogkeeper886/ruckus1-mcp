@@ -1,5 +1,5 @@
 id: TC-INT-203
-name: AP group CRUD lifecycle - create, verify, delete
+name: AP group CRUD lifecycle - create, partial-update, verify, delete
 suite: integration
 tags: [ap-groups]
 story: STORY-003
@@ -25,8 +25,8 @@ steps:
     rejectPatterns:
       - "isError"
 
-  - name: Create AP group in test venue
-    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_ap_group '{"venueId":"{{venueId}}","name":"mcp-test-ap-group-{{TEST_RUN_ID}}","maxRetries":10,"pollIntervalMs":3000}'
+  - name: Create AP group in test venue (config-object create)
+    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_ap_group '{"venueId":"{{venueId}}","apGroupConfig":{"name":"mcp-test-ap-group-{{TEST_RUN_ID}}"},"maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "completed"
       - "requestId"
@@ -38,6 +38,21 @@ steps:
     capture:
       apGroupId: "data[name=mcp-test-ap-group-{{TEST_RUN_ID}}].id"
     expectPatterns:
+      - "mcp-test-ap-group-{{TEST_RUN_ID}}"
+    rejectPatterns:
+      - "isError"
+
+  - name: Partial update - add description (retrieve-then-merge, preserves name + members)
+    command: npx tsx cicd/tests/src/mcp-client.ts update_ruckus_ap_group '{"venueId":"{{venueId}}","apGroupId":"{{apGroupId}}","apGroupConfig":{"description":"Updated by MCP test"},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Get AP group - verify description added and name preserved
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_ap_group '{"venueId":"{{venueId}}","apGroupId":"{{apGroupId}}"}'
+    expectPatterns:
+      - "Updated by MCP test"
       - "mcp-test-ap-group-{{TEST_RUN_ID}}"
     rejectPatterns:
       - "isError"
@@ -56,9 +71,12 @@ steps:
     rejectPatterns: []
 
 criteria: |
-  Full AP group CRUD lifecycle:
+  Full AP group CRUD lifecycle, incl. STORY-023 partial update:
   1. Create a test venue (AP groups require a venue)
-  2. Create an AP group "mcp-test-ap-group-{{TEST_RUN_ID}}" in the venue
-  3. Verify AP group appears in query results
-  4. Delete the AP group
-  5. Cleanup: delete the test venue
+  2. Create an AP group "mcp-test-ap-group-{{TEST_RUN_ID}}" via config-object create
+  3. Verify AP group appears in query results; capture apGroupId
+  4. Partial update via update_ruckus_ap_group with apGroupConfig {description} only —
+     retrieve-then-merge (JSON Merge Patch); name and members preserved from current config.
+  5. get_ruckus_ap_group and verify the description was added AND the name was preserved.
+  6. Delete the AP group
+  7. Cleanup: delete the test venue
