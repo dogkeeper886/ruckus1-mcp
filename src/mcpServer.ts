@@ -995,84 +995,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "update_directory_server_profile",
         description:
-          "Update a directory server profile in RUCKUS One with automatic status checking for async operations",
+          "Update a directory server profile by passing only the fields you want to change. REQUIRED: profileId (use query_directory_server_profiles to get profile ID) + profileConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics; a null value deletes a key, arrays are replaced wholesale). IN-CONFIG ATTRIBUTES: name, type (e.g. 'LDAP'), tlsEnabled, host, port, domainName, adminDomainName, adminPassword, keyAttribute, searchFilter, attributeMappings (array of { name, mappedByName }), identityName, identityEmail, identityPhone. At least one field is required.",
         inputSchema: {
           type: "object",
           properties: {
             profileId: {
               type: "string",
-              description: "ID of the directory server profile to update",
-            },
-            name: {
-              type: "string",
-              description: "Name of the directory server profile",
-            },
-            type: {
-              type: "string",
-              description: 'Type of directory server (e.g., "LDAP")',
-            },
-            tlsEnabled: {
-              type: "boolean",
-              description: "Whether TLS is enabled",
-            },
-            host: {
-              type: "string",
-              description: "Directory server hostname",
-            },
-            port: {
-              type: "number",
-              description: "Directory server port number",
-            },
-            domainName: {
-              type: "string",
-              description: 'Domain name (e.g., "dc=example,dc=com")',
-            },
-            adminDomainName: {
-              type: "string",
               description:
-                'Admin domain name (e.g., "cn=admin,dc=example,dc=com")',
+                "ID of the directory server profile to update (use query_directory_server_profiles to get profile ID)",
             },
-            adminPassword: {
-              type: "string",
-              description: "Admin password",
-            },
-            identityName: {
-              type: "string",
-              description: "Identity name field",
-            },
-            identityEmail: {
-              type: "string",
-              description: "Identity email field",
-            },
-            identityPhone: {
-              type: "string",
-              description: "Identity phone field",
-            },
-            keyAttribute: {
-              type: "string",
-              description: 'Key attribute (e.g., "uid")',
-            },
-            searchFilter: {
-              type: "string",
-              description: "Optional search filter",
-            },
-            attributeMappings: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  name: {
-                    type: "string",
-                    description: "Attribute name",
-                  },
-                  mappedByName: {
-                    type: "string",
-                    description: "Mapped attribute name",
-                  },
-                },
-                required: ["name", "mappedByName"],
-              },
-              description: "Array of attribute mappings",
+            profileConfig: {
+              type: "object",
+              description:
+                "Partial directory server profile configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). Keys: name, type, tlsEnabled, host, port, domainName, adminDomainName, adminPassword, keyAttribute, searchFilter, attributeMappings (array of { name, mappedByName }), identityName, identityEmail, identityPhone.",
             },
             maxRetries: {
               type: "number",
@@ -1083,22 +1018,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Polling interval in milliseconds (default: 5000)",
             },
           },
-          required: [
-            "profileId",
-            "name",
-            "type",
-            "tlsEnabled",
-            "host",
-            "port",
-            "domainName",
-            "adminDomainName",
-            "adminPassword",
-            "identityName",
-            "identityEmail",
-            "identityPhone",
-            "keyAttribute",
-            "attributeMappings",
-          ],
+          required: ["profileId", "profileConfig"],
         },
       },
       {
@@ -4746,41 +4666,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         const {
           profileId,
-          name,
-          type,
-          tlsEnabled,
-          host,
-          port,
-          domainName,
-          adminDomainName,
-          adminPassword,
-          identityName,
-          identityEmail,
-          identityPhone,
-          keyAttribute,
-          searchFilter,
-          attributeMappings,
+          profileConfig,
           maxRetries = 20,
           pollIntervalMs = 5000,
         } = request.params.arguments as {
           profileId: string;
-          name: string;
-          type: string;
-          tlsEnabled: boolean;
-          host: string;
-          port: number;
-          domainName: string;
-          adminDomainName: string;
-          adminPassword: string;
-          identityName: string;
-          identityEmail: string;
-          identityPhone: string;
-          keyAttribute: string;
-          searchFilter?: string;
-          attributeMappings: Array<{
-            name: string;
-            mappedByName: string;
-          }>;
+          profileConfig: any;
           maxRetries?: number;
           pollIntervalMs?: number;
         };
@@ -4790,22 +4681,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const result = await updateDirectoryServerProfileWithRetry(
           token,
           profileId,
-          {
-            name,
-            type,
-            tlsEnabled,
-            host,
-            port,
-            domainName,
-            adminDomainName,
-            adminPassword,
-            identityName,
-            identityEmail,
-            identityPhone,
-            keyAttribute,
-            ...(searchFilter !== undefined && { searchFilter }),
-            attributeMappings,
-          },
+          profileConfig,
           process.env.RUCKUS_REGION,
           maxRetries,
           pollIntervalMs,

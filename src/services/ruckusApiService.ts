@@ -2480,152 +2480,35 @@ export async function createRadiusServerProfileWithRetry(
 export async function updateDirectoryServerProfileWithRetry(
   token: string,
   profileId: string,
-  profileData: {
-    name: string;
-    type: string;
-    tlsEnabled: boolean;
-    host: string;
-    port: number;
-    domainName: string;
-    adminDomainName: string;
-    adminPassword: string;
-    identityName: string;
-    identityEmail: string;
-    identityPhone: string;
-    keyAttribute: string;
-    searchFilter?: string;
-    attributeMappings: Array<{
-      name: string;
-      mappedByName: string;
-    }>;
-  },
+  profileConfig: any = {},
   region: string = "",
   maxRetries: number = 20,
   pollIntervalMs: number = 5000,
 ): Promise<any> {
-  const apiUrl =
+  // STORY-023: config-driven retrieve-then-merge (generalizes update_wifi_network).
+  // Caller passes a PARTIAL profile config; getDirectoryServerProfile + applyMergePatch
+  // preserve unspecified fields. R1 returns adminPassword in GET (confirmed by trace),
+  // so the secret survives the merge, and accepts the GET-shaped body verbatim on PUT.
+  const baseApiUrl =
     region && region.trim() !== ""
-      ? `https://api.${region}.ruckus.cloud/directoryServerProfiles/${profileId}`
-      : `https://api.ruckus.cloud/directoryServerProfiles/${profileId}`;
+      ? `https://api.${region}.ruckus.cloud`
+      : "https://api.ruckus.cloud";
 
-  const payload = {
-    name: profileData.name,
-    type: profileData.type,
-    tlsEnabled: profileData.tlsEnabled,
-    host: profileData.host,
-    port: profileData.port,
-    domainName: profileData.domainName,
-    adminDomainName: profileData.adminDomainName,
-    adminPassword: profileData.adminPassword,
-    identityName: profileData.identityName,
-    identityEmail: profileData.identityEmail,
-    identityPhone: profileData.identityPhone,
+  return updateResourceWithMerge({
+    token,
     id: profileId,
-    keyAttribute: profileData.keyAttribute,
-    searchFilter: profileData.searchFilter || "",
-    attributeMappings: profileData.attributeMappings,
-  };
-
-  const response = await makeRuckusApiCall(
-    {
-      method: "put",
-      url: apiUrl,
-      data: payload,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+    partial: profileConfig,
+    region,
+    getFn: getDirectoryServerProfile,
+    putUrl: `${baseApiUrl}/directoryServerProfiles/${profileId}`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
-    "Update directory server profile",
-  );
-
-  const updateResponse = response.data;
-
-  const activityId = updateResponse.requestId;
-
-  if (!activityId) {
-    return {
-      ...updateResponse,
-      status: "completed",
-      message:
-        "Directory server profile updated successfully (synchronous operation)",
-    };
-  }
-
-  console.log(
-    `Starting directory server profile update status polling for activity ${activityId}`,
-  );
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(
-      `Polling attempt ${attempt}/${maxRetries} for directory server profile update activity ${activityId}`,
-    );
-
-    try {
-      const activityDetails = await getRuckusActivityDetails(
-        token,
-        activityId,
-        region,
-      );
-      console.log(`Activity status: ${activityDetails.status}`);
-
-      if (
-        activityDetails.status === "COMPLETED" ||
-        activityDetails.status === "SUCCESS"
-      ) {
-        return {
-          ...updateResponse,
-          status: "completed",
-          message: "Directory server profile updated successfully",
-          activityDetails,
-        };
-      } else if (activityDetails.status === "FAIL") {
-        return {
-          ...updateResponse,
-          status: "failed",
-          message: "Directory server profile update failed",
-          error: activityDetails.error || "Unknown error occurred",
-          activityDetails,
-        };
-      }
-
-      if (attempt === maxRetries) {
-        return {
-          ...updateResponse,
-          status: "timeout",
-          message:
-            "Directory server profile update status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    } catch (error: any) {
-      console.error(
-        `Error polling directory server profile update activity (attempt ${attempt}):`,
-        error.message,
-      );
-
-      if (attempt === maxRetries) {
-        return {
-          ...updateResponse,
-          status: "timeout",
-          message:
-            "Directory server profile update status unknown - polling timeout",
-          error: "Failed to get activity status after maximum retries",
-        };
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-    }
-  }
-
-  return {
-    ...updateResponse,
-    status: "timeout",
-    message: "Directory server profile update status unknown - polling timeout",
-    activityId,
-  };
+    resourceName: "directory_server_profile",
+    maxRetries,
+    pollIntervalMs,
+  });
 }
 
 export async function deleteDirectoryServerProfileWithRetry(
