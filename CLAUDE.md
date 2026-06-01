@@ -35,6 +35,21 @@ docs/
 - Required: `RUCKUS_TENANT_ID`, `RUCKUS_CLIENT_ID`, `RUCKUS_CLIENT_SECRET`.
 - Optional: `RUCKUS_REGION` (defaults to global).
 
+## Public Repo Hygiene
+
+This is a **public** repository. Never commit real tenant data or internal references — use
+placeholders in stories, tests, tool descriptions, and comments:
+
+- Tenant id → `<tenant-id>`; tenant name/nickname → `<dev-tenant>`.
+- Environment hosts → `https://api.<region>.ruckus.cloud` / `https://<region>.ruckus.cloud`
+  (never a concrete env like `dev.`/`qa.ruckus.cloud`, and never a private IdP/host domain).
+- Real WLAN/venue/profile fixture names → `<example-wlan>` etc.
+- Internal Jira/Confluence refs → `<internal-ticket>` / `<internal-ref>`.
+- A test needing a tenant-specific value (e.g. a SAML IdP metadata URL) reads it from an env var
+  (`{{VAR}}` is substituted from the environment by the test runner), not a literal.
+
+Credentials live only in the gitignored `.env`; never echo or commit them.
+
 ## Architecture Notes
 
 - OAuth2 client-credentials flow; JWT reused across calls via `tokenCache`.

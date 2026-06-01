@@ -43,6 +43,12 @@ import {
   createRadiusServerProfileWithRetry,
   deleteRadiusServerProfileWithRetry,
   updateRadiusServerProfileWithRetry,
+  querySamlIdpProfiles,
+  getSamlIdpProfile,
+  getSamlIdpServiceProviderMetadata,
+  createSamlIdpProfileWithRetry,
+  updateSamlIdpProfileWithRetry,
+  deleteSamlIdpProfileWithRetry,
   queryPortalServiceProfiles,
   getPortalServiceProfile,
   createPortalServiceProfileWithRetry,
@@ -984,6 +990,161 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: "query_saml_idp_profiles",
+        description:
+          "Query SAML Identity Provider (IdP) profiles from RUCKUS One with filtering and pagination support. These profiles back captive-portal SAML WLANs (type=saml). Returns id, name, signingCertificateEnabled, encryptionCertificateEnabled, wifiNetworkIds.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            filters: {
+              type: "object",
+              description: "Optional filters to apply",
+            },
+            fields: {
+              type: "array",
+              items: { type: "string" },
+              description:
+                'Fields to return (default: ["id", "name", "signingCertificateEnabled", "encryptionCertificateEnabled", "wifiNetworkIds"])',
+            },
+            searchString: {
+              type: "string",
+              description: "Search string to filter profiles",
+            },
+            searchTargetFields: {
+              type: "array",
+              items: { type: "string" },
+              description: 'Fields to search in (default: ["name"])',
+            },
+            page: {
+              type: "number",
+              description: "Page number (default: 1)",
+            },
+            pageSize: {
+              type: "number",
+              description: "Number of results per page (default: 10)",
+            },
+            sortField: {
+              type: "string",
+              description: 'Field to sort by (default: "name")',
+            },
+            sortOrder: {
+              type: "string",
+              description: 'Sort order - ASC or DESC (default: "ASC")',
+            },
+          },
+          required: [],
+        },
+      },
+      {
+        name: "get_saml_idp_profile",
+        description:
+          "Get detailed information for a specific SAML IdP profile (name, stored IdP metadata, metadataUrl, attributeMappings). REQUIRED: profileId (use query_saml_idp_profiles to get profile ID). To get the SP-side values for configuring your IdP, use get_saml_idp_service_provider_metadata instead.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            profileId: {
+              type: "string",
+              description:
+                "ID of the SAML IdP profile to get (use query_saml_idp_profiles to get profile ID)",
+            },
+          },
+          required: ["profileId"],
+        },
+      },
+      {
+        name: "get_saml_idp_service_provider_metadata",
+        description:
+          "Get the Service Provider (SP) SAML metadata XML that RUCKUS One generates for a SAML IdP profile — contains the SP entityID (e.g. https://<your-ruckus-one-host>/saml/{profileId}) and AssertionConsumerService (ACS) URL. These are the values you configure on the external IdP (e.g. a SAML client's Client ID + Master SAML Processing URL). REQUIRED: profileId (use query_saml_idp_profiles to get profile ID).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            profileId: {
+              type: "string",
+              description:
+                "ID of the SAML IdP profile (use query_saml_idp_profiles to get profile ID)",
+            },
+          },
+          required: ["profileId"],
+        },
+      },
+      {
+        name: "create_saml_idp_profile",
+        description:
+          "Create a SAML IdP profile by passing a single profileConfig object (full config). REQUIRED: profileConfig with name + the IdP metadata as EITHER metadataUrl (a URL RUCKUS One fetches server-side — the IdP must be reachable from R1's backend) OR metadata (raw IdP EntityDescriptor XML). OPTIONAL: attributeMappings (array of { name, mappedByName }; name is the R1 identity attribute displayName|email|phoneNumber, mappedByName is the matching claim your IdP sends — e.g. displayName->displayName, email->email, phoneNumber->phone), signingCertificateEnabled (boolean), encryptionCertificateEnabled (boolean). Symmetric with update_saml_idp_profile (which takes the same full object). After creation, use get_saml_idp_service_provider_metadata to read the SP entityID + ACS to register on your external IdP. This profile is the prerequisite for a captive-portal SAML WLAN (type=saml); note that binding the profile to a WLAN via create_wifi_network is not yet exposed as a parameter (configure that in the GUI for now). Use query_saml_idp_profiles to verify creation. NOTE: if the IdP metadataUrl is unreachable from R1 the activity fails with EXT-AUTH-10400.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            profileConfig: {
+              type: "object",
+              description:
+                "Full SAML IdP profile configuration. Keys: name (string), metadataUrl (string URL R1 fetches) OR metadata (raw IdP XML), attributeMappings (array of { name: 'displayName'|'email'|'phoneNumber', mappedByName: string }), signingCertificateEnabled (boolean), encryptionCertificateEnabled (boolean).",
+            },
+            maxRetries: {
+              type: "number",
+              description: "Maximum number of retry attempts (default: 20)",
+            },
+            pollIntervalMs: {
+              type: "number",
+              description: "Polling interval in milliseconds (default: 5000)",
+            },
+          },
+          required: ["profileConfig"],
+        },
+      },
+      {
+        name: "update_saml_idp_profile",
+        description:
+          "Update a SAML IdP profile. REQUIRED: profileId (use query_saml_idp_profiles to get profile ID) + profileConfig. UNLIKE the other server profiles, SAML IdP uses a FULL-CONFIG replace (NOT retrieve-then-merge): RUCKUS One PUTs the whole object, so send the COMPLETE config you want, not just changed fields (omitted fields are not preserved). IN-CONFIG ATTRIBUTES: name, metadataUrl OR metadata, attributeMappings (array of { name, mappedByName }), signingCertificateEnabled, encryptionCertificateEnabled. TIP: call get_saml_idp_profile first to read the current config, modify it, then send the whole object. The profile ID (and therefore the SP entityID/ACS) is unchanged by an update.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            profileId: {
+              type: "string",
+              description:
+                "ID of the SAML IdP profile to update (use query_saml_idp_profiles to get profile ID)",
+            },
+            profileConfig: {
+              type: "object",
+              description:
+                "FULL SAML IdP profile configuration (full-config replace, not partial). Keys: name, metadataUrl OR metadata, attributeMappings (array of { name, mappedByName }), signingCertificateEnabled, encryptionCertificateEnabled.",
+            },
+            maxRetries: {
+              type: "number",
+              description: "Maximum number of retry attempts (default: 20)",
+            },
+            pollIntervalMs: {
+              type: "number",
+              description: "Polling interval in milliseconds (default: 5000)",
+            },
+          },
+          required: ["profileId", "profileConfig"],
+        },
+      },
+      {
+        name: "delete_saml_idp_profile",
+        description:
+          "Permanently delete a SAML IdP profile from RUCKUS One; this cannot be undone. PREREQUISITE: the profile must not be referenced by any WLAN — verify wifiNetworkIds is empty via query_saml_idp_profiles (detaching a profile from a WLAN is not yet exposed; remove it in the GUI if present). REQUIRED: profileId (use query_saml_idp_profiles to get profile ID).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            profileId: {
+              type: "string",
+              description:
+                "ID of the SAML IdP profile to delete (use query_saml_idp_profiles to get profile ID)",
+            },
+            maxRetries: {
+              type: "number",
+              description: "Maximum number of retry attempts (default: 20)",
+            },
+            pollIntervalMs: {
+              type: "number",
+              description: "Polling interval in milliseconds (default: 5000)",
+            },
+          },
+          required: ["profileId"],
+        },
+      },
+      {
         name: "query_portal_service_profiles",
         description:
           "Query portal service profiles from RUCKUS One with filtering and pagination support",
@@ -1372,7 +1533,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_wifi_network",
         description:
-          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. CAPTIVE PORTAL TYPES — pick the specific portal-type value, do NOT use a generic 'guest' value (no longer accepted). FOR GUEST PASS: type=guestPass + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. End users sign in with a pre-issued password. FOR CLICK-THROUGH: type=clickThrough + portalServiceProfileId + wlanSecurity=None. End users see only a T&C checkbox + Connect button — no credential entry. FOR SELF SIGN-IN: type=selfSignIn + portalServiceProfileId + wlanSecurity=None. Pick at least one OTP channel via enableSmsLogin, enableEmailLogin, and/or enableWhatsappLogin (defaults to Email-only when none specified). FOR SELF SIGN-IN WITH EMAIL: also provide allowedEmailDomains. FOR SELF SIGN-IN WITH SMS: optionally provide smsPasswordDuration={duration,unit} where unit is MINUTE/HOUR/DAY (default {12, HOUR}). FOR SELF SIGN-IN WITH WHATSAPP: set enableWhatsappLogin=true. Optional temporaryConnectionEnabled + temporaryConnection to grant pre-OTP limited internet access (Self Sign-In only). FOR HOST APPROVAL: type=hostApproval + portalServiceProfileId + wlanSecurity=None. Companion fields (host contacts: domain or specific emails) not yet exposed as top-level params — pass them inside the guestPortal object until a dedicated parameter is added. FOR CLOUDPATH: type=cloudpath + wlanSecurity=None + cloudpathConfig (object; enrollmentUrl REQUIRED — your Cloudpath enrollment workflow URL; optional walledGardens to override the default Apple/Google/Microsoft captive-portal probe allowlist) + radiusServiceProfileId (REQUIRED — the Cloudpath RADIUS authentication server; use query_radius_server_profiles to get an AUTHENTICATION-type ID). Optional accountingRadiusServiceProfileId. No portalServiceProfileId (Cloudpath redirects to the external enrollment URL). FOR WISPR (3rd party captive portal): type=wispr + wlanSecurity=None + wisprConfig (object; captivePortalUrl REQUIRED — your 3rd-party portal's login URL; optional providerName default 'Custom Provider', redirectUrl, integrationKey) + radiusServiceProfileId (REQUIRED — the 3rd-party AAA authentication server; use query_radius_server_profiles to get an AUTHENTICATION-type ID). Optional accountingRadiusServiceProfileId for accounting. No portalServiceProfileId (WISPr uses the external captive-portal URL, not an R1 portal profile). FOR DIRECTORY (Active Directory / LDAP): type=directory + wlanSecurity=None + portalServiceProfileId (use query_portal_service_profiles) + directoryServerProfileId (use query_directory_server_profiles or create_directory_server_profile). End users authenticate with an organizational username/password against the directory. FOR SAML IDP: type=saml + wlanSecurity=None. Requires SAML IdP metadata; companion fields not yet exposed. FOR WORKFLOW: type=workflow + wlanSecurity=None. Companion fields not yet exposed. FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId, enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId). FOR OWE TRANSITION: Requires type=open + wlanSecurity=Open + oweEnabled=true + oweTransitionEnabled=true. Creates a dual-network pair: OWE-encrypted primary + Open companion with '-owe-tr' suffix. FOR DSAE (DPSK WPA2/WPA3-Mixed): Requires type=dpsk + wlanSecurity=WPA23Mixed + dpskServiceId (use query_dpsk_services to get ID). Creates a dual-network pair: WPA2/WPA3-Mixed primary + WPA2 onboard companion with '-dpsk3-wpa2' suffix.",
+          "Create a new WiFi network (WLAN/SSID) in RUCKUS One without activating at any venue. The network is created globally and can later be activated at specific venues using activate_wifi_network_at_venues. FOR PSK: Requires passphrase + wlanSecurity=WPA2Personal. CAPTIVE PORTAL TYPES — pick the specific portal-type value, do NOT use a generic 'guest' value (no longer accepted). FOR GUEST PASS: type=guestPass + portalServiceProfileId (use query_portal_service_profiles to get ID) + wlanSecurity=None. End users sign in with a pre-issued password. FOR CLICK-THROUGH: type=clickThrough + portalServiceProfileId + wlanSecurity=None. End users see only a T&C checkbox + Connect button — no credential entry. FOR SELF SIGN-IN: type=selfSignIn + portalServiceProfileId + wlanSecurity=None. Pick at least one OTP channel via enableSmsLogin, enableEmailLogin, and/or enableWhatsappLogin (defaults to Email-only when none specified). FOR SELF SIGN-IN WITH EMAIL: also provide allowedEmailDomains. FOR SELF SIGN-IN WITH SMS: optionally provide smsPasswordDuration={duration,unit} where unit is MINUTE/HOUR/DAY (default {12, HOUR}). FOR SELF SIGN-IN WITH WHATSAPP: set enableWhatsappLogin=true. Optional temporaryConnectionEnabled + temporaryConnection to grant pre-OTP limited internet access (Self Sign-In only). FOR HOST APPROVAL: type=hostApproval + portalServiceProfileId + wlanSecurity=None. Companion fields (host contacts: domain or specific emails) not yet exposed as top-level params — pass them inside the guestPortal object until a dedicated parameter is added. FOR CLOUDPATH: type=cloudpath + wlanSecurity=None + cloudpathConfig (object; enrollmentUrl REQUIRED — your Cloudpath enrollment workflow URL; optional walledGardens to override the default Apple/Google/Microsoft captive-portal probe allowlist) + radiusServiceProfileId (REQUIRED — the Cloudpath RADIUS authentication server; use query_radius_server_profiles to get an AUTHENTICATION-type ID). Optional accountingRadiusServiceProfileId. No portalServiceProfileId (Cloudpath redirects to the external enrollment URL). FOR WISPR (3rd party captive portal): type=wispr + wlanSecurity=None + wisprConfig (object; captivePortalUrl REQUIRED — your 3rd-party portal's login URL; optional providerName default 'Custom Provider', redirectUrl, integrationKey) + radiusServiceProfileId (REQUIRED — the 3rd-party AAA authentication server; use query_radius_server_profiles to get an AUTHENTICATION-type ID). Optional accountingRadiusServiceProfileId for accounting. No portalServiceProfileId (WISPr uses the external captive-portal URL, not an R1 portal profile). FOR DIRECTORY (Active Directory / LDAP): type=directory + wlanSecurity=None + portalServiceProfileId (use query_portal_service_profiles) + directoryServerProfileId (use query_directory_server_profiles or create_directory_server_profile). End users authenticate with an organizational username/password against the directory. FOR SAML IDP: type=saml + wlanSecurity=None + portalServiceProfileId (use query_portal_service_profiles). Also requires a SAML IdP profile (create with create_saml_idp_profile); binding that profile to the WLAN is not yet exposed via this tool (configure it in the GUI for now). FOR WORKFLOW: type=workflow + wlanSecurity=None. Companion fields not yet exposed. FOR ENTERPRISE 802.1X: Requires radiusServiceProfileId (use query_radius_server_profiles to get ID of AUTHENTICATION type profile) + wlanSecurity=WPA2Enterprise. Optional: accountingRadiusServiceProfileId, enableAuthProxy (required for FQDN-based RADIUS), enableAccountingProxy, radiusOptions (for NAS ID configuration - nasIdType can be AP_GROUP_NAME, BSSID, VENUE_NAME, AP_MAC, or USER with userDefinedNasId). FOR OWE TRANSITION: Requires type=open + wlanSecurity=Open + oweEnabled=true + oweTransitionEnabled=true. Creates a dual-network pair: OWE-encrypted primary + Open companion with '-owe-tr' suffix. FOR DSAE (DPSK WPA2/WPA3-Mixed): Requires type=dpsk + wlanSecurity=WPA23Mixed + dpskServiceId (use query_dpsk_services to get ID). Creates a dual-network pair: WPA2/WPA3-Mixed primary + WPA2 onboard companion with '-dpsk3-wpa2' suffix.",
         inputSchema: {
           type: "object",
           properties: {
@@ -4702,6 +4863,280 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error("[MCP] Error updating RADIUS server profile:", error);
 
         let errorMessage = `Error updating RADIUS server profile: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+    case "query_saml_idp_profiles": {
+      try {
+        const {
+          filters = {},
+          fields = [
+            "id",
+            "name",
+            "signingCertificateEnabled",
+            "encryptionCertificateEnabled",
+            "wifiNetworkIds",
+          ],
+          searchString = "",
+          searchTargetFields = ["name"],
+          page = 1,
+          pageSize = 10,
+          sortField = "name",
+          sortOrder = "ASC",
+        } = request.params.arguments as {
+          filters?: any;
+          fields?: string[];
+          searchString?: string;
+          searchTargetFields?: string[];
+          page?: number;
+          pageSize?: number;
+          sortField?: string;
+          sortOrder?: string;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await querySamlIdpProfiles(
+          token,
+          process.env.RUCKUS_REGION,
+          filters,
+          fields,
+          searchString,
+          searchTargetFields,
+          page,
+          pageSize,
+          sortField,
+          sortOrder,
+        );
+
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error querying SAML IdP profiles:", error);
+
+        let errorMessage = `Error querying SAML IdP profiles: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+    case "get_saml_idp_profile": {
+      try {
+        const { profileId } = request.params.arguments as {
+          profileId: string;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await getSamlIdpProfile(
+          token,
+          profileId,
+          process.env.RUCKUS_REGION,
+        );
+
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error getting SAML IdP profile:", error);
+
+        let errorMessage = `Error getting SAML IdP profile: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+    case "get_saml_idp_service_provider_metadata": {
+      try {
+        const { profileId } = request.params.arguments as {
+          profileId: string;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await getSamlIdpServiceProviderMetadata(
+          token,
+          profileId,
+          process.env.RUCKUS_REGION,
+        );
+
+        // The endpoint returns SP metadata as XML; surface it verbatim.
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                typeof result === "string"
+                  ? result
+                  : JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error(
+          "[MCP] Error getting SAML IdP service provider metadata:",
+          error,
+        );
+
+        let errorMessage = `Error getting SAML IdP service provider metadata: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+    case "create_saml_idp_profile": {
+      try {
+        const {
+          profileConfig,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
+        } = request.params.arguments as {
+          profileConfig: any;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await createSamlIdpProfileWithRetry(
+          token,
+          profileConfig,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+        );
+
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error creating SAML IdP profile:", error);
+
+        let errorMessage = `Error creating SAML IdP profile: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+    case "update_saml_idp_profile": {
+      try {
+        const {
+          profileId,
+          profileConfig,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
+        } = request.params.arguments as {
+          profileId: string;
+          profileConfig: any;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await updateSamlIdpProfileWithRetry(
+          token,
+          profileId,
+          profileConfig,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+        );
+
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error updating SAML IdP profile:", error);
+
+        let errorMessage = `Error updating SAML IdP profile: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+    case "delete_saml_idp_profile": {
+      try {
+        const {
+          profileId,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
+        } = request.params.arguments as {
+          profileId: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await deleteSamlIdpProfileWithRetry(
+          token,
+          profileId,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+        );
+
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error deleting SAML IdP profile:", error);
+
+        let errorMessage = `Error deleting SAML IdP profile: ${error}`;
 
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;

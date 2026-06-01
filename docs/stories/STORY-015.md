@@ -4,13 +4,13 @@
 
 As a QA engineer,
 I want MCP tools to configure, read, and remove the per-tenant Twilio SMS provider,
-So that I can fully automate Self Sign-In SMS / WhatsApp test preconditions (ACX-105619, ACX-60786) end-to-end, instead of requiring a human to prime each fresh tenant through the RUCKUS One UI.
+So that I can fully automate Self Sign-In SMS / WhatsApp test preconditions (<internal-ticket>, <internal-ticket>) end-to-end, instead of requiring a human to prime each fresh tenant through the RUCKUS One UI.
 
 ## Description
 
 On a fresh RUCKUS One tenant, the SMS Token channel's full delivery (beyond the 100-message free pool) and the **WhatsApp** channel on Self Sign-In networks both remain gated until an SMS provider is configured at `Administration → Account Management → Settings → SMS Brand and Provider Setup`. STORY-014 added the `enableSmsLogin` / `enableWhatsappLogin` flags, but without the provider plumbed, end users don't receive OTPs. This story unblocks that.
 
-Live capture on dev.ruckus.cloud 2026-04-21 revealed the API shape:
+Live capture on <region>.ruckus.cloud 2026-04-21 revealed the API shape:
 
 ### Reads
 - `GET /notifications/sms` → `{threshold, provider, brandName, ruckusOneUsed}` — brand + SMS-pool singleton
