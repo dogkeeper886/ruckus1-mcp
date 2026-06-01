@@ -32,9 +32,10 @@ steps:
     rejectPatterns:
       - "isError"
 
-  - name: Get SP metadata - verify R1-generated SP entityID (derived from profileId) + ACS
-    command: npx tsx cicd/tests/src/mcp-client.ts get_saml_idp_service_provider_metadata '{"profileId":"{{profileId}}"}'
+  - name: Get profile with SP metadata - verify R1-generated SP entityID (derived from profileId) + ACS
+    command: npx tsx cicd/tests/src/mcp-client.ts get_saml_idp_profile '{"profileId":"{{profileId}}","includeServiceProviderMetadata":true}'
     expectPatterns:
+      - "serviceProviderMetadata"
       - "EntityDescriptor"
       - "AssertionConsumerService"
       - "{{profileId}}"
@@ -72,12 +73,13 @@ steps:
       - "{{profileId}}"
 
 criteria: |
-  Full SAML IdP profile CRUD lifecycle (STORY-025), exercising all six tools:
+  Full SAML IdP profile CRUD lifecycle (STORY-025), exercising the CRUD-5 tools:
   1. Create profile "mcp-test-saml-{{TEST_RUN_ID}}" via create_saml_idp_profile with a
      metadataUrl from SAML_IDP_METADATA_URL (RUCKUS One fetches the IdP metadata
      server-side; requires the IdP to be reachable from R1's backend).
   2. Query to find it and capture profileId.
-  3. get_saml_idp_service_provider_metadata returns the SP EntityDescriptor whose entityID
+  3. get_saml_idp_profile with includeServiceProviderMetadata=true returns the SP
+     EntityDescriptor (under serviceProviderMetadata) whose entityID
      (https://<r1-host>/saml/{profileId}) + AssertionConsumerService embed the captured
      profileId — the values configured on the external IdP.
   4. Full-config update via update_saml_idp_profile: SAML IdP uses a FULL-CONFIG replace

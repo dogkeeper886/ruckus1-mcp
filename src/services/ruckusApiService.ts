@@ -2148,6 +2148,7 @@ export async function getSamlIdpProfile(
   token: string,
   profileId: string,
   region: string = "",
+  includeServiceProviderMetadata: boolean = false,
 ): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
@@ -2165,6 +2166,17 @@ export async function getSamlIdpProfile(
     },
     "Get SAML IdP profile",
   );
+
+  // When requested, fold in the SP-side metadata (entityID + ACS) the external IdP needs —
+  // avoids a separate get_saml_idp_service_provider_metadata tool (CRUD-5 surface).
+  if (includeServiceProviderMetadata) {
+    const serviceProviderMetadata = await getSamlIdpServiceProviderMetadata(
+      token,
+      profileId,
+      region,
+    );
+    return { ...response.data, serviceProviderMetadata };
+  }
 
   return response.data;
 }
@@ -3546,6 +3558,8 @@ export async function createWifiNetworkWithRetry(
     portalServiceProfileId?: string;
     // Directory (AD/LDAP) captive-portal: directory server profile to bind (#95)
     directoryServerProfileId?: string;
+    // SAML captive-portal: SAML IdP profile to bind (#97)
+    samlIdpProfileId?: string;
     // WISPr (3rd-party captive portal) external-provider config (#96). The AAA
     // server is supplied via radiusServiceProfileId (auth) + accountingRadiusServiceProfileId
     // (accounting), reusing the enterprise association path.
@@ -4183,6 +4197,36 @@ export async function createWifiNetworkWithRetry(
     }
   }
 
+  // Step 7: Associate SAML IdP profile for SAML captive portals (#97).
+  // Confirmed by GUI trace (2026-06-01): a SAML WLAN binds its IdP profile via
+  // PUT /wifiNetworks/{id}/samlIdpProfiles/{id} (empty body), mirroring the
+  // portal/DPSK/directory associations.
+  let samlIdpProfileRequestId: string | undefined;
+  if (isCaptivePortal && networkConfig.samlIdpProfileId) {
+    console.log("[RUCKUS] Associating SAML IdP profile...");
+    const samlIdpUrl = `${apiUrl}/${networkId}/samlIdpProfiles/${networkConfig.samlIdpProfileId}`;
+
+    const samlIdpResponse = await makeRuckusApiCall(
+      {
+        method: "put",
+        url: samlIdpUrl,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+      "Associate SAML IdP profile",
+    );
+
+    samlIdpProfileRequestId = samlIdpResponse.data.requestId;
+
+    if (!samlIdpProfileRequestId) {
+      console.warn(
+        "[RUCKUS] No requestId returned from SAML IdP profile association API (may be synchronous)",
+      );
+    }
+  }
+
   // Poll all operations for completion
   const requestIds = [
     { id: createRequestId, name: "Create WiFi network" },
@@ -4216,6 +4260,14 @@ export async function createWifiNetworkWithRetry(
           {
             id: directoryServiceProfileRequestId,
             name: "Associate directory server profile",
+          },
+        ]
+      : []),
+    ...(samlIdpProfileRequestId
+      ? [
+          {
+            id: samlIdpProfileRequestId,
+            name: "Associate SAML IdP profile",
           },
         ]
       : []),
