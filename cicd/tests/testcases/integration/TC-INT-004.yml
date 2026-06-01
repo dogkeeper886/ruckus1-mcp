@@ -1,24 +1,62 @@
 id: TC-INT-004
-name: Get venue radio settings responds without error
+name: get_venue_settings returns merged AP-level settings (folded getter, STORY-020)
 suite: integration
-tags: [venues]
-story: STORY-002
+tags: [venues, settings]
+story: STORY-020
 priority: 2
-timeout: 30000
+timeout: 60000
 dependencies:
-  - TC-INT-003
+  - TC-INT-001
 
 steps:
-  - name: List venues to confirm API connectivity
-    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venues '{}'
+  - name: Create test venue
+    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"venueConfig":{"name":"mcp-test-vset-{{TEST_RUN_ID}}","address":{"addressLine":"Taipei","city":"Taipei","country":"Taiwan"}},"maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
-      - "totalCount"
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Capture venue ID
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venues '{}'
+    capture:
+      venueId: "data[name=mcp-test-vset-{{TEST_RUN_ID}}].id"
+    expectPatterns:
+      - "mcp-test-vset-{{TEST_RUN_ID}}"
+    rejectPatterns:
+      - "isError"
+
+  - name: get_venue_settings (default = all categories) returns the merged shape
+    command: npx tsx cicd/tests/src/mcp-client.ts get_venue_settings '{"venueId":"{{venueId}}"}'
+    expectPatterns:
+      - "radio"
+      - "apModelBandMode"
+      - "externalAntenna"
+      - "antennaType"
+    rejectPatterns:
+      - "isError"
+
+  - name: get_venue_settings with categories=[radio] returns only that category
+    command: npx tsx cicd/tests/src/mcp-client.ts get_venue_settings '{"venueId":"{{venueId}}","categories":["radio"]}'
+    expectPatterns:
+      - "radio"
+    rejectPatterns:
+      - "isError"
+      - "apModelBandMode"
+      - "antennaType"
+
+  - name: Delete test venue
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_ruckus_venue '{"venueId":"{{venueId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
     rejectPatterns:
       - "isError"
 
 criteria: |
-  Verify venue radio settings tool is accessible via MCP.
-  Since get_venue_radio_settings requires a valid venueId and mcp-client.ts
-  does not support variable passing between steps, this test validates
-  API connectivity by listing venues. Full multi-step radio settings
-  retrieval is covered in e2e tests.
+  get_venue_settings (STORY-020 fold of the 4 venue AP-model getters) returns one merged
+  object keyed by category:
+  1. Create a test venue, capture venueId.
+  2. get_venue_settings with no categories returns all four keys (radio, apModelBandMode,
+     externalAntenna, antennaType) — the parallel fan-out + merge works.
+  3. get_venue_settings with categories=["radio"] returns ONLY the radio key (the discriminator
+     filters the fan-out) — apModelBandMode/antennaType are absent.
+  4. Cleanup: delete the venue.

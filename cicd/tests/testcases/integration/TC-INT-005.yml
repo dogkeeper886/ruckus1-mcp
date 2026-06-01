@@ -1,24 +1,88 @@
 id: TC-INT-005
-name: Get venue AP model band mode settings responds without error
+name: get_ap_group_settings returns merged AP-group settings (folded getter, STORY-020)
 suite: integration
-tags: [venues]
-story: STORY-002
+tags: [venues, ap-groups, settings]
+story: STORY-020
 priority: 2
-timeout: 30000
+timeout: 90000
 dependencies:
-  - TC-INT-003
+  - TC-INT-001
 
 steps:
-  - name: List venues to confirm API connectivity
-    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venues '{}'
+  - name: Create test venue
+    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"venueConfig":{"name":"mcp-test-apgset-venue-{{TEST_RUN_ID}}","address":{"addressLine":"Taipei","city":"Taipei","country":"Taiwan"}},"maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
-      - "totalCount"
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Capture venue ID
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_venues '{}'
+    capture:
+      venueId: "data[name=mcp-test-apgset-venue-{{TEST_RUN_ID}}].id"
+    expectPatterns:
+      - "mcp-test-apgset-venue-{{TEST_RUN_ID}}"
+    rejectPatterns:
+      - "isError"
+
+  - name: Create AP group
+    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_ap_group '{"venueId":"{{venueId}}","apGroupConfig":{"name":"mcp-test-apgset-{{TEST_RUN_ID}}"},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Capture AP group ID
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ruckus_ap_groups '{}'
+    capture:
+      apGroupId: "data[name=mcp-test-apgset-{{TEST_RUN_ID}}].id"
+    expectPatterns:
+      - "mcp-test-apgset-{{TEST_RUN_ID}}"
+    rejectPatterns:
+      - "isError"
+
+  - name: get_ap_group_settings (default = all categories) returns the merged shape
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ap_group_settings '{"venueId":"{{venueId}}","apGroupId":"{{apGroupId}}"}'
+    expectPatterns:
+      - "radio"
+      - "apModelBandMode"
+      - "externalAntenna"
+      - "antennaType"
+      - "clientAdmissionControl"
+    rejectPatterns:
+      - "isError"
+
+  - name: get_ap_group_settings with categories=[clientAdmissionControl] returns only that category
+    command: npx tsx cicd/tests/src/mcp-client.ts get_ap_group_settings '{"venueId":"{{venueId}}","apGroupId":"{{apGroupId}}","categories":["clientAdmissionControl"]}'
+    expectPatterns:
+      - "clientAdmissionControl"
+    rejectPatterns:
+      - "isError"
+      - "apModelBandMode"
+      - "antennaType"
+
+  - name: Delete AP group
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_ruckus_ap_group '{"venueId":"{{venueId}}","apGroupId":"{{apGroupId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Delete test venue
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_ruckus_venue '{"venueId":"{{venueId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
     rejectPatterns:
       - "isError"
 
 criteria: |
-  Verify venue AP model band mode settings tool is accessible via MCP.
-  Since get_venue_ap_model_band_mode_settings requires a valid venueId
-  and mcp-client.ts does not support variable passing between steps,
-  this test validates API connectivity by listing venues. Full multi-step
-  band mode settings retrieval is covered in e2e tests.
+  get_ap_group_settings (STORY-020 fold of the 5 AP-group getters) returns one merged object
+  keyed by category:
+  1. Create a test venue + AP group, capture both IDs.
+  2. get_ap_group_settings with no categories returns all five keys (radio, apModelBandMode,
+     externalAntenna, antennaType, clientAdmissionControl).
+  3. get_ap_group_settings with categories=["clientAdmissionControl"] returns ONLY that key.
+  4. Cleanup: delete the AP group + venue.
+
+  Note: get_ap_settings (the 2-getter AP-scope fold) shares the identical fan-out helper and is
+  not separately covered here (it requires a claimed physical AP fixture).

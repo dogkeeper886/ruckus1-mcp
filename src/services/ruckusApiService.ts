@@ -462,6 +462,93 @@ export async function getApGroupClientAdmissionControlSettings(
   return response.data;
 }
 
+// ============================================================================
+// Folded settings getters (STORY-020) — one parametrized tool per scope instead
+// of 11 specialty getters. Each fans out to the selected per-category endpoints
+// (the functions above) concurrently and merges into one object keyed by category.
+// A failed category rejects the whole call (single predictable result).
+// ============================================================================
+
+async function mergeSettingsCategories(
+  categories: string[],
+  fetchers: Record<string, () => Promise<any>>,
+): Promise<any> {
+  const valid = Object.keys(fetchers);
+  const selected =
+    categories && categories.length > 0 ? categories : valid;
+  const unknown = selected.filter((c) => !valid.includes(c));
+  if (unknown.length > 0) {
+    throw new Error(
+      `Unknown settings categories: ${unknown.join(", ")}. Valid categories: ${valid.join(", ")}.`,
+    );
+  }
+  const results = await Promise.all(selected.map((c) => fetchers[c]!()));
+  const merged: Record<string, any> = {};
+  selected.forEach((c, i) => {
+    merged[c] = results[i];
+  });
+  return merged;
+}
+
+export async function getVenueSettings(
+  token: string,
+  venueId: string,
+  categories: string[] = [
+    "radio",
+    "apModelBandMode",
+    "externalAntenna",
+    "antennaType",
+  ],
+  region: string = "",
+): Promise<any> {
+  return mergeSettingsCategories(categories, {
+    radio: () => getVenueRadioSettings(token, venueId, region),
+    apModelBandMode: () => getVenueApModelBandModeSettings(token, venueId, region),
+    externalAntenna: () => getVenueExternalAntennaSettings(token, venueId, region),
+    antennaType: () => getVenueAntennaTypeSettings(token, venueId, region),
+  });
+}
+
+export async function getApGroupSettings(
+  token: string,
+  venueId: string,
+  apGroupId: string,
+  categories: string[] = [
+    "radio",
+    "apModelBandMode",
+    "externalAntenna",
+    "antennaType",
+    "clientAdmissionControl",
+  ],
+  region: string = "",
+): Promise<any> {
+  return mergeSettingsCategories(categories, {
+    radio: () => getApGroupRadioSettings(token, venueId, apGroupId, region),
+    apModelBandMode: () =>
+      getApGroupApModelBandModeSettings(token, venueId, apGroupId, region),
+    externalAntenna: () =>
+      getApGroupExternalAntennaSettings(token, venueId, apGroupId, region),
+    antennaType: () =>
+      getApGroupAntennaTypeSettings(token, venueId, apGroupId, region),
+    clientAdmissionControl: () =>
+      getApGroupClientAdmissionControlSettings(token, venueId, apGroupId, region),
+  });
+}
+
+export async function getApSettings(
+  token: string,
+  venueId: string,
+  apSerialNumber: string,
+  categories: string[] = ["radio", "clientAdmissionControl"],
+  region: string = "",
+): Promise<any> {
+  return mergeSettingsCategories(categories, {
+    radio: () => getApRadioSettings(token, venueId, apSerialNumber, region),
+    clientAdmissionControl: () =>
+      getApClientAdmissionControlSettings(token, venueId, apSerialNumber, region),
+  });
+}
+
 export async function deleteVenueWithRetry(
   token: string,
   venueId: string,
