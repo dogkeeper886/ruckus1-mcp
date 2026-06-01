@@ -4,11 +4,11 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import axios from "axios";
 import dotenv from "dotenv";
 import {
   getRuckusJwtToken,
   getRuckusActivityDetails,
+  getRuckusVenues,
   createVenueWithRetry,
   getVenue,
   updateVenueWithRetry,
@@ -2750,33 +2750,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "get_ruckus_venues": {
       try {
         const token = await tokenService.getValidToken();
-        const region = process.env.RUCKUS_REGION;
-        const apiUrl =
-          region && region.trim() !== ""
-            ? `https://api.${region}.ruckus.cloud/venues/query`
-            : "https://api.ruckus.cloud/venues/query";
-        const payload = {
-          fields: ["id", "name"],
-          searchTargetFields: ["name", "addressLine", "description", "tagList"],
-          filters: {},
-          sortField: "name",
-          sortOrder: "ASC",
-          page: 1,
-          pageSize: 10000,
-          defaultPageSize: 10,
-          total: 0,
-        };
-        const response = await axios.post(apiUrl, payload, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
+        const result = await getRuckusVenues(token, process.env.RUCKUS_REGION);
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(response.data, null, 2),
+              text: JSON.stringify(result, null, 2),
             },
           ],
         };
