@@ -2087,6 +2087,242 @@ export async function deleteRadiusServerProfileWithRetry(
   };
 }
 
+// ============================================================================
+// SAML IdP profiles (STORY-025) — captive-portal SAML Identity Provider.
+// Resource endpoint: /samlIdpProfiles. All mutations are async (202 + requestId).
+// ============================================================================
+
+export async function querySamlIdpProfiles(
+  token: string,
+  region: string = "",
+  filters: any = {},
+  fields: string[] = [
+    "id",
+    "name",
+    "signingCertificateEnabled",
+    "encryptionCertificateEnabled",
+    "wifiNetworkIds",
+  ],
+  searchString: string = "",
+  searchTargetFields: string[] = ["name"],
+  page: number = 1,
+  pageSize: number = 10,
+  sortField: string = "name",
+  sortOrder: string = "ASC",
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/samlIdpProfiles/query`
+      : "https://api.ruckus.cloud/samlIdpProfiles/query";
+
+  const payload = {
+    fields,
+    searchString,
+    filters,
+    page,
+    pageSize,
+    defaultPageSize: 10,
+    total: 0,
+    sortField,
+    sortOrder,
+    searchTargetFields,
+  };
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "post",
+      url: apiUrl,
+      data: payload,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Query SAML IdP profiles",
+  );
+
+  return response.data;
+}
+
+export async function getSamlIdpProfile(
+  token: string,
+  profileId: string,
+  region: string = "",
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/samlIdpProfiles/${profileId}`
+      : `https://api.ruckus.cloud/samlIdpProfiles/${profileId}`;
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "get",
+      url: apiUrl,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Get SAML IdP profile",
+  );
+
+  return response.data;
+}
+
+// Returns the SP-side SAML metadata XML (entityID + AssertionConsumerService) that R1
+// generates for this profile — the values to configure on the external IdP (e.g. the
+// Keycloak SAML client's Client ID + Master SAML Processing URL).
+export async function getSamlIdpServiceProviderMetadata(
+  token: string,
+  profileId: string,
+  region: string = "",
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/samlIdpProfiles/${profileId}/serviceProviderMetadata`
+      : `https://api.ruckus.cloud/samlIdpProfiles/${profileId}/serviceProviderMetadata`;
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "get",
+      url: apiUrl,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "text/xml",
+      },
+    },
+    "Get SAML IdP service provider metadata",
+  );
+
+  return response.data;
+}
+
+export async function createSamlIdpProfileWithRetry(
+  token: string,
+  profileConfig: any = {},
+  region: string = "",
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
+): Promise<any> {
+  // STORY-025: config-object create — symmetric with update_saml_idp_profile.
+  // Caller passes the full profile config and POSTs it verbatim via createResourceWithPoll.
+  // R1 fetches `metadataUrl` server-side, so the IdP must be reachable from R1's backend
+  // (or pass raw `metadata` XML instead); an unreachable IdP surfaces as a failed
+  // activity with RUCKUS code EXT-AUTH-10400.
+  const baseApiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud`
+      : "https://api.ruckus.cloud";
+
+  return createResourceWithPoll({
+    token,
+    config: profileConfig,
+    region,
+    postUrl: `${baseApiUrl}/samlIdpProfiles`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    resourceName: "saml_idp_profile",
+    maxRetries,
+    pollIntervalMs,
+  });
+}
+
+export async function updateSamlIdpProfileWithRetry(
+  token: string,
+  profileId: string,
+  profileConfig: any = {},
+  region: string = "",
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
+): Promise<any> {
+  // STORY-025: deliberate divergence from retrieve-then-merge (principle #7, like custom
+  // role). R1 does a FULL-CONFIG PUT and the id-scoped GET does not round-trip — it
+  // returns `metadata` (base64 IdP XML) + `updatedDate` and OMITS the
+  // signing/encryption flags, so a merged GET body would be lossy. Confirmed by a live
+  // GUI trace (DEV, 2026-06-01): the product PUTs the whole object. Caller sends the
+  // complete config (name + metadataUrl/metadata + attributeMappings + the two flags).
+  if (
+    !profileConfig ||
+    typeof profileConfig !== "object" ||
+    Array.isArray(profileConfig) ||
+    Object.keys(profileConfig).length === 0
+  ) {
+    throw new Error(
+      "update_saml_idp_profile requires a full profileConfig object (SAML IdP uses a full-config PUT, not a partial merge).",
+    );
+  }
+
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/samlIdpProfiles/${profileId}`
+      : `https://api.ruckus.cloud/samlIdpProfiles/${profileId}`;
+
+  const putResp = await makeRuckusApiCall(
+    {
+      method: "put",
+      url: apiUrl,
+      data: profileConfig,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Update SAML IdP profile",
+  );
+  const requestId = putResp.data?.requestId;
+
+  const poll = await pollActivities(
+    token,
+    region,
+    requestId ? [{ id: requestId, name: "Update saml_idp_profile" }] : [],
+    maxRetries,
+    pollIntervalMs,
+    { resource: "saml_idp_profile" },
+  );
+
+  return { id: profileId, requestId, ...poll };
+}
+
+export async function deleteSamlIdpProfileWithRetry(
+  token: string,
+  profileId: string,
+  region: string = "",
+  maxRetries: number = 20,
+  pollIntervalMs: number = 5000,
+): Promise<any> {
+  const apiUrl =
+    region && region.trim() !== ""
+      ? `https://api.${region}.ruckus.cloud/samlIdpProfiles/${profileId}`
+      : `https://api.ruckus.cloud/samlIdpProfiles/${profileId}`;
+
+  const response = await makeRuckusApiCall(
+    {
+      method: "delete",
+      url: apiUrl,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+    "Delete SAML IdP profile",
+  );
+
+  const requestId = response.data?.requestId;
+
+  const poll = await pollActivities(
+    token,
+    region,
+    requestId ? [{ id: requestId, name: "Delete saml_idp_profile" }] : [],
+    maxRetries,
+    pollIntervalMs,
+    { resource: "saml_idp_profile", action: "deleted" },
+  );
+
+  return { id: profileId, requestId, ...poll };
+}
+
 /**
  * Consolidated polling over one or more async activity requestIds (STORY-023).
  * Returns `{ status: "completed" | "failed" | "timeout", message, activities, error? }`

@@ -43,6 +43,12 @@ import {
   createRadiusServerProfileWithRetry,
   deleteRadiusServerProfileWithRetry,
   updateRadiusServerProfileWithRetry,
+  querySamlIdpProfiles,
+  getSamlIdpProfile,
+  getSamlIdpServiceProviderMetadata,
+  createSamlIdpProfileWithRetry,
+  updateSamlIdpProfileWithRetry,
+  deleteSamlIdpProfileWithRetry,
   queryPortalServiceProfiles,
   getPortalServiceProfile,
   createPortalServiceProfileWithRetry,
@@ -981,6 +987,161 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["profileId", "profileConfig"],
+        },
+      },
+      {
+        name: "query_saml_idp_profiles",
+        description:
+          "Query SAML Identity Provider (IdP) profiles from RUCKUS One with filtering and pagination support. These profiles back captive-portal SAML WLANs (type=saml). Returns id, name, signingCertificateEnabled, encryptionCertificateEnabled, wifiNetworkIds.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            filters: {
+              type: "object",
+              description: "Optional filters to apply",
+            },
+            fields: {
+              type: "array",
+              items: { type: "string" },
+              description:
+                'Fields to return (default: ["id", "name", "signingCertificateEnabled", "encryptionCertificateEnabled", "wifiNetworkIds"])',
+            },
+            searchString: {
+              type: "string",
+              description: "Search string to filter profiles",
+            },
+            searchTargetFields: {
+              type: "array",
+              items: { type: "string" },
+              description: 'Fields to search in (default: ["name"])',
+            },
+            page: {
+              type: "number",
+              description: "Page number (default: 1)",
+            },
+            pageSize: {
+              type: "number",
+              description: "Number of results per page (default: 10)",
+            },
+            sortField: {
+              type: "string",
+              description: 'Field to sort by (default: "name")',
+            },
+            sortOrder: {
+              type: "string",
+              description: 'Sort order - ASC or DESC (default: "ASC")',
+            },
+          },
+          required: [],
+        },
+      },
+      {
+        name: "get_saml_idp_profile",
+        description:
+          "Get detailed information for a specific SAML IdP profile (name, stored IdP metadata, metadataUrl, attributeMappings). REQUIRED: profileId (use query_saml_idp_profiles to get profile ID). To get the SP-side values for configuring your IdP, use get_saml_idp_service_provider_metadata instead.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            profileId: {
+              type: "string",
+              description:
+                "ID of the SAML IdP profile to get (use query_saml_idp_profiles to get profile ID)",
+            },
+          },
+          required: ["profileId"],
+        },
+      },
+      {
+        name: "get_saml_idp_service_provider_metadata",
+        description:
+          "Get the Service Provider (SP) SAML metadata XML that RUCKUS One generates for a SAML IdP profile — contains the SP entityID (e.g. https://<your-ruckus-one-host>/saml/{profileId}) and AssertionConsumerService (ACS) URL. These are the values you configure on the external IdP (e.g. a SAML client's Client ID + Master SAML Processing URL). REQUIRED: profileId (use query_saml_idp_profiles to get profile ID).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            profileId: {
+              type: "string",
+              description:
+                "ID of the SAML IdP profile (use query_saml_idp_profiles to get profile ID)",
+            },
+          },
+          required: ["profileId"],
+        },
+      },
+      {
+        name: "create_saml_idp_profile",
+        description:
+          "Create a SAML IdP profile by passing a single profileConfig object (full config). REQUIRED: profileConfig with name + the IdP metadata as EITHER metadataUrl (a URL RUCKUS One fetches server-side — the IdP must be reachable from R1's backend) OR metadata (raw IdP EntityDescriptor XML). OPTIONAL: attributeMappings (array of { name, mappedByName }; name is the R1 identity attribute displayName|email|phoneNumber, mappedByName is the claim your IdP sends; defaults map displayName/email/phoneNumber to displayName/email/phone), signingCertificateEnabled (boolean), encryptionCertificateEnabled (boolean). Symmetric with update_saml_idp_profile (which takes the same full object). After creation, use get_saml_idp_service_provider_metadata to read the SP entityID + ACS for your IdP, then use the new profile in create_wifi_network (type=saml). Use query_saml_idp_profiles to verify creation. NOTE: if the IdP metadataUrl is unreachable from R1 the activity fails with EXT-AUTH-10400.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            profileConfig: {
+              type: "object",
+              description:
+                "Full SAML IdP profile configuration. Keys: name (string), metadataUrl (string URL R1 fetches) OR metadata (raw IdP XML), attributeMappings (array of { name: 'displayName'|'email'|'phoneNumber', mappedByName: string }), signingCertificateEnabled (boolean), encryptionCertificateEnabled (boolean).",
+            },
+            maxRetries: {
+              type: "number",
+              description: "Maximum number of retry attempts (default: 20)",
+            },
+            pollIntervalMs: {
+              type: "number",
+              description: "Polling interval in milliseconds (default: 5000)",
+            },
+          },
+          required: ["profileConfig"],
+        },
+      },
+      {
+        name: "update_saml_idp_profile",
+        description:
+          "Update a SAML IdP profile. REQUIRED: profileId (use query_saml_idp_profiles to get profile ID) + profileConfig. UNLIKE the other server profiles, SAML IdP uses a FULL-CONFIG replace (NOT retrieve-then-merge): RUCKUS One PUTs the whole object, so send the COMPLETE config you want, not just changed fields (omitted fields are not preserved). IN-CONFIG ATTRIBUTES: name, metadataUrl OR metadata, attributeMappings (array of { name, mappedByName }), signingCertificateEnabled, encryptionCertificateEnabled. TIP: call get_saml_idp_profile first to read the current config, modify it, then send the whole object. The profile ID (and therefore the SP entityID/ACS) is unchanged by an update.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            profileId: {
+              type: "string",
+              description:
+                "ID of the SAML IdP profile to update (use query_saml_idp_profiles to get profile ID)",
+            },
+            profileConfig: {
+              type: "object",
+              description:
+                "FULL SAML IdP profile configuration (full-config replace, not partial). Keys: name, metadataUrl OR metadata, attributeMappings (array of { name, mappedByName }), signingCertificateEnabled, encryptionCertificateEnabled.",
+            },
+            maxRetries: {
+              type: "number",
+              description: "Maximum number of retry attempts (default: 20)",
+            },
+            pollIntervalMs: {
+              type: "number",
+              description: "Polling interval in milliseconds (default: 5000)",
+            },
+          },
+          required: ["profileId", "profileConfig"],
+        },
+      },
+      {
+        name: "delete_saml_idp_profile",
+        description:
+          "Permanently delete a SAML IdP profile from RUCKUS One; this cannot be undone. PREREQUISITE: the profile must not be in use by any WLAN (check wifiNetworkIds from query_saml_idp_profiles). REQUIRED: profileId (use query_saml_idp_profiles to get profile ID).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            profileId: {
+              type: "string",
+              description:
+                "ID of the SAML IdP profile to delete (use query_saml_idp_profiles to get profile ID)",
+            },
+            maxRetries: {
+              type: "number",
+              description: "Maximum number of retry attempts (default: 20)",
+            },
+            pollIntervalMs: {
+              type: "number",
+              description: "Polling interval in milliseconds (default: 5000)",
+            },
+          },
+          required: ["profileId"],
         },
       },
       {
@@ -4702,6 +4863,280 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error("[MCP] Error updating RADIUS server profile:", error);
 
         let errorMessage = `Error updating RADIUS server profile: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+    case "query_saml_idp_profiles": {
+      try {
+        const {
+          filters = {},
+          fields = [
+            "id",
+            "name",
+            "signingCertificateEnabled",
+            "encryptionCertificateEnabled",
+            "wifiNetworkIds",
+          ],
+          searchString = "",
+          searchTargetFields = ["name"],
+          page = 1,
+          pageSize = 10,
+          sortField = "name",
+          sortOrder = "ASC",
+        } = request.params.arguments as {
+          filters?: any;
+          fields?: string[];
+          searchString?: string;
+          searchTargetFields?: string[];
+          page?: number;
+          pageSize?: number;
+          sortField?: string;
+          sortOrder?: string;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await querySamlIdpProfiles(
+          token,
+          process.env.RUCKUS_REGION,
+          filters,
+          fields,
+          searchString,
+          searchTargetFields,
+          page,
+          pageSize,
+          sortField,
+          sortOrder,
+        );
+
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error querying SAML IdP profiles:", error);
+
+        let errorMessage = `Error querying SAML IdP profiles: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+    case "get_saml_idp_profile": {
+      try {
+        const { profileId } = request.params.arguments as {
+          profileId: string;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await getSamlIdpProfile(
+          token,
+          profileId,
+          process.env.RUCKUS_REGION,
+        );
+
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error getting SAML IdP profile:", error);
+
+        let errorMessage = `Error getting SAML IdP profile: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+    case "get_saml_idp_service_provider_metadata": {
+      try {
+        const { profileId } = request.params.arguments as {
+          profileId: string;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await getSamlIdpServiceProviderMetadata(
+          token,
+          profileId,
+          process.env.RUCKUS_REGION,
+        );
+
+        // The endpoint returns SP metadata as XML; surface it verbatim.
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                typeof result === "string"
+                  ? result
+                  : JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error(
+          "[MCP] Error getting SAML IdP service provider metadata:",
+          error,
+        );
+
+        let errorMessage = `Error getting SAML IdP service provider metadata: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+    case "create_saml_idp_profile": {
+      try {
+        const {
+          profileConfig,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
+        } = request.params.arguments as {
+          profileConfig: any;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await createSamlIdpProfileWithRetry(
+          token,
+          profileConfig,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+        );
+
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error creating SAML IdP profile:", error);
+
+        let errorMessage = `Error creating SAML IdP profile: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+    case "update_saml_idp_profile": {
+      try {
+        const {
+          profileId,
+          profileConfig,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
+        } = request.params.arguments as {
+          profileId: string;
+          profileConfig: any;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await updateSamlIdpProfileWithRetry(
+          token,
+          profileId,
+          profileConfig,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+        );
+
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error updating SAML IdP profile:", error);
+
+        let errorMessage = `Error updating SAML IdP profile: ${error}`;
+
+        if (error.response) {
+          errorMessage += `\nHTTP Status: ${error.response.status}`;
+          errorMessage += `\nResponse Data: ${JSON.stringify(error.response.data, null, 2)}`;
+          errorMessage += `\nResponse Headers: ${JSON.stringify(error.response.headers, null, 2)}`;
+        } else if (error.request) {
+          errorMessage += `\nNo response received: ${error.request}`;
+        }
+
+        return {
+          content: [{ type: "text", text: errorMessage }],
+          isError: true,
+        };
+      }
+    }
+    case "delete_saml_idp_profile": {
+      try {
+        const {
+          profileId,
+          maxRetries = 20,
+          pollIntervalMs = 5000,
+        } = request.params.arguments as {
+          profileId: string;
+          maxRetries?: number;
+          pollIntervalMs?: number;
+        };
+
+        const token = await tokenService.getValidToken();
+
+        const result = await deleteSamlIdpProfileWithRetry(
+          token,
+          profileId,
+          process.env.RUCKUS_REGION,
+          maxRetries,
+          pollIntervalMs,
+        );
+
+        return toolResult(result);
+      } catch (error: any) {
+        console.error("[MCP] Error deleting SAML IdP profile:", error);
+
+        let errorMessage = `Error deleting SAML IdP profile: ${error}`;
 
         if (error.response) {
           errorMessage += `\nHTTP Status: ${error.response.status}`;

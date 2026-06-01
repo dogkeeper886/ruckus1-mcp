@@ -1,0 +1,89 @@
+id: TC-INT-340
+name: SAML IdP profile CRUD lifecycle - create, SP metadata, full-config update, verify, delete
+suite: integration
+tags: [saml-idp, captive-portal]
+story: STORY-025
+priority: 1
+timeout: 120000
+dependencies:
+  - TC-INT-001
+
+# FIXTURE DEPENDENCY: create fetches the IdP metadata URL server-side, so R1's backend
+# must be able to reach the SAML IdP. Provide the IdP metadata URL via the
+# SAML_IDP_METADATA_URL environment variable (the test framework substitutes
+# {{SAML_IDP_METADATA_URL}} from the environment). If the IdP is unreachable the create
+# fails async with EXT-AUTH-10400. The test is skipped/errors clearly when the var is unset.
+
+steps:
+  - name: Create SAML IdP profile (config-object create, metadataUrl fetched server-side)
+    command: npx tsx cicd/tests/src/mcp-client.ts create_saml_idp_profile '{"profileConfig":{"name":"mcp-test-saml-{{TEST_RUN_ID}}","metadataUrl":"{{SAML_IDP_METADATA_URL}}"},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+      - "requestId"
+    rejectPatterns:
+      - "isError"
+
+  - name: Find created profile and capture ID
+    command: npx tsx cicd/tests/src/mcp-client.ts query_saml_idp_profiles '{"pageSize":100}'
+    capture:
+      profileId: "data[name=mcp-test-saml-{{TEST_RUN_ID}}].id"
+    expectPatterns:
+      - "mcp-test-saml-{{TEST_RUN_ID}}"
+    rejectPatterns:
+      - "isError"
+
+  - name: Get SP metadata - verify R1-generated SP entityID (derived from profileId) + ACS
+    command: npx tsx cicd/tests/src/mcp-client.ts get_saml_idp_service_provider_metadata '{"profileId":"{{profileId}}"}'
+    expectPatterns:
+      - "EntityDescriptor"
+      - "AssertionConsumerService"
+      - "{{profileId}}"
+    rejectPatterns:
+      - "isError"
+
+  - name: Full-config update - change phone claim mapping to 'mobile' (NOT a partial merge)
+    command: npx tsx cicd/tests/src/mcp-client.ts update_saml_idp_profile '{"profileId":"{{profileId}}","profileConfig":{"name":"mcp-test-saml-{{TEST_RUN_ID}}","metadataUrl":"{{SAML_IDP_METADATA_URL}}","signingCertificateEnabled":false,"encryptionCertificateEnabled":false,"attributeMappings":[{"name":"displayName","mappedByName":"displayName"},{"name":"email","mappedByName":"email"},{"name":"phoneNumber","mappedByName":"mobile"}]},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Get profile - verify the full-config update applied (mobile) and name intact
+    command: npx tsx cicd/tests/src/mcp-client.ts get_saml_idp_profile '{"profileId":"{{profileId}}"}'
+    expectPatterns:
+      - "mobile"
+      - "mcp-test-saml-{{TEST_RUN_ID}}"
+      - "metadataUrl"
+    rejectPatterns:
+      - "isError"
+
+  - name: Delete SAML IdP profile
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_saml_idp_profile '{"profileId":"{{profileId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - "completed"
+    rejectPatterns:
+      - "isError"
+
+  - name: Verify profile is gone
+    command: npx tsx cicd/tests/src/mcp-client.ts query_saml_idp_profiles '{"pageSize":100}'
+    expectPatterns:
+      - "totalCount"
+    rejectPatterns:
+      - "{{profileId}}"
+
+criteria: |
+  Full SAML IdP profile CRUD lifecycle (STORY-025), exercising all six tools:
+  1. Create profile "mcp-test-saml-{{TEST_RUN_ID}}" via create_saml_idp_profile with a
+     metadataUrl from SAML_IDP_METADATA_URL (RUCKUS One fetches the IdP metadata
+     server-side; requires the IdP to be reachable from R1's backend).
+  2. Query to find it and capture profileId.
+  3. get_saml_idp_service_provider_metadata returns the SP EntityDescriptor whose entityID
+     (https://<r1-host>/saml/{profileId}) + AssertionConsumerService embed the captured
+     profileId — the values configured on the external IdP.
+  4. Full-config update via update_saml_idp_profile: SAML IdP uses a FULL-CONFIG replace
+     (NOT retrieve-then-merge), so the whole config is sent with the phone claim changed to
+     'mobile'.
+  5. GET the profile and verify the new mapping ('mobile') AND that the name + metadataUrl
+     are intact (the full config carried them).
+  6. Delete using the captured profileId.
+  7. Verify it no longer appears in query results.
