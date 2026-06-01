@@ -4,7 +4,7 @@
 
 As a QA engineer or network operator,
 I want MCP tools to configure per-venue WiFi schedulers in both the legacy bitmask format and the new BASIC/ADVANCED scheduled-activation format,
-So that I can automate Scheduled Network Activation test cases (ACX-106566, TS-05 and TS-06) end-to-end and readily switch between modes without hand-rolling the nested JSON payloads.
+So that I can automate Scheduled Network Activation test cases (<internal-ticket>, TS-05 and TS-06) end-to-end and readily switch between modes without hand-rolling the nested JSON payloads.
 
 ## Description
 

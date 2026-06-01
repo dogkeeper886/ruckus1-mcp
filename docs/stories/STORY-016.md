@@ -4,13 +4,13 @@
 
 As a QA engineer,
 I want MCP tools to set the new Terms & Conditions fields (`termsConditionConfig`, `termsConditionUrl`, and the `componentDisplay.termsConditions` toggle) on portal service profiles,
-So that I can validate the ACX-115080 flag-gated T&C feature end-to-end through MCP without driving the admin UI.
+So that I can validate the <internal-ticket> flag-gated T&C feature end-to-end through MCP without driving the admin UI.
 
 ## Description
 
-The R1 backend added T&C-related fields to the Portal Service Profile API per **ACX-115080** (HLD Confluence page `897220609`, last modified 2026-05-19). The feature flag `guest-t-and-c-checkbox-url-toggle` is ON for QA tenant `dog1051` and the admin UI now uses these fields. The existing `create_portal_service_profile` / `update_portal_service_profile` MCP tools accept a free-form `content` blob, so the wire-level capability is already there — but no top-level params surface the new fields, so an agent reading the tool schema has no signal they exist or how to shape `termsConditionConfig`.
+The R1 backend added T&C-related fields to the Portal Service Profile API per **<internal-ticket>** (HLD Confluence page `<internal-ref>`, last modified 2026-05-19). The feature flag `guest-t-and-c-checkbox-url-toggle` is ON for QA tenant `<dev-tenant>` and the admin UI now uses these fields. The existing `create_portal_service_profile` / `update_portal_service_profile` MCP tools accept a free-form `content` blob, so the wire-level capability is already there — but no top-level params surface the new fields, so an agent reading the tool schema has no signal they exist or how to shape `termsConditionConfig`.
 
-### Captured payloads (dog1051, 2026-05-27 via Playwright trace)
+### Captured payloads (<dev-tenant>, 2026-05-27 via Playwright trace)
 
 **Rich-doc mode (Tiptap config):**
 
@@ -57,8 +57,8 @@ Allowed node types: `doc`, `paragraph`, `text`, `hardBreak`. Allowed marks on `t
 - Tiptap node/mark validation (depth, paragraph count, href protocol) is the server's job. The builder produces only valid shapes by construction so common callers stay inside the limits.
 - `build_terms_condition_config` follows the Pure Builder Pattern in `.claude/rules/mcp-tool-patterns.md` — `build_*` prefix, `mode` discriminator, handler-only, no service function, no token, no polling. Precedent: `build_wifi_scheduler_config`.
 - Related GitHub issue: #89
-- Driving Jira: ACX-117673 (this MCP work); upstream backend: ACX-115080
-- HLD: Confluence page `897220609` (ACX space)
+- Driving Jira: <internal-ticket> (this MCP work); upstream backend: <internal-ticket>
+- HLD: Confluence page `<internal-ref>`
 
 ## Status
 

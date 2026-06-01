@@ -4,7 +4,7 @@ Tracks GitHub issue #91.
 
 ## User Story
 
-As a QA engineer running captive-portal tests (e.g. ACX-115080 TS-03-TC-02 Link-to-URL phases),
+As a QA engineer running captive-portal tests (e.g. <internal-ticket> TS-03-TC-02 Link-to-URL phases),
 I want MCP tools to **read**, **add to**, and **remove from** a WiFi network's walled-garden allowlist,
 So that I can verify Phase A (entry absent) → modify mid-test → Phase B (entry present) → restore baseline, all without driving the R1 admin UI through Playwright and without disconnecting the pre-auth client between phases.
 
@@ -17,7 +17,7 @@ So that I can verify Phase A (entry absent) → modify mid-test → Phase B (ent
 
 The issue author requested 3 tools: `query_walled_garden`, `add_walled_garden_entry`, `remove_walled_garden_entry`.
 
-## Captured payloads (dog1051, 2026-05-29 via Playwright trace)
+## Captured payloads (<dev-tenant>, 2026-05-29 via Playwright trace)
 
 ### Wire location
 
@@ -41,7 +41,7 @@ Body shape (relevant slice):
 
 `GET /wifiNetworks/{networkId}` returns the full WLAN config. `guestPortal.walledGardens` is present **only when non-empty** — empty lists are omitted from the response, so a tool reading the current allowlist must treat a missing key as "empty list" (not "error").
 
-### Observed against TS03-TC02-LinkToURL-20260528 (Guest Pass, dev tenant)
+### Observed against <example-guest-pass-wlan> (Guest Pass, dev tenant)
 
 - Before: GET response had no `walledGardens` key in `guestPortal`.
 - Added `probe.example.com` via GUI → POST returned 202 → GET after returned `guestPortal.walledGardens: ["probe.example.com"]`.
@@ -132,6 +132,6 @@ TC-INT-XXX:
 ## Refs
 
 - Issue #91 (GitHub)
-- ACX-115080 TS-03-TC-02 (TestLink ACX-61500) — the test that needs this
-- Recon trail: WLAN PUT body captured 2026-05-29 against TS03-TC02-LinkToURL-20260528 on dev.ruckus.cloud tenant `dog1051`
+- <internal-ticket> TS-03-TC-02 (TestLink <internal-ticket>) — the test that needs this
+- Recon trail: WLAN PUT body captured 2026-05-29 against <example-guest-pass-wlan> on <region>.ruckus.cloud tenant `<dev-tenant>`
 - Related: STORY-017 / PR #93 — same overall WLAN payload shape; walled-garden field already populated as `walledGardens: []` in the default `guestPortal` block at `src/services/ruckusApiService.ts:4439, 4512`

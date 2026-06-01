@@ -12,15 +12,15 @@ So that I never have to guess and never silently default the user into Guest Pas
 
 `create_wifi_network` exposes `type=guest` as one black-box value. R1 actually has 9 distinct captive-portal flows under WLAN `nwSubType=guest`, distinguished by a sub-field `guestPortal.guestNetworkType` on the WLAN payload. The MCP hardcodes that field to `"GuestPass"` (and `"SelfSignIn"` for `type=selfSignIn`), leaving the other 7 flows unreachable via the schema.
 
-Discovered during ACX-115080 TS-03-TC-01 on 2026-05-28 when a Click-Through-intended WLAN silently rendered the Guest Pass password page. Blocks ACX-115080 TS-04 series outright.
+Discovered during <internal-ticket> TS-03-TC-01 on 2026-05-28 when a Click-Through-intended WLAN silently rendered the Guest Pass password page. Blocks <internal-ticket> TS-04 series outright.
 
-## Captured payloads (dog1051, 2026-05-28 via Playwright trace)
+## Captured payloads (<dev-tenant>, 2026-05-28 via Playwright trace)
 
 **WLAN POST `/wifiNetworks` body (Click-Through):**
 
 ```json
 {
-  "name": "probe-wlan-portaltype-20260528",
+  "name": "<example-wlan>",
   "type": "guest",
   "isCloudpathEnabled": false,
   "wlan": { "ssid": "...", "wlanSecurity": "None", ... },
@@ -61,15 +61,15 @@ if (isGuestType) {
 
 ## The 9 portal types (GUI radio labels → wire values)
 
-The R1 admin GUI's WLAN-create wizard exposes 9 radios under "Portal Type" when the user picks "Captive Portal" security. Wire values for `guestPortal.guestNetworkType`, captured 2026-05-28 by reading the radio inputs' `value` attribute directly from the rendered DOM on dev.ruckus.cloud (single source of truth — these are the exact strings the frontend POSTs):
+The R1 admin GUI's WLAN-create wizard exposes 9 radios under "Portal Type" when the user picks "Captive Portal" security. Wire values for `guestPortal.guestNetworkType`, captured 2026-05-28 by reading the radio inputs' `value` attribute directly from the rendered DOM on <region>.ruckus.cloud (single source of truth — these are the exact strings the frontend POSTs):
 
 | # | GUI label | Wire value | How confirmed |
 |---|---|---|---|
 | 1 | Click-Through | `ClickThrough` | live POST trace |
-| 2 | Self Sign In | `SelfSignIn` | DOM `value` + matches existing `i18n-PT-Email` WLAN |
+| 2 | Self Sign In | `SelfSignIn` | DOM `value` + matches existing `<example-self-signin-wlan>` WLAN |
 | 3 | Cloudpath Captive Portal | `Cloudpath` | DOM `value` (wizard blocked on RADIUS/URL; could not full-submit) |
 | 4 | Host Approval | `HostApproval` | live POST trace |
-| 5 | Guest Pass | `GuestPass` | DOM `value` + matches existing `TS03-TC02-LinkToURL` WLAN |
+| 5 | Guest Pass | `GuestPass` | DOM `value` + matches existing `<example-guest-pass-wlan>` WLAN |
 | 6 | 3rd Party Captive Portal (WISPr) | `WISPr` | DOM `value` |
 | 7 | Active Directory/LDAP Server | `Directory` | DOM `value` — **surprise**, not `ADLDAP` |
 | 8 | SAML Identity Provider (IdP) | `SAML` | DOM `value` |
@@ -133,7 +133,7 @@ Now: `{ ...defaults, ...(networkConfig.guestPortal || {}) }` — defaults sit un
 | `TC-INT-335` | `type=guestPass` regression — same `captiveType=GuestPass` behavior under the new name |
 | `TC-INT-336` | `type=guest` is rejected (proves the breaking change) |
 
-All three pass against `dev.ruckus.cloud` (45s, 45s, 3.5s).
+All three pass against `<region>.ruckus.cloud` (45s, 45s, 3.5s).
 
 ## Follow-ups (separate issues)
 
@@ -144,5 +144,5 @@ All three pass against `dev.ruckus.cloud` (45s, 45s, 3.5s).
 ## Refs
 
 - Issue #92 (GitHub)
-- ACX-115080 TS-03-TC-01 execution log, 2026-05-28
+- <internal-ticket> TS-03-TC-01 execution log, 2026-05-28
 - Probe trace artifacts (deleted after recon, not committed): `wlan-clickthrough-create.json`, `wifinetworks-query-after-create.json`

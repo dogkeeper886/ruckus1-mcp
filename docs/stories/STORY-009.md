@@ -22,7 +22,7 @@ Comprehensive WiFi network lifecycle management including CRUD operations, venue
 - [x] Associate portal service profiles with networks
 - [x] Configure RADIUS server profile settings (auth proxy, accounting proxy)
 - [x] Support maxDevices parameter for guest/selfSignIn networks
-- [x] Support Captive Portal Temporary Connection (`temporaryConnectionEnabled`, `temporaryConnection` with duration/maxDownloadRate/maxUploadRate) for Self Sign-In networks — ACX-105619 (issue #55)
+- [x] Support Captive Portal Temporary Connection (`temporaryConnectionEnabled`, `temporaryConnection` with duration/maxDownloadRate/maxUploadRate) for Self Sign-In networks — <internal-ticket> (issue #55)
 
 ## Technical Notes
 

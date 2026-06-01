@@ -4,7 +4,7 @@
 
 As a QA engineer,
 I want `create_wifi_network` to accept SMS and WhatsApp as Self Sign-In OTP channels in addition to Email,
-So that I can automate test precondition setup for SMS/WhatsApp captive-portal flows (ACX-60786, ACX-105619) in a single tool call instead of creating via Email and patching via `update_wifi_network`.
+So that I can automate test precondition setup for SMS/WhatsApp captive-portal flows (<internal-ticket>, <internal-ticket>) in a single tool call instead of creating via Email and patching via `update_wifi_network`.
 
 ## Description
 
@@ -15,7 +15,7 @@ The `create_wifi_network` tool currently hardcodes Self Sign-In to Email-only:
 - `src/services/ruckusApiService.ts:4423` hardcodes `socialEmails: true`.
 - `src/mcpServer.ts:1708` description says "selfSignIn (Self Sign-In with Email)".
 
-The R1 API already accepts three OTP channels — `enableSmsLogin`, `enableEmailLogin`, `enableWhatsappLogin` — and an `smsPasswordDuration` object. Captured from the dev.ruckus.cloud UI on 2026-04-21 via `POST https://api.dev.ruckus.cloud/wifiNetworks`:
+The R1 API already accepts three OTP channels — `enableSmsLogin`, `enableEmailLogin`, `enableWhatsappLogin` — and an `smsPasswordDuration` object. Captured from the <region>.ruckus.cloud UI on 2026-04-21 via `POST https://api.<region>.ruckus.cloud/wifiNetworks`:
 
 ```json
 "guestPortal": {
@@ -63,7 +63,7 @@ Today the only workaround is: create an Email Self Sign-In via the tool, then fl
   - `socialIdentities: {}`, `socialDomains`, `socialEmails` remain in the payload shape — unchanged from today except `socialEmails` becomes conditional on `enableEmailLogin`.
 - WhatsApp prerequisite: On dev tenant the WhatsApp UI checkbox is disabled even with feature flag `whatsapp-self-sign-in-toggle: on`. Direct-API probe on 2026-04-21 confirmed the **backend accepts `enableWhatsappLogin=true`** and persists the flag successfully — the UI disable is purely client-side tenant-provisioning gating (likely missing WhatsApp business settings). Accordingly, the MCP tool does not gate WA client-side; callers can flip it on regardless of UI state.
 - Related issue: #67
-- API capture artifact: `POST https://api.dev.ruckus.cloud/wifiNetworks` followed by `PUT /wifiNetworks/{id}/portalServiceProfiles/{profileId}` and `PUT /wifiNetworks/{id}/radiusServerProfileSettings` (captured 2026-04-21 on tenant `213ae01ae5464745833a1f6ffc3148a8`)
+- API capture artifact: `POST https://api.<region>.ruckus.cloud/wifiNetworks` followed by `PUT /wifiNetworks/{id}/portalServiceProfiles/{profileId}` and `PUT /wifiNetworks/{id}/radiusServerProfileSettings` (captured 2026-04-21 on tenant `<tenant-id>`)
 
 ## Status
 
