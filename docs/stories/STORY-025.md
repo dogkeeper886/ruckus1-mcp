@@ -47,7 +47,7 @@ Base `https://api.<region>.ruckus.cloud`. All mutations async (`202 {requestId}`
 Create/Update body:
 ```json
 {
-  "name": "keycloak-saml-jack",
+  "name": "example-saml-idp",
   "signingCertificateEnabled": false,
   "encryptionCertificateEnabled": false,
   "attributeMappings": [
@@ -124,9 +124,9 @@ is already mapped by `PORTAL_TYPE_TO_WIRE` (STORY-017). The `FOR SAML:` clause n
 ## Risks / fixture dependency
 
 - **R1 fetches `metadataUrl` server-side.** The IdP must be reachable from R1's backend or create
-  fails async with `EXT-AUTH-10400`. The DEV Keycloak fixture required opening the IdP's firewall to
-  R1's egress IP at two layers (GCP VPC + host) — see the runbook
-  `r1-test-cases/docs/guides/R1_SAML_IdP_Keycloak_Setup_Guide.md`.
+  fails async with `EXT-AUTH-10400`. A test IdP fixture must allow R1's backend egress IP through
+  any firewall in front of it (the integration tests supply the IdP via the `SAML_IDP_METADATA_URL`
+  env var).
 - **Enabling request signature / response encryption** makes a signing/encryption certificate
   required; the minimal create leaves both `false`.
 
@@ -134,5 +134,4 @@ is already mapped by `PORTAL_TYPE_TO_WIRE` (STORY-017). The `FOR SAML:` clause n
 
 - STORY-023 (config-object CRUD; "When NOT to converge" — custom role full-config precedent).
 - STORY-017 (portal types; SAML companion-field gap).
-- `r1-test-cases/docs/guides/R1_SAML_IdP_Keycloak_Setup_Guide.md` — IdP + firewall fixture runbook.
 - `.claude/rules/mcp-tool-patterns.md`, `.claude/rules/tool-descriptions.md`.
