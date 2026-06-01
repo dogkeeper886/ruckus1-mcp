@@ -1,171 +1,153 @@
 # ruckus1-mcp
 
-A Model Context Protocol (MCP) server for RUCKUS One, enabling AI assistants and MCP clients to access RUCKUS venues and authentication via standardized tools and resources.
+[![Release](https://img.shields.io/github/v/release/dogkeeper886/ruckus1-mcp)](https://github.com/dogkeeper886/ruckus1-mcp/releases)
+[![Docker](https://img.shields.io/docker/v/dogkeeper886/ruckus1-mcp?label=docker&sort=semver)](https://hub.docker.com/r/dogkeeper886/ruckus1-mcp)
+[![Docker Pulls](https://img.shields.io/docker/pulls/dogkeeper886/ruckus1-mcp)](https://hub.docker.com/r/dogkeeper886/ruckus1-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
----
+A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for **RUCKUS One**. It lets MCP-compatible AI assistants (Claude Desktop, Claude Code, Cline, …) manage a RUCKUS One tenant — venues, Wi-Fi networks, access points, and the RADIUS, LDAP, portal, and SAML profiles they rely on — through standardized tools.
+
+It is a **stdio** server (no HTTP port, no daemon): your MCP client launches it on demand and communicates over stdin/stdout.
 
 ## Features
-- **MCP-only**: No REST API, no Express, no HTTP endpoints
-- **Tools**: Fetch RUCKUS One venues, get authentication tokens, create venues, manage AP groups
-- **Simple configuration**: All credentials and settings in `mcp.json`
 
----
+- **MCP-only** — stdio transport; no REST API, Express, or HTTP endpoints.
+- **74 tools** with a uniform `query` / `get` / `create` / `update` / `delete` shape per resource, plus consolidated polling for asynchronous operations.
+- **OAuth2** client-credentials authentication with JWT caching.
+- **Simple configuration** — all credentials via environment variables.
 
 ## Quick Start
 
 ### Prerequisites
+
 - RUCKUS One API credentials (tenant ID, client ID, client secret)
-- An MCP client (e.g., Claude Desktop, Cline, or other MCP-compatible client)
-- Docker (recommended) or Node.js 18+
+- An MCP client (Claude Desktop, Claude Code, Cline, or any MCP-compatible client)
+- Docker (recommended), or Node.js 18+ to run from source
 
-### Option 1: Using Docker (Recommended)
+### Option 1: Docker (recommended)
 
-1. **Pull or build the Docker image:**
-   ```bash
-   # Clone and build locally
-   git clone https://github.com/your-username/ruckus1-mcp.git
-   cd ruckus1-mcp
-   docker build -t ruckus1-mcp .
-   ```
+Use the published image — no build required.
 
-2. **Configure your MCP client:**
+**Claude Code (CLI):**
 
-   **For Claude Code CLI:**
-   ```bash
-   claude mcp add ruckus1 -- docker run --rm -i \
-     -e RUCKUS_TENANT_ID=your-tenant-id \
-     -e RUCKUS_CLIENT_ID=your-client-id \
-     -e RUCKUS_CLIENT_SECRET=your-client-secret \
-     -e RUCKUS_REGION=your-region \
-     dogkeeper886/ruckus1-mcp
-   ```
+```bash
+claude mcp add ruckus1 -- docker run --rm -i \
+  -e RUCKUS_TENANT_ID=your-tenant-id \
+  -e RUCKUS_CLIENT_ID=your-client-id \
+  -e RUCKUS_CLIENT_SECRET=your-client-secret \
+  -e RUCKUS_REGION=your-region \
+  dogkeeper886/ruckus1-mcp:latest
+```
 
-   **For other MCP clients (mcp.json):**
-   ```json
-   {
-     "mcpServers": {
-       "ruckus1": {
-         "command": "docker",
-         "args": [
-           "run", "--rm", "-i",
-           "-e", "RUCKUS_TENANT_ID=your-tenant-id",
-           "-e", "RUCKUS_CLIENT_ID=your-client-id",
-           "-e", "RUCKUS_CLIENT_SECRET=your-client-secret",
-           "-e", "RUCKUS_REGION=your-region",
-           "dogkeeper886/ruckus1-mcp"
-         ]
-       }
-     }
-   }
-   ```
+**Other MCP clients (`mcp.json`):**
 
-   - Replace the credential values with your actual RUCKUS One credentials
-   - The `--rm` flag automatically removes the container when it exits
-   - The `-i` flag keeps stdin open for MCP communication
+```json
+{
+  "mcpServers": {
+    "ruckus1": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "RUCKUS_TENANT_ID=your-tenant-id",
+        "-e", "RUCKUS_CLIENT_ID=your-client-id",
+        "-e", "RUCKUS_CLIENT_SECRET=your-client-secret",
+        "-e", "RUCKUS_REGION=your-region",
+        "dogkeeper886/ruckus1-mcp:latest"
+      ]
+    }
+  }
+}
+```
 
-### Option 2: Running from Source
+`--rm` removes the container on exit; `-i` keeps stdin open for the MCP stream.
 
-1. **Clone and install:**
-   ```bash
-   git clone https://github.com/your-username/ruckus1-mcp.git
-   cd ruckus1-mcp
-   npm install
-   ```
+### Option 2: Run from source
 
-2. **Configure your MCP client:**
+```bash
+git clone https://github.com/dogkeeper886/ruckus1-mcp.git
+cd ruckus1-mcp
+npm install
+npm run build
+```
 
-   **For Claude Code CLI:**
-   ```bash
-   claude mcp add ruckus1 \
-     -e RUCKUS_TENANT_ID=your-tenant-id \
-     -e RUCKUS_CLIENT_ID=your-client-id \
-     -e RUCKUS_CLIENT_SECRET=your-client-secret \
-     -e RUCKUS_REGION=your-region \
-     -- npx ts-node /absolute/path/to/ruckus1-mcp/src/mcpServer.ts
-   ```
+Then point your MCP client at the built server (`mcp.json`):
 
-   **For other MCP clients:**
-   Add this to your MCP client's `mcp.json`:
-   ```json
-   {
-     "mcpServers": {
-       "ruckus1": {
-         "command": "npx",
-         "args": [
-           "ts-node",
-           "/absolute/path/to/ruckus1-mcp/src/mcpServer.ts"
-         ],
-         "env": {
-           "RUCKUS_TENANT_ID": "your-tenant-id",
-           "RUCKUS_CLIENT_ID": "your-client-id",
-           "RUCKUS_CLIENT_SECRET": "your-client-secret",
-           "RUCKUS_REGION": "your-region"
-         }
-       }
-     }
-   }
-   ```
+```json
+{
+  "mcpServers": {
+    "ruckus1": {
+      "command": "node",
+      "args": ["/absolute/path/to/ruckus1-mcp/dist/mcpServer.js"],
+      "env": {
+        "RUCKUS_TENANT_ID": "your-tenant-id",
+        "RUCKUS_CLIENT_ID": "your-client-id",
+        "RUCKUS_CLIENT_SECRET": "your-client-secret",
+        "RUCKUS_REGION": "your-region"
+      }
+    }
+  }
+}
+```
 
----
+(Or run from TypeScript directly without building: `npm run mcp`.)
 
-## Available MCP Tools
+## Configuration
 
-Once configured, your MCP client will have access to these tools:
+All configuration is via environment variables:
 
-- `get_ruckus_auth_token` - Get JWT authentication token
-- `get_ruckus_venues` - List all venues
-- `get_ruckus_activity_details` - Check status of async operations
-- `create_ruckus_venue` - Create a new venue with automatic status checking
-- `delete_ruckus_venue` - Delete a venue with automatic status checking
-- `create_ruckus_ap_group` - Create AP groups in venues
-- `get_ruckus_ap_groups` - Query AP groups with filtering
-- `delete_ruckus_ap_group` - Delete AP groups from venues
-- `get_ap_model_antenna_settings` - Get AP model external antenna settings for a venue
-- `get_ap_model_antenna_type_settings` - Get AP model antenna type settings for a venue
-- `get_ruckus_aps` - Query access points with filtering, search, and pagination
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `RUCKUS_TENANT_ID` | yes | RUCKUS One tenant ID |
+| `RUCKUS_CLIENT_ID` | yes | OAuth2 client ID |
+| `RUCKUS_CLIENT_SECRET` | yes | OAuth2 client secret |
+| `RUCKUS_REGION` | no | Regional endpoint (e.g. a region code); leave unset for the global endpoint |
 
----
+## Capabilities
+
+Tools follow a uniform `query` / `get` / `create` / `update` / `delete` shape per resource. Highlights:
+
+- **Wi-Fi networks (WLANs)** — create/activate/deactivate/delete, including every captive-portal type: Click-Through, Self Sign-In (Email/SMS/WhatsApp OTP), Guest Pass, Host Approval, Cloudpath, WISPr, Directory (AD/LDAP), **SAML IdP**, and Workflow — plus PSK, DPSK, Enterprise 802.1X, and OWE.
+- **Service profiles** — RADIUS, Directory (AD/LDAP), Portal, and SAML IdP profiles.
+- **Venues & access points** — venues, AP groups, access points, and their radio / band-mode / antenna / client-admission settings.
+- **Identity & access** — identity groups, DPSK services, guest passes, SMS provider (Twilio), roles, and privilege groups.
+- **Clients & monitoring** — query connected clients; check async activity status.
+
+Your MCP client lists every tool with its full input schema once connected; the registrations live in [`src/mcpServer.ts`](src/mcpServer.ts).
 
 ## Development
 
-### Testing with MCP Inspector
+```bash
+npm run build              # compile TypeScript -> dist/
+npm run mcp                # run from source (ts-node)
+cd cicd/tests && npm test  # run the integration test suite
+```
 
-For development and testing, you can use the MCP Inspector:
+Inspect interactively with the MCP Inspector:
 
 ```bash
-# From the project directory
 npx @modelcontextprotocol/inspector npx ts-node src/mcpServer.ts
 ```
 
-Then configure the Inspector with your RUCKUS credentials and test the tools.
+### Project structure
 
-### Project Structure
 ```
 src/
-  mcpServer.ts         # Main MCP server implementation
-  services/
-    ruckusApiService.ts # RUCKUS One API service layer
-    tokenService.ts     # Token management service
-  types/
-    ruckusApi.ts        # TypeScript type definitions
-  utils/
-    config.ts           # Configuration utilities
-    errorHandler.ts     # Error handling utilities
-    tokenCache.ts       # Token caching utilities
-    validation.ts       # Input validation utilities
-
-scripts/
-  chunk-api-docs.js     # Script to chunk large API documentation files
-  scrape-ruckus-api-docs.js # Script to scrape RUCKUS API documentation
+  mcpServer.ts                  # MCP entry point — tool registration + handlers
+  services/ruckusApiService.ts  # RUCKUS One API calls
+  services/tokenService.ts      # OAuth2 token + cache
+  types/                        # TypeScript interfaces
+  utils/                        # config, error handling, token cache, validation
+cicd/tests/                     # integration test framework + YAML test cases
+docs/                           # architecture, stories, guides
 ```
 
----
+See [`docs/`](docs/) for the architecture overview, design stories, and guides.
 
-## Extending
-- Add new tools/resources in `src/mcpServer.ts`.
-- Add or update business logic in `src/services/`.
+## Links
 
----
+- **Docker image:** https://hub.docker.com/r/dogkeeper886/ruckus1-mcp
+- **Releases / changelog:** https://github.com/dogkeeper886/ruckus1-mcp/releases
 
 ## License
-MIT 
+
+[MIT](LICENSE)
