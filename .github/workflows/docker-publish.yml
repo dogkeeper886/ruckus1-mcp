@@ -1,0 +1,54 @@
+name: Docker Publish
+
+# Builds and pushes the dogkeeper886/ruckus1-mcp image. Runs on the self-hosted
+# runner, which is already `docker login`'d to Docker Hub — so there is no login
+# step and no registry secret here.
+#
+# Triggers:
+#   - release published  → tag the image with the release version + `latest`
+#   - manual dispatch     → optional tag input (defaults to package.json version)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to publish (default: package.json version). 'latest' is always also pushed."
+        required: false
+        default: ""
+
+jobs:
+  docker:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine image tag
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${{ github.event.inputs.tag }}"
+          fi
+          # strip a leading "v" (release tags are vX.Y); fall back to package.json version
+          TAG="${TAG#v}"
+          if [ -z "$TAG" ]; then
+            TAG="$(node -p "require('./package.json').version")"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Publishing dogkeeper886/ruckus1-mcp:$TAG (+ :latest)"
+
+      - name: Build image
+        run: |
+          docker build \
+            -t dogkeeper886/ruckus1-mcp:${{ steps.meta.outputs.tag }} \
+            -t dogkeeper886/ruckus1-mcp:latest \
+            .
+
+      - name: Push image
+        run: |
+          docker push dogkeeper886/ruckus1-mcp:${{ steps.meta.outputs.tag }}
+          docker push dogkeeper886/ruckus1-mcp:latest
