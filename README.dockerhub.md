@@ -67,7 +67,7 @@ The server uses the OAuth2 client-credentials flow and caches the JWT across cal
 
 ## Capabilities
 
-~70 tools following a uniform `query` / `get` / `create` / `update` / `delete` shape per resource, plus consolidated polling for asynchronous operations. Highlights:
+74 tools following a uniform `query` / `get` / `create` / `update` / `delete` shape per resource, plus consolidated polling for asynchronous operations. Highlights:
 
 - **Wi-Fi networks (WLANs)** — create/activate/deactivate/delete, including every captive-portal type: Click-Through, Self Sign-In (Email/SMS/WhatsApp OTP), Guest Pass, Host Approval, Cloudpath, WISPr, Directory (AD/LDAP), **SAML IdP**, and Workflow — plus PSK, DPSK, Enterprise 802.1X, and OWE.
 - **Service profiles** — RADIUS, Directory (AD/LDAP), Portal, and SAML IdP profiles.

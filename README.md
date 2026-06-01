@@ -1,6 +1,5 @@
 # ruckus1-mcp
 
-[![CI](https://github.com/dogkeeper886/ruckus1-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/dogkeeper886/ruckus1-mcp/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/dogkeeper886/ruckus1-mcp)](https://github.com/dogkeeper886/ruckus1-mcp/releases)
 [![Docker](https://img.shields.io/docker/v/dogkeeper886/ruckus1-mcp?label=docker&sort=semver)](https://hub.docker.com/r/dogkeeper886/ruckus1-mcp)
 [![Docker Pulls](https://img.shields.io/docker/pulls/dogkeeper886/ruckus1-mcp)](https://hub.docker.com/r/dogkeeper886/ruckus1-mcp)
