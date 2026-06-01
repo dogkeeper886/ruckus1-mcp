@@ -6,6 +6,14 @@ STORY-023 config-object CRUD contract. This is the companion-field gap flagged i
 bind — there was no tool to create one. Grounded in a live GUI + API trace (DEV tenant,
 2026-06-01).
 
+> **Scope / status (correction).** This story is the **dependency/prerequisite only** — the SAML IdP
+> profile resource that issue **#97** is blocked on (#97 requires a test SAML IdP fixture before the
+> WLAN binding can be traced and surfaced). It does **NOT** achieve the #97 goal: an agent still
+> cannot create a SAML WLAN with the tools, because `create_wifi_network` has no parameter to bind a
+> SAML IdP profile. **#97 remains OPEN**; the binding + `FOR SAML:` clause + WLAN integration test
+> are tracked there (see STORY-026). Also note this story shipped **6** tools; the SP-metadata read
+> should be folded into `get_saml_idp_profile` to return to the CRUD-5 norm (directory/RADIUS).
+
 ## Goal
 
 Expose the five CRUD operations plus the SP-metadata read for `samlIdpProfiles`, so an agent can
