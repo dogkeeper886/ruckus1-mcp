@@ -27,11 +27,17 @@ jobs:
 
       - name: Determine image tag
         id: meta
+        # Event data is passed via env (NOT interpolated into the script) so a crafted
+        # tag/input can't inject shell commands on the runner.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            TAG="${{ github.event.release.tag_name }}"
+          if [ "$EVENT_NAME" = "release" ]; then
+            TAG="$RELEASE_TAG"
           else
-            TAG="${{ github.event.inputs.tag }}"
+            TAG="$INPUT_TAG"
           fi
           # strip a leading "v" (release tags are vX.Y); fall back to package.json version
           TAG="${TAG#v}"
