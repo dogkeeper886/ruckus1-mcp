@@ -1,13 +1,19 @@
 # ruckus1-mcp
 
-A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for **RUCKUS One**. It lets MCP-compatible AI assistants (Claude Desktop, Claude Code, Cline, …) manage a RUCKUS One tenant — venues, Wi-Fi networks, access points, and the supporting profiles — through standardized tools.
+[![CI](https://github.com/dogkeeper886/ruckus1-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/dogkeeper886/ruckus1-mcp/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/dogkeeper886/ruckus1-mcp)](https://github.com/dogkeeper886/ruckus1-mcp/releases)
+[![Docker](https://img.shields.io/docker/v/dogkeeper886/ruckus1-mcp?label=docker&sort=semver)](https://hub.docker.com/r/dogkeeper886/ruckus1-mcp)
+[![Docker Pulls](https://img.shields.io/docker/pulls/dogkeeper886/ruckus1-mcp)](https://hub.docker.com/r/dogkeeper886/ruckus1-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for **RUCKUS One**. It lets MCP-compatible AI assistants (Claude Desktop, Claude Code, Cline, …) manage a RUCKUS One tenant — venues, Wi-Fi networks, access points, and the RADIUS, LDAP, portal, and SAML profiles they rely on — through standardized tools.
 
 It is a **stdio** server (no HTTP port, no daemon): your MCP client launches it on demand and communicates over stdin/stdout.
 
 ## Features
 
 - **MCP-only** — stdio transport; no REST API, Express, or HTTP endpoints.
-- **~70 tools** with a uniform `query` / `get` / `create` / `update` / `delete` shape per resource, plus consolidated polling for asynchronous operations.
+- **74 tools** with a uniform `query` / `get` / `create` / `update` / `delete` shape per resource, plus consolidated polling for asynchronous operations.
 - **OAuth2** client-credentials authentication with JWT caching.
 - **Simple configuration** — all credentials via environment variables.
 
@@ -99,7 +105,7 @@ All configuration is via environment variables:
 
 ## Capabilities
 
-~70 tools, uniform `query` / `get` / `create` / `update` / `delete` per resource. Highlights:
+Tools follow a uniform `query` / `get` / `create` / `update` / `delete` shape per resource. Highlights:
 
 - **Wi-Fi networks (WLANs)** — create/activate/deactivate/delete, including every captive-portal type: Click-Through, Self Sign-In (Email/SMS/WhatsApp OTP), Guest Pass, Host Approval, Cloudpath, WISPr, Directory (AD/LDAP), **SAML IdP**, and Workflow — plus PSK, DPSK, Enterprise 802.1X, and OWE.
 - **Service profiles** — RADIUS, Directory (AD/LDAP), Portal, and SAML IdP profiles.
@@ -107,7 +113,7 @@ All configuration is via environment variables:
 - **Identity & access** — identity groups, DPSK services, guest passes, SMS provider (Twilio), roles, and privilege groups.
 - **Clients & monitoring** — query connected clients; check async activity status.
 
-Your MCP client lists every tool with its full input schema once connected.
+Your MCP client lists every tool with its full input schema once connected; the registrations live in [`src/mcpServer.ts`](src/mcpServer.ts).
 
 ## Development
 
@@ -136,6 +142,13 @@ cicd/tests/                     # integration test framework + YAML test cases
 docs/                           # architecture, stories, guides
 ```
 
+See [`docs/`](docs/) for the architecture overview, design stories, and guides.
+
+## Links
+
+- **Docker image:** https://hub.docker.com/r/dogkeeper886/ruckus1-mcp
+- **Releases / changelog:** https://github.com/dogkeeper886/ruckus1-mcp/releases
+
 ## License
 
-MIT
+[MIT](LICENSE)
