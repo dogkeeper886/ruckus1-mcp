@@ -8,6 +8,12 @@ Move the inline R1 API call inside the `get_ruckus_venues` handler into a named 
 
 Not a redundancy issue — a consistency issue. The tool surface stays at 74 tools; only the implementation moves.
 
+> **Status: implemented.** The private `getRuckusVenues` helper is now `export`ed and returns the
+> **full** query-response body (`{ data, totalCount, ... }`) — matching what the handler already
+> emitted. The `get_ruckus_venues` handler calls it (inline `axios.post` removed; the now-unused
+> `axios` import dropped from `mcpServer.ts`), and `resolveVenueIds` calls the same fn, extracting
+> `.data`. Wire behavior unchanged; build green; `get_ruckus_venues`-dependent tests pass.
+
 ## Why this is worth doing
 
 The audit found that `get_ruckus_venues` is the only registered tool whose handler builds the URL and calls `axios.post` inline. Every other tool routes through a named service function in `src/services/ruckusApiService.ts`. Two reasons this matters:

@@ -3001,10 +3001,13 @@ async function resolvePrivilegeGroupId(
 }
 
 // Helper function to get venues
-async function getRuckusVenues(
+// Query venues (id + name) via POST /venues/query. Returns the full query response
+// body ({ data: [...], totalCount, page, ... }). Shared by the get_ruckus_venues tool
+// handler and resolveVenueIds (STORY-021 — one service fn, no inline axios in the handler).
+export async function getRuckusVenues(
   token: string,
   region: string = "",
-): Promise<any[]> {
+): Promise<any> {
   const apiUrl =
     region && region.trim() !== ""
       ? `https://api.${region}.ruckus.cloud/venues/query`
@@ -3035,7 +3038,7 @@ async function getRuckusVenues(
     "Get venues",
   );
 
-  return response.data.data || [];
+  return response.data;
 }
 
 // Helper function to resolve venue names to IDs
@@ -3044,7 +3047,7 @@ async function resolveVenueIds(
   venueNames: string[],
   region: string = "",
 ): Promise<string[]> {
-  const venues = await getRuckusVenues(token, region);
+  const venues = (await getRuckusVenues(token, region)).data || [];
   const venueIds: string[] = [];
 
   for (const nameOrId of venueNames) {
