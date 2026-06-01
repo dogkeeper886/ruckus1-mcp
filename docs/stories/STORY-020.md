@@ -8,6 +8,15 @@ Replace 12 specialty getter tools that map 1:1 to R1 sub-endpoints with 3 parame
 
 This is a **discretionary** consolidation — the audit recommends pursuing it only if these tools see real downstream use. The story preserves the analysis so a future agent can decide.
 
+> **Status: implemented.** The 11 specialty getters (excluding the WLAN-scoped
+> `get_venue_wifi_network_settings`, kept standalone) are folded into 3 parametrized tools.
+> **Tool count 82 → 74 (−8).** Live-verified by TC-INT-004 (`get_venue_settings`) and TC-INT-005
+> (`get_ap_group_settings`), incl. the `categories` discriminator. Two deviations from the original
+> spec below: the per-category service fns are **retained as internal fan-out targets** (delegated
+> to, not deleted — lower risk, DRY), and a small private `mergeSettingsCategories` helper is used
+> across the 3 (the warned-against "meta-helper" was about a generic endpoint dispatcher; this just
+> runs ready thunks via `Promise.all`).
+
 ## Tools in scope
 
 ### Venue-settings family (5 tools today)
@@ -110,13 +119,23 @@ Net positive — assuming the agent's typical workflow is "I need venue config" 
 
 ## Acceptance criteria
 
-- Three new parent tools (`get_venue_settings`, `get_ap_group_settings`, `get_ap_settings`) are registered in `src/mcpServer.ts`, each accepting a `categories` enum (with default = all).
-- Service functions in `src/services/ruckusApiService.ts` implement the parallel-fanout pattern: call all R1 endpoints for selected categories concurrently (`Promise.all`), merge results into a single response object.
-- The 12 specialty getters are removed from `src/mcpServer.ts` and their service functions are removed.
-- The 4 tests that currently call individual specialty getters (TC-INT-004, -005, -324, -325) are updated to call the new parametrized tools and assert against the merged response shape.
-- `get_venue_wifi_network_settings` is either kept standalone (recommended) or folded into the venue-scoped parent (only if the second audit pass shows it as part of a consolidatable usage pattern).
-- `npm run build` passes; all updated tests pass.
-- Tool descriptions for the three new tools follow `.claude/rules/tool-descriptions.md`: clear action verb, the `categories` enum documented with what each one returns, parameter producer-tool references.
+- [x] Three new parent tools (`get_venue_settings`, `get_ap_group_settings`, `get_ap_settings`) registered in `src/mcpServer.ts`, each accepting a `categories` array (default = all).
+- [x] Service functions implement the parallel fan-out: selected categories run concurrently
+  (`Promise.all`) and merge into one object keyed by category, via the private
+  `mergeSettingsCategories` helper.
+- [x] The 11 specialty getters are removed from `src/mcpServer.ts` (tool defs + handlers + imports).
+  **Deviation:** their per-category *service functions* are **retained** as the internal fan-out
+  targets the 3 folded fns delegate to — reuses tested wire logic instead of inlining 11 URLs.
+- [x] Tests updated: TC-INT-004 → `get_venue_settings`, TC-INT-005 → `get_ap_group_settings` (these
+  were the only two referencing removed getters; TC-INT-324/325 use the retained
+  `get_venue_wifi_network_settings`, unchanged). `get_ap_settings` shares the identical helper and is
+  not separately covered (needs a claimed physical AP fixture).
+- [x] `get_venue_wifi_network_settings` kept standalone (recommended option).
+- [x] `npm run build` passes; TC-INT-004 + TC-INT-005 pass live.
+- [x] The 3 tool descriptions follow `.claude/rules/tool-descriptions.md` (action verb, `categories`
+  documented, producer-tool references).
+- Failure mode (per "Risks"): a failed category **rejects the whole call** (all-or-nothing) — chosen
+  for a single predictable result; documented in the service comment.
 
 ## Risks and what to watch
 
