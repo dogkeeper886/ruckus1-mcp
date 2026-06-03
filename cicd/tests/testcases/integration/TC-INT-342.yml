@@ -1,0 +1,29 @@
+id: TC-INT-342
+name: Portal profile rejects mutually-exclusive T&C fields (v1.1 media type)
+suite: integration
+tags: [portal-service-profiles, terms-conditions, schema-validation]
+story: STORY-016
+priority: 2
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Create portal profile with both termsConditionConfig and termsConditionUrl
+    command: npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"profileConfig":{"name":"mcp-test-portal-tc-excl-{{TEST_RUN_ID}}","content":{"termsConditionConfig":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"hi"}]}]},"termsConditionUrl":"https://example.com/terms","componentDisplay":{"termsConditions":true}}},"maxRetries":3,"pollIntervalMs":2000}'
+    expectError: true
+    expectPatterns:
+      - isError
+      - GUEST-422040
+
+criteria: |
+  Issue #140: the portal service profile CRUD tools must send the API v1.1 media
+  type (application/vnd.ruckus.v1.1+json) on POST/PUT/GET so the server enforces
+  T&C validation. On v1.0 the server treated the T&C fields as opaque blobs and
+  silently stored invalid payloads; on v1.1 it rejects them.
+
+  - content.termsConditionConfig (rich doc) and content.termsConditionUrl (URL)
+    are mutually exclusive. Sending both must produce isError with GUEST-422040
+    ("Only one of termsCondition, termsConditionConfig, or termsConditionUrl can
+    be set") and create no profile.
+  - If create_portal_service_profile ever regresses to v1.0 (application/json),
+    this call would succeed silently and the test would fail — pinning the fix.
