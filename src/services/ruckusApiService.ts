@@ -2760,7 +2760,8 @@ export async function getPortalServiceProfile(
       url: apiUrl,
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
+        "Content-Type": "application/vnd.ruckus.v1.1+json",
+        Accept: "application/vnd.ruckus.v1.1+json",
       },
     },
     "Get portal service profile",
@@ -2777,7 +2778,7 @@ export async function createPortalServiceProfileWithRetry(
   pollIntervalMs: number = 5000,
 ): Promise<any> {
   // STORY-023: config-object create — symmetric with update_portal_service_profile.
-  // Caller passes the full profile config (serviceName + content, with any T&C inside
+  // Caller passes the full profile config (name + content, with any T&C inside
   // content) and POSTs it verbatim via createResourceWithPoll.
   const baseApiUrl =
     region && region.trim() !== ""
@@ -2791,7 +2792,8 @@ export async function createPortalServiceProfileWithRetry(
     postUrl: `${baseApiUrl}/portalServiceProfiles`,
     headers: {
       Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+      "Content-Type": "application/vnd.ruckus.v1.1+json",
+      Accept: "application/vnd.ruckus.v1.1+json",
     },
     resourceName: "portal_service_profile",
     maxRetries,
@@ -2827,7 +2829,8 @@ export async function updatePortalServiceProfileWithRetry(
     putUrl: `${baseApiUrl}/portalServiceProfiles/${profileId}`,
     headers: {
       Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+      "Content-Type": "application/vnd.ruckus.v1.1+json",
+      Accept: "application/vnd.ruckus.v1.1+json",
     },
     resourceName: "portal_service_profile",
     // Portal PUT is strict: it rejects the read-only id/networkIds the GET returns

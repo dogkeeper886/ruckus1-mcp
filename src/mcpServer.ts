@@ -1036,14 +1036,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_portal_service_profile",
         description:
-          "Create a portal service profile by passing a single profileConfig object (full config). REQUIRED: profileConfig with serviceName (the profile name) + content (the portal content object — styling/text/display settings). FOR TERMS & CONDITIONS, set them inside content: content.termsConditionConfig (RICH DOC — a Tiptap doc JSON, use build_terms_condition_config) OR content.termsConditionUrl (LINK TO URL) — mutually exclusive (server enforces GUEST-422xxx). content.componentDisplay.termsConditions=true shows the T&C checkbox. Symmetric with update_portal_service_profile (which takes the same object as a partial). Use query_portal_service_profiles to verify creation.",
+          "Create a portal service profile by passing a single profileConfig object (full config). REQUIRED: profileConfig with name (the profile name) + content (the portal content object — styling/text/display settings). FOR TERMS & CONDITIONS, set them inside content: content.termsConditionConfig (RICH DOC — a Tiptap doc JSON, use build_terms_condition_config) OR content.termsConditionUrl (LINK TO URL) — mutually exclusive (server enforces GUEST-422xxx). content.componentDisplay.termsConditions=true shows the T&C checkbox. Symmetric with update_portal_service_profile (which takes the same object as a partial). Use query_portal_service_profiles to verify creation.",
         inputSchema: {
           type: "object",
           properties: {
             profileConfig: {
               type: "object",
               description:
-                "Full portal service profile configuration. Keys: serviceName (profile name), content (portal content object). For T&C, set content.termsConditionConfig (rich-doc Tiptap JSON, use build_terms_condition_config) OR content.termsConditionUrl (URL) — mutually exclusive (GUEST-422xxx); content.componentDisplay.termsConditions toggles the checkbox.",
+                "Full portal service profile configuration. Keys: name (profile name), content (portal content object). For T&C, set content.termsConditionConfig (rich-doc Tiptap JSON, use build_terms_condition_config) OR content.termsConditionUrl (URL) — mutually exclusive (GUEST-422xxx); content.componentDisplay.termsConditions toggles the checkbox.",
             },
             maxRetries: {
               type: "number",
@@ -1060,7 +1060,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "update_portal_service_profile",
         description:
-          "Update a portal service profile by passing only the fields you want to change. REQUIRED: profileId (use query_portal_service_profiles to get ID) + profileConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics; a null value deletes a key, arrays are replaced wholesale). IN-CONFIG ATTRIBUTES: serviceName (the profile name) and content (the portal content object, e.g. content.componentDisplay, content.termsConditionConfig, content.termsConditionUrl). FOR TERMS & CONDITIONS: content.termsConditionConfig (RICH DOC — a Tiptap doc JSON, use build_terms_condition_config) and content.termsConditionUrl (LINK TO URL) are mutually exclusive (server enforces GUEST-422xxx). To SWITCH T&C modes you MUST null the other mode in the same call, e.g. { content: { termsConditionUrl: \"https://...\", termsConditionConfig: null, componentDisplay: { termsConditions: true } } }. content.componentDisplay.termsConditions toggles the T&C checkbox visibility. At least one field is required.",
+          "Update a portal service profile by passing only the fields you want to change. REQUIRED: profileId (use query_portal_service_profiles to get ID) + profileConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics; a null value deletes a key, arrays are replaced wholesale). IN-CONFIG ATTRIBUTES: name (the profile name) and content (the portal content object, e.g. content.componentDisplay, content.termsConditionConfig, content.termsConditionUrl). FOR TERMS & CONDITIONS: content.termsConditionConfig (RICH DOC — a Tiptap doc JSON, use build_terms_condition_config) and content.termsConditionUrl (LINK TO URL) are mutually exclusive (server enforces GUEST-422xxx). To SWITCH T&C modes you MUST null the other mode in the same call, e.g. { content: { termsConditionUrl: \"https://...\", termsConditionConfig: null, componentDisplay: { termsConditions: true } } }. content.componentDisplay.termsConditions toggles the T&C checkbox visibility. At least one field is required.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1072,7 +1072,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             profileConfig: {
               type: "object",
               description:
-                "Partial portal service profile configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). Keys: serviceName (profile name), content (portal content object). For T&C, set content.termsConditionConfig (rich doc) OR content.termsConditionUrl (URL) and null the other when switching modes (they are mutually exclusive, GUEST-422xxx); content.componentDisplay.termsConditions toggles the checkbox.",
+                "Partial portal service profile configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). Keys: name (profile name), content (portal content object). For T&C, set content.termsConditionConfig (rich doc) OR content.termsConditionUrl (URL) and null the other when switching modes (they are mutually exclusive, GUEST-422xxx); content.componentDisplay.termsConditions toggles the checkbox.",
             },
             maxRetries: {
               type: "number",
