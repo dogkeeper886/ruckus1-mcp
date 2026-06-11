@@ -97,4 +97,4 @@ GUI behavior observed:
 ## Status
 
 - Created: 2026-06-11
-- Issues: #142
+- Issues: #142 (PR #143 open)
