@@ -1,0 +1,97 @@
+id: TC-INT-343
+name: Portal profile marketing communication opt-in - fields, consent doc, partial-merge round-trip
+suite: integration
+tags: [portal-service-profiles, marketing-communication, builder]
+story: STORY-026
+priority: 1
+timeout: 300000
+dependencies: []
+
+steps:
+  - name: Build HYPERLINK consent doc via builder (reused for marketing)
+    command: |
+      npx tsx cicd/tests/src/mcp-client.ts build_terms_condition_config '{"mode":"HYPERLINK","hyperlink":{"segments":[{"text":"I agree to receive marketing communications. See our "},{"text":"privacy policy","href":"https://example.com/privacy"},{"text":" for details."}]}}'
+    expectPatterns:
+      - paragraph
+      - privacy policy
+      - link
+      - href
+      - https://example.com/privacy
+    rejectPatterns:
+      - isError
+
+  - name: Create portal profile with marketing opt-in (component on + email field + consent doc)
+    command: |
+      npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"profileConfig":{"name":"mcp-test-portal-mc-{{TEST_RUN_ID}}","content":{"componentDisplay":{"marketingCommunication":true},"guestForm":{"fields":{"email":{"enabled":true,"required":false}},"marketingCommunication":{"content":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"I agree to receive marketing communications. See our "},{"type":"text","text":"privacy policy","marks":[{"type":"link","attrs":{"href":"https://example.com/privacy"}}]},{"type":"text","text":" for details."}]}]}}}}},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - requestId
+      - completed
+    rejectPatterns:
+      - isError
+
+  - name: Capture portal profile ID
+    command: npx tsx cicd/tests/src/mcp-client.ts query_portal_service_profiles '{"searchString":"mcp-test-portal-mc-{{TEST_RUN_ID}}"}'
+    capture:
+      profileId: "content[serviceName=mcp-test-portal-mc-{{TEST_RUN_ID}}].id"
+    expectPatterns:
+      - mcp-test-portal-mc-{{TEST_RUN_ID}}
+    rejectPatterns:
+      - isError
+
+  - name: GET portal profile - verify marketing fields + consent doc round-trip
+    command: npx tsx cicd/tests/src/mcp-client.ts get_portal_service_profile '{"profileId":"{{profileId}}"}'
+    expectPatterns:
+      - marketingCommunication
+      - guestForm
+      - email
+      - enabled
+      - privacy policy
+      - href
+      - example.com/privacy
+    rejectPatterns:
+      - isError
+
+  - name: Update marketing fields (enable phone, make email required) - partial deep-merge
+    command: npx tsx cicd/tests/src/mcp-client.ts update_portal_service_profile '{"profileId":"{{profileId}}","profileConfig":{"content":{"guestForm":{"fields":{"email":{"required":true},"phone":{"enabled":true,"required":false}}}}},"maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - completed
+    rejectPatterns:
+      - isError
+
+  - name: GET portal profile - verify field toggle merged and consent doc preserved
+    command: npx tsx cicd/tests/src/mcp-client.ts get_portal_service_profile '{"profileId":"{{profileId}}"}'
+    expectPatterns:
+      - phone
+      - email
+      - marketingCommunication
+      - privacy policy
+    rejectPatterns:
+      - isError
+
+  - name: Delete portal service profile
+    command: npx tsx cicd/tests/src/mcp-client.ts delete_portal_service_profile '{"profileId":"{{profileId}}","maxRetries":10,"pollIntervalMs":3000}'
+    expectPatterns:
+      - completed
+    rejectPatterns:
+      - isError
+
+criteria: |
+  Verifies the Marketing Communication opt-in parameters on the portal service
+  profile tools (STORY-026), reusing build_terms_condition_config for the consent
+  doc (same Tiptap shape as Terms & Conditions):
+
+  1. build_terms_condition_config(mode=HYPERLINK) emits a consent doc with a link
+     mark — valid as content.guestForm.marketingCommunication.content.
+  2. create_portal_service_profile accepts content.componentDisplay.marketingCommunication
+     + content.guestForm.fields.email + content.guestForm.marketingCommunication.content;
+     GET confirms all three round-trip (component flag, the email field, and the consent
+     doc's text + link href).
+  3. update_portal_service_profile (partial retrieve-then-merge) deep-merges the field
+     flags: it makes email required and adds phone in the same call WITHOUT resending the
+     consent doc; GET confirms phone is present, the email field persists, and the consent
+     doc is preserved (merge did not clobber the nested marketingCommunication content).
+  4. Cleanup: delete profile.
+
+  The "at least email or phone enabled" rule is server-enforced (GUEST-422049) and is
+  covered by the negative test TC-INT-344. This test exercises the happy-path round trip
+  and the deep-merge behavior.
