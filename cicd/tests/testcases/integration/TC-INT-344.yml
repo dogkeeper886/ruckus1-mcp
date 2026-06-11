@@ -1,0 +1,29 @@
+id: TC-INT-344
+name: Portal profile rejects marketing opt-in without email or phone enabled
+suite: integration
+tags: [portal-service-profiles, marketing-communication, schema-validation]
+story: STORY-026
+priority: 2
+timeout: 30000
+dependencies: []
+
+steps:
+  - name: Create portal with marketingCommunication enabled but neither email nor phone
+    command: |
+      npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"profileConfig":{"name":"mcp-test-portal-mc-noemail-{{TEST_RUN_ID}}","content":{"componentDisplay":{"marketingCommunication":true},"guestForm":{"fields":{"username":{"enabled":true,"required":false}},"marketingCommunication":{"content":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"I agree to receive marketing communications."}]}]}}}}},"maxRetries":3,"pollIntervalMs":2000}'
+    expectError: true
+    expectPatterns:
+      - isError
+      - GUEST-422049
+
+criteria: |
+  STORY-026: when content.componentDisplay.marketingCommunication is enabled, the
+  server requires at least the email or phone contact field to be enabled. Enabling
+  marketing with only the username field (no email, no phone) must produce isError
+  with GUEST-422049 ("When marketingCommunication is enabled, at least email or
+  phone field must be enabled") and create no profile.
+
+  Confirmed against the dev tenant during STORY-026 implementation (HTTP 422,
+  GUEST-422049). This pins the server-side enforcement so a regression that silently
+  accepts the invalid payload would fail the test. No cleanup needed — the profile is
+  never created.
