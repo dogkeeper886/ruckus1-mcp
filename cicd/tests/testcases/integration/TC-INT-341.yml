@@ -47,7 +47,7 @@ steps:
       - "isError"
 
   - name: Create portal service profile (companion)
-    command: npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"profileConfig":{"serviceName":"mcp-test-samlwlan-portal-{{TEST_RUN_ID}}","content":{}},"maxRetries":10,"pollIntervalMs":3000}'
+    command: npx tsx cicd/tests/src/mcp-client.ts create_portal_service_profile '{"profileConfig":{"name":"mcp-test-samlwlan-portal-{{TEST_RUN_ID}}","content":{}},"maxRetries":10,"pollIntervalMs":3000}'
     expectPatterns:
       - "completed"
     rejectPatterns:
