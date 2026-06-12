@@ -47,7 +47,7 @@ id: TS-NN
 title: ${name}
 namespace: TODO
 story: STORY-NNN
-issue: TODO
+plan: TODO
 status: unbound
 story_hash: TODO
 ---
