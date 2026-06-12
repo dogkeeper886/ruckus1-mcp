@@ -80,3 +80,14 @@ lifecycle where a partial update preserves the fields it didn't touch.
 | # | Action | Expected Result |
 |---|--------|-----------------|
 | 1 | Create a venue without the required `city` field | the call surfaces an error (`isError`); the step passes *because* it failed (`expectError`) |
+
+### TC-06: Delete venue with an invalid venueId returns an error
+
+- **Objective:** deleting a venue with a non-existent `venueId` surfaces an error rather than
+  silently succeeding — a negative test (`expectError`).
+- **Script:** cicd/tests/testcases/integration/TC-INT-303.yml
+- **Preconditions:** valid RUCKUS One credentials.
+
+| # | Action | Expected Result |
+|---|--------|-----------------|
+| 1 | Delete a venue with a non-existent `venueId` | the call surfaces an error (`isError`); the step passes *because* it failed (`expectError`) |
