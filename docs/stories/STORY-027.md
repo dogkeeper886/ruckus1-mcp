@@ -48,5 +48,10 @@ Two drifts have accumulated:
 
 - Created: 2026-06-12
 - Plan: #144
-- Issues: #145, #146, #147
-- PR: #148 (open)
+- Issues: #145, #146, #147 (closed)
+- PR: #148 (merged)
+- Completed: 2026-06-12
+
+> Note: the toolkit-sync half (#145) was reconciled at merge — `main` had independently
+> re-synced the toolkit, so this branch's `.claude/` + `CLAUDE.md` were taken as the final
+> result and overwrote main's version. The README diagrams (#146/#147) shipped as authored.
