@@ -13,8 +13,8 @@ gates the written docs for quality and traceability.
 
 Fits in the qa-workflow:
 
-    qw-plan → qw-review-plan → qw-cases → qw-review-cases   (the authoring half)
-    → hand off to the project's binding + run layer
+    qw-plan → qw-review-plan → qw-cases → qw-review-cases → qw-bind → qw-run
+    (qw-run = `make up` + the cicd runner — a phase, not a slash command)
 
 ---
 
@@ -30,19 +30,19 @@ Fits in the qa-workflow:
         │   - [ ] Conforms to the format contract (docs/tests/README.md).
         │
         ├─► Step 2: Traceability
-        │   - [ ] story → doc resolves both ways (→ executable once bound, project layer).
+        │   - [ ] story → doc → (script, via qw-bind) resolves both ways.
         │   - [ ] No duplicate of an existing scenario for the same story.
         │
         └─► Step 3: Decision
-            - PASS: docs do their job and trace back → hand off to the project's binding
-              + run layer (bind each case to its executable, then run it).
+            - PASS: docs do their job and trace back → proceed to `/qw-bind` (if not
+              yet bound), then run it (`make up` + the cicd runner).
             - REVISE: fix the named doc — smallest change first — and re-check.
 
 ---
 
 ## API Notes
 
-- This reviews the *doc* (intent); the doc↔script binding is reviewed in the project's binding + run layer, not here.
+- This reviews the *doc* (intent); `/qw-review-bind` reviews the doc↔script binding.
 - Published-deliverable phrasing/typography is out of scope here.
 - Review paired with the producer `/qw-cases`.
 ```
