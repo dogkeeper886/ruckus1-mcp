@@ -1,139 +1,119 @@
 # CLAUDE.md
 
-Guidance for Claude Code working in this repository. This is a **Model Context Protocol (MCP) server** for RUCKUS One network management, written in TypeScript.
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
-## Core Commands
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
-- **Build:** `npm run build` (TypeScript → `dist/`)
-- **Run MCP server (dev):** `npm run mcp` (ts-node)
-- **Run MCP server (prod):** `npm start` (from `dist/`)
-- **Run integration tests:** `cd cicd/tests && npm test`
-- **List available tests:** `cd cicd/tests && npm run list`
+## 1. Think Before Coding
 
-## Project Layout
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
 
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
 ```
-src/
-  mcpServer.ts                 # MCP entry point — tool registration + handlers
-  services/ruckusApiService.ts # All RUCKUS One API calls
-  services/tokenService.ts     # OAuth2 token + cache
-  types/                       # TypeScript interfaces
-  utils/                       # config, errorHandler, validation, tokenCache
-cicd/tests/
-  src/                         # Test framework (cli.ts, mcp-client.ts, judge/, reporter/)
-  testcases/                   # YAML test cases (build/, integration/, e2e/)
-docs/
-  stories/                     # STORY-XXX.md source of truth
-.claude/
-  skills/                      # Workflow skills (add-tool, dev-*, ci-*, evolve, session-summary, audit-tests)
-  rules/                       # Path-scoped code patterns (loaded on file match)
-```
-
-## Environment
-
-- Credentials via `.env`.
-- Required: `RUCKUS_TENANT_ID`, `RUCKUS_CLIENT_ID`, `RUCKUS_CLIENT_SECRET`.
-- Optional: `RUCKUS_REGION` (defaults to global).
-
-## Public Repo Hygiene
-
-This is a **public** repository. Never commit real tenant data or internal references — use
-placeholders in stories, tests, tool descriptions, and comments:
-
-- Tenant id → `<tenant-id>`; tenant name/nickname → `<dev-tenant>`.
-- Environment hosts → `https://api.<region>.ruckus.cloud` / `https://<region>.ruckus.cloud`
-  (never a concrete env like `dev.`/`qa.ruckus.cloud`, and never a private IdP/host domain).
-- Real WLAN/venue/profile fixture names → `<example-wlan>` etc.
-- Internal Jira/Confluence refs → `<internal-ticket>` / `<internal-ref>`.
-- A test needing a tenant-specific value (e.g. a SAML IdP metadata URL) reads it from an env var
-  (`{{VAR}}` is substituted from the environment by the test runner), not a literal.
-
-Credentials live only in the gitignored `.env`; never echo or commit them.
-
-## Architecture Notes
-
-- OAuth2 client-credentials flow; JWT reused across calls via `tokenCache`.
-- Regional API endpoints built dynamically from `RUCKUS_REGION` (`https://api.${region}.ruckus.cloud/...`, or `https://api.ruckus.cloud/...` when empty).
-- Async operations (create/delete/update) return `requestId`; service-layer functions poll `getRuckusActivityDetails` until `SUCCESS`/`COMPLETED`/`FAIL` or timeout.
-- `update_ruckus_ap` uses a **retrieve-then-update** pattern to preserve name/venueId/apGroupId/description when only some fields change.
-
-## Workflow — What to Use When
-
-Skills live in `.claude/skills/*/SKILL.md`. Invoke them by name:
-
-| When | Skill |
-|---|---|
-| User pitches a new feature | `dev-story` |
-| Story exists, needs breakdown | `dev-tasks` |
-| Issues exist, need implementation | `dev-impl` |
-| Implementation done, needs PR | `dev-create-pr` |
-| PR open, needs review | `dev-review-pr` |
-| PR approved | `dev-merge` |
-| Adding a new MCP tool from an API log | `add-tool` |
-| Story needs test coverage | `ci-testcase` |
-| Running tests | `ci-run` |
-| End-of-session wrap | `session-summary` |
-| Accumulated friction to analyze | `evolve` |
-| Pre-PR audit of YAML test assertions for weaknesses | `audit-tests` |
-
-## Adding a New MCP Tool (summary)
-
-Full process: use the **`add-tool`** skill. Concrete code templates: `.claude/rules/mcp-tool-patterns.md` (auto-loaded when editing files under `src/`).
-
-Short version:
-1. Create or update a story file (`docs/stories/STORY-XXX.md`) — single source of truth.
-2. `dev-tasks` to create GitHub issues.
-3. Implement in `src/services/ruckusApiService.ts` + register in `src/mcpServer.ts`. Follow the patterns in `.claude/rules/mcp-tool-patterns.md`.
-4. `npm run build`.
-5. `ci-testcase` + `ci-run` to add and execute YAML tests.
-6. `dev-create-pr` → `dev-review-pr` → `dev-merge`.
-
-## Test Case Pattern
-
-YAML test cases under `cicd/tests/testcases/` call tools via `mcp-client.ts`:
-
-```yaml
-id: TC-INT-XXX
-name: Descriptive test name
-suite: integration
-story: STORY-XXX
-priority: 1
-timeout: 30000
-dependencies: []
-
-steps:
-  - name: Call the tool
-    command: npx tsx cicd/tests/src/mcp-client.ts tool_name '{"arg":"value"}'
-    expectPatterns:
-      - "expected_field"
-    rejectPatterns:
-      - "isError"
-
-criteria: |
-  What this test verifies in plain language.
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
 ```
 
-**Pattern-matching gotcha:** `mcp-client.ts` returns double-encoded JSON (the tool's JSON is inside a `text` field). Use **bare strings** in patterns (e.g., `networkId`) — quoted forms like `'"networkId"'` won't match the escaped output `\"networkId\"`. For the same reason, **do not** add `'"status": "failed"'` as a reject pattern — it cannot match the double-encoded stdout and is a dead assertion (see SO-1 in `docs/audit/2026-04-22_audit_report.md`). Use bare `isError` for the real failure signal.
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
-**Failure detection via exit code (#107):** `mcp-client.ts` now **exits non-zero (code 2) when the tool result is `isError`** (sync 4xx via catch, or async `status: failed`/`timeout` via `toolResult` in `mcpServer.ts`, #106). The judge fails any normal step that exits non-zero — so a real tool/API failure can no longer hide behind `[PASS] Exit: 0`. **A negative test that intentionally triggers an error must set `expectError: true` on that step**, which inverts the exit-code check (the step then passes on non-zero exit and fails if the call unexpectedly succeeds). `expectPatterns`/`rejectPatterns` still apply, so keep asserting the specific error code (e.g. `WIFI-xxxxx`, `GUEST-404007`). Example:
-```yaml
-  - name: Create venue without city (required field)
-    command: npx tsx cicd/tests/src/mcp-client.ts create_ruckus_venue '{"name":"x"}'
-    expectError: true
-    expectPatterns:
-      - isError
+## 5. Dev & QA workflow discipline
+
+Substantial work flows through a pipeline; each step is a gate that stops for a
+human decision (commands suggest the next, they never auto-run it):
+
+```
+dw-story → dw-review-story → dw-plan → [human reviews the plan issue]
+        → dw-tasks → dw-review-tasks → dw-implement → dw-review-implement
+        → dw-create-pr → [human review + /review] → dw-merge
 ```
 
-**Fixture naming — always suffix with `{{TEST_RUN_ID}}`:** Any named fixture created by a test (venue, AP group, portal profile, WiFi network, identity group, DPSK service, etc.) must carry the `{{TEST_RUN_ID}}` suffix in every `command:` and `capture:` reference. The test framework auto-injects `TEST_RUN_ID` (GITHUB_RUN_ID in CI; a short random string locally) so each run creates uniquely-named fixtures. Example: `name:"mcp-test-venue-crud-{{TEST_RUN_ID}}"` and `capture.venueId: "data[name=mcp-test-venue-crud-{{TEST_RUN_ID}}].id"`. This prevents cross-run duplicate-name collisions when tenant residue lingers (see the TC-INT-203 RCA on 2026-04-22). For backend-derived companion names (e.g., `-owe-tr`, `-dpsk3-wpa2` suffixes), insert `{{TEST_RUN_ID}}` before the companion suffix: `mcp-test-wifi-owe-{{TEST_RUN_ID}}-owe-tr`. Bare name prefixes still work in `expectPatterns` / `rejectPatterns` because pattern matching is substring-based and the prefix remains present after substitution.
+The full flow + producer→review pairing lives in `.claude/rules/dev-workflow.md`. Trivial
+work skips the plan: `dw-story → dw-tasks`.
 
-## MCP Integration Notes
+**qa-workflow** is the sibling pipeline — same gated discipline, turning a story into
+trustworthy test docs:
 
-- Transport: stdio. The server runs as a subprocess of the MCP client (Claude Desktop, Claude Code, etc.).
-- Client configuration (`mcp.json`) is the caller's concern — not tracked in this repo.
-- Registered resources: `ruckus://auth/token`, `ruckus://venues/list`.
+```
+qw-plan → qw-review-plan → qw-cases → qw-review-cases
+```
 
-## Pointers to Deeper Guidance
+The full flow + pairing lives in `.claude/rules/qa-workflow.md`.
 
-- **Code patterns** (templates, polling loops, 6 advanced async patterns): `.claude/rules/mcp-tool-patterns.md`.
-- **Tool-description writing style** (PREREQUISITE/REQUIRED/FOR X: conventions): `.claude/rules/tool-descriptions.md`.
-- **Workflows**: `.claude/skills/*/SKILL.md`.
+Two review gates are external skills this toolkit does not own — invoke them by hand:
+- `code-review` (bundled): adversarial diff review. Run after `dw-implement`,
+  alongside `dw-review-implement`. Earns its cost on logic/risk; skip for pure docs.
+- `/review` (builtin): PR overview. Run after `dw-create-pr`, before `dw-merge`.
+
+Don't wire these into the `dw-*` commands — they may not exist in every install,
+and a command that references a missing skill is a dangling pointer.
+
+**Right-size it.** A typo or a one-line doc change does not need the full chain —
+use judgment; branch + PR + merge is enough. The three review passes overlap:
+`dw-review-implement` is the always-on substance gate, `code-review` is for real
+logic or risk, `/review` is the PR summary. Running all three on a trivial diff is
+ritual, not rigor.
+
+## 6. Artifact & doc review discipline
+
+Match the reviewer to **who reads** the file you changed:
+
+- **Human-read docs** (README, `docs/` prose): run `reviewing-phrasing` (the words)
+  + `reviewing-typography` (the look) — the human-read doc review.
+- **Agent-read tooling** (commands, skills, CLAUDE.md, rules): run
+  `reviewing-artifacts` (does it do its job — one job, complete, goal-not-spec,
+  fits the project, right for its reader).
+
+These are skills this project owns. Like the dev-workflow gates, they stop for a human
+and never auto-run — invoke them by hand.
+
+**Right-size it.** A typo or a one-line tweak does not need a review pass — use
+judgment. Reach for these when a change is substantial enough that the look, the
+wording, or the artifact's fitness actually matters.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

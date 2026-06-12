@@ -1,20 +1,38 @@
-# ruckus1-mcp
+<h1 align="center">ruckus1-mcp</h1>
 
-[![Release](https://img.shields.io/github/v/release/dogkeeper886/ruckus1-mcp)](https://github.com/dogkeeper886/ruckus1-mcp/releases)
-[![Docker](https://img.shields.io/docker/v/dogkeeper886/ruckus1-mcp?label=docker&sort=semver)](https://hub.docker.com/r/dogkeeper886/ruckus1-mcp)
-[![Docker Pulls](https://img.shields.io/docker/pulls/dogkeeper886/ruckus1-mcp)](https://hub.docker.com/r/dogkeeper886/ruckus1-mcp)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <em>Manage a <strong>RUCKUS One</strong> network from any MCP-compatible AI assistant —<br/>
+  venues, Wi-Fi, access points, and the RADIUS / LDAP / portal / SAML profiles behind them.</em>
+</p>
 
-A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for **RUCKUS One**. It lets MCP-compatible AI assistants (Claude Desktop, Claude Code, Cline, …) manage a RUCKUS One tenant — venues, Wi-Fi networks, access points, and the RADIUS, LDAP, portal, and SAML profiles they rely on — through standardized tools.
+<p align="center">
+  <a href="https://github.com/dogkeeper886/ruckus1-mcp/releases"><img src="https://img.shields.io/github/v/release/dogkeeper886/ruckus1-mcp" alt="Release"/></a>
+  <a href="https://hub.docker.com/r/dogkeeper886/ruckus1-mcp"><img src="https://img.shields.io/docker/v/dogkeeper886/ruckus1-mcp?label=docker&sort=semver" alt="Docker"/></a>
+  <a href="https://hub.docker.com/r/dogkeeper886/ruckus1-mcp"><img src="https://img.shields.io/docker/pulls/dogkeeper886/ruckus1-mcp" alt="Docker Pulls"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"/></a>
+</p>
 
-It is a **stdio** server (no HTTP port, no daemon): your MCP client launches it on demand and communicates over stdin/stdout.
+A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for **RUCKUS One**. It gives
+MCP-compatible AI assistants — Claude Desktop, Claude Code, Cline, and others — a standardized set of
+tools to manage a RUCKUS One tenant, so an agent can stand up a venue, a Wi-Fi network, and the
+profiles it depends on without touching the GUI.
+
+It is a **stdio** server: no HTTP port, no daemon. Your MCP client launches it on demand and talks to
+it over stdin/stdout.
+
+<p align="center">
+  <picture>
+    <source srcset="docs/assets/architecture.svg" type="image/svg+xml"/>
+    <img src="docs/assets/architecture.png" alt="Layered architecture: MCP client over stdio to the MCP server, which calls the service layer, which calls the RUCKUS One API over HTTPS" width="560"/>
+  </picture>
+</p>
 
 ## Features
 
 - **MCP-only** — stdio transport; no REST API, Express, or HTTP endpoints.
-- **74 tools** with a uniform `query` / `get` / `create` / `update` / `delete` shape per resource, plus consolidated polling for asynchronous operations.
+- **73 tools** with a uniform `query` / `get` / `create` / `update` / `delete` shape per resource, plus consolidated polling for asynchronous operations.
 - **OAuth2** client-credentials authentication with JWT caching.
-- **Simple configuration** — all credentials via environment variables.
+- **Simple configuration** — every credential supplied through environment variables.
 
 ## Quick Start
 
@@ -24,7 +42,7 @@ It is a **stdio** server (no HTTP port, no daemon): your MCP client launches it 
 - An MCP client (Claude Desktop, Claude Code, Cline, or any MCP-compatible client)
 - Docker (recommended), or Node.js 18+ to run from source
 
-### Option 1: Docker (recommended)
+### Option 1 — Docker (recommended)
 
 Use the published image — no build required.
 
@@ -61,7 +79,7 @@ claude mcp add ruckus1 -- docker run --rm -i \
 
 `--rm` removes the container on exit; `-i` keeps stdin open for the MCP stream.
 
-### Option 2: Run from source
+### Option 2 — Run from source
 
 ```bash
 git clone https://github.com/dogkeeper886/ruckus1-mcp.git
@@ -102,17 +120,50 @@ All configuration is via environment variables:
 | `RUCKUS_CLIENT_SECRET` | yes | OAuth2 client secret |
 | `RUCKUS_REGION` | no | Regional endpoint (e.g. a region code); leave unset for the global endpoint |
 
+## How it works
+
+Each tool call resolves an auth token (reusing a cached JWT, or fetching a new one via OAuth2
+client-credentials), calls the RUCKUS One API over HTTPS, and formats the result for the client.
+Read operations return immediately. Mutations are asynchronous: the API answers `202` with a
+`requestId`, and the server polls the activity to completion before it replies — so the agent gets a
+settled result, not a "submitted" placeholder.
+
+<p align="center">
+  <picture>
+    <source srcset="docs/assets/request-lifecycle.svg" type="image/svg+xml"/>
+    <img src="docs/assets/request-lifecycle.png" alt="Request lifecycle: a tool call resolves a token, calls RUCKUS One, and either returns a read directly or polls an async mutation to completion before formatting the response" width="720"/>
+  </picture>
+</p>
+
 ## Capabilities
 
-Tools follow a uniform `query` / `get` / `create` / `update` / `delete` shape per resource. Highlights:
+Tools follow a uniform `query` / `get` / `create` / `update` / `delete` shape per resource, grouped
+by area:
 
-- **Wi-Fi networks (WLANs)** — create/activate/deactivate/delete, including every captive-portal type: Click-Through, Self Sign-In (Email/SMS/WhatsApp OTP), Guest Pass, Host Approval, Cloudpath, WISPr, Directory (AD/LDAP), **SAML IdP**, and Workflow — plus PSK, DPSK, Enterprise 802.1X, and OWE.
-- **Service profiles** — RADIUS, Directory (AD/LDAP), Portal, and SAML IdP profiles.
+<p align="center">
+  <picture>
+    <source srcset="docs/assets/resource-graph.svg" type="image/svg+xml"/>
+    <img src="docs/assets/resource-graph.png" alt="Resource graph: the ruckus1-mcp server fans out to Wi-Fi networks, venues and access points, service profiles, identity and access, and clients and monitoring" width="760"/>
+  </picture>
+</p>
+
+- **Wi-Fi networks (WLANs)** — create / activate / deactivate / delete, including every captive-portal type: Click-Through, Self Sign-In (Email/SMS/WhatsApp OTP), Guest Pass, Host Approval, Cloudpath, WISPr, Directory (AD/LDAP), **SAML IdP**, and Workflow — plus PSK, DPSK, Enterprise 802.1X, and OWE.
 - **Venues & access points** — venues, AP groups, access points, and their radio / band-mode / antenna / client-admission settings.
+- **Service profiles** — RADIUS, Directory (AD/LDAP), Portal, and SAML IdP profiles.
 - **Identity & access** — identity groups, DPSK services, guest passes, SMS provider (Twilio), roles, and privilege groups.
 - **Clients & monitoring** — query connected clients; check async activity status.
 
-Your MCP client lists every tool with its full input schema once connected; the registrations live in [`src/mcpServer.ts`](src/mcpServer.ts).
+Your MCP client lists every tool with its full input schema once connected; the registrations live in
+[`src/mcpServer.ts`](src/mcpServer.ts).
+
+## Project structure
+
+<p align="center">
+  <picture>
+    <source srcset="docs/assets/project-tree.svg" type="image/svg+xml"/>
+    <img src="docs/assets/project-tree.png" alt="Project structure: src holds the MCP server, services, types, and utils; cicd/tests holds the integration suite; docs holds the architecture, stories, guides, and the README diagram assets" width="760"/>
+  </picture>
+</p>
 
 ## Development
 
@@ -126,19 +177,6 @@ Inspect interactively with the MCP Inspector:
 
 ```bash
 npx @modelcontextprotocol/inspector npx ts-node src/mcpServer.ts
-```
-
-### Project structure
-
-```
-src/
-  mcpServer.ts                  # MCP entry point — tool registration + handlers
-  services/ruckusApiService.ts  # RUCKUS One API calls
-  services/tokenService.ts      # OAuth2 token + cache
-  types/                        # TypeScript interfaces
-  utils/                        # config, error handling, token cache, validation
-cicd/tests/                     # integration test framework + YAML test cases
-docs/                           # architecture, stories, guides
 ```
 
 See [`docs/`](docs/) for the architecture overview, design stories, and guides.
