@@ -12,9 +12,10 @@ import path from 'path';
 import { mkdirSync, existsSync } from 'fs';
 import { TestLoader } from './loader.js';
 import { TestExecutor } from './executor.js';
-import { SimpleJudge } from './judge/index.js';
+import { SimpleJudge, LLMJudge } from './judge/index.js';
 import { JsonReporter, ConsoleReporter } from './reporter/index.js';
-import { RunConfig } from './types.js';
+import { CONFIG } from './config.js';
+import { RunConfig, Judgment } from './types.js';
 
 const program = new Command();
 
@@ -56,6 +57,7 @@ program
       outputFormat: options.format as RunConfig['outputFormat'],
       workingDir: projectRoot,
       dockerComposePath: '',
+      dualMode: CONFIG.llm.mode === 'dual',
     };
 
     process.stderr.write(`\n[CONFIG] Project root: ${projectRoot}\n`);
@@ -118,7 +120,35 @@ program
 
     process.stderr.write('\n[JUDGE] Running simple judge...\n');
     const simpleJudge = new SimpleJudge();
-    const judgments = simpleJudge.judgeAll(results);
+    const simpleJudgments = simpleJudge.judgeAll(results);
+
+    // The simple judge is the operative verdict. The LLM judge is a reserved,
+    // opt-in second opinion (LLM_JUDGE_MODE=dual). In dual mode a test passes only
+    // if BOTH judges pass — so the LLM can never turn a real failure green; the
+    // simple judge stays a required gate. An unreachable endpoint falls back to
+    // simple-only (no crash, no false verdict). See config.ts / issue #74.
+    let judgments: Judgment[] = simpleJudgments;
+
+    if (config.dualMode) {
+      process.stderr.write('[JUDGE] Running LLM judge (dual mode)...\n');
+      const llmJudge = new LLMJudge();
+      if (await llmJudge.isAvailable()) {
+        const llmJudgments = await llmJudge.judgeResults(results);
+        const llmById = new Map(llmJudgments.map((j) => [j.testId, j]));
+        judgments = simpleJudgments.map((s) => {
+          const llm = llmById.get(s.testId);
+          if (!llm) return s;
+          return {
+            testId: s.testId,
+            pass: s.pass && llm.pass,
+            reason: `simple: ${s.pass ? 'pass' : s.reason} | llm: ${llm.pass ? 'pass' : llm.reason}`,
+            evidence: llm.evidence,
+          };
+        });
+      } else {
+        process.stderr.write('[WARN] LLM judge endpoint unreachable — falling back to simple judge results\n');
+      }
+    }
 
     const jsonReporter = new JsonReporter(outputDir);
     const { summary, reports } = jsonReporter.generateReports(

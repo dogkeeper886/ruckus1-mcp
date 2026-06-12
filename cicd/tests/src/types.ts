@@ -109,6 +109,9 @@ export interface RunConfig {
   outputFormat: 'console' | 'json';
   workingDir: string;
   dockerComposePath: string;
+  // When true (LLM_JUDGE_MODE=dual), also run the reserved LLM judge as a second
+  // opinion. Default false → the simple judge alone decides the verdict.
+  dualMode?: boolean;
 }
 
 export const DEFAULT_CONFIG: Partial<RunConfig> = {
