@@ -63,3 +63,4 @@ blocking automated setup of that test scenario.
 - Issues: #158
 - Plan: #161
 - Tasks: #162, #163, #164, #165
+- PR: #167 (write/bind path; read-back unresolved — #165)
