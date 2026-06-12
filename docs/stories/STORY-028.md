@@ -59,5 +59,11 @@ further from the template with each release.
 ## Status
 
 - Created: 2026-06-12
-- Plan: #149
-- Issues: #150, #151, #152, #153, #154, #155
+- Completed: 2026-06-12
+- Plan: #149 (closed)
+- Issues: #150, #151, #152, #153, #154, #155 (all closed)
+- Verification (#155): full suite ran in simple mode — simple judge is the default,
+  hardening intact, audit-bind/drift clean, pilot green. No port regression. The 5
+  non-green cases were all non-regressions (env/external/pre-existing), tracked as
+  follow-ups #168 (TC-INT-325 flaky), #169 (TC-INT-203 geocoding), #170 (SAML + AP
+  test-env config).
