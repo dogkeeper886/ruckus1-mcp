@@ -22,8 +22,8 @@ it over stdin/stdout.
 
 <p align="center">
   <picture>
-    <source srcset="assets/architecture.svg" type="image/svg+xml"/>
-    <img src="assets/architecture.png" alt="Layered architecture: MCP client over stdio to the MCP server, which calls the service layer, which calls the RUCKUS One API over HTTPS" width="560"/>
+    <source srcset="docs/assets/architecture.svg" type="image/svg+xml"/>
+    <img src="docs/assets/architecture.png" alt="Layered architecture: MCP client over stdio to the MCP server, which calls the service layer, which calls the RUCKUS One API over HTTPS" width="560"/>
   </picture>
 </p>
 
@@ -130,8 +130,8 @@ settled result, not a "submitted" placeholder.
 
 <p align="center">
   <picture>
-    <source srcset="assets/request-lifecycle.svg" type="image/svg+xml"/>
-    <img src="assets/request-lifecycle.png" alt="Request lifecycle: a tool call resolves a token, calls RUCKUS One, and either returns a read directly or polls an async mutation to completion before formatting the response" width="720"/>
+    <source srcset="docs/assets/request-lifecycle.svg" type="image/svg+xml"/>
+    <img src="docs/assets/request-lifecycle.png" alt="Request lifecycle: a tool call resolves a token, calls RUCKUS One, and either returns a read directly or polls an async mutation to completion before formatting the response" width="720"/>
   </picture>
 </p>
 
@@ -142,8 +142,8 @@ by area:
 
 <p align="center">
   <picture>
-    <source srcset="assets/resource-graph.svg" type="image/svg+xml"/>
-    <img src="assets/resource-graph.png" alt="Resource graph: the ruckus1-mcp server fans out to Wi-Fi networks, venues and access points, service profiles, identity and access, and clients and monitoring" width="760"/>
+    <source srcset="docs/assets/resource-graph.svg" type="image/svg+xml"/>
+    <img src="docs/assets/resource-graph.png" alt="Resource graph: the ruckus1-mcp server fans out to Wi-Fi networks, venues and access points, service profiles, identity and access, and clients and monitoring" width="760"/>
   </picture>
 </p>
 
@@ -160,8 +160,8 @@ Your MCP client lists every tool with its full input schema once connected; the 
 
 <p align="center">
   <picture>
-    <source srcset="assets/project-tree.svg" type="image/svg+xml"/>
-    <img src="assets/project-tree.png" alt="Project structure: src holds the MCP server, services, types, and utils; assets holds the README diagrams; cicd/tests holds the integration suite; docs holds the architecture, stories, and guides" width="760"/>
+    <source srcset="docs/assets/project-tree.svg" type="image/svg+xml"/>
+    <img src="docs/assets/project-tree.png" alt="Project structure: src holds the MCP server, services, types, and utils; cicd/tests holds the integration suite; docs holds the architecture, stories, guides, and the README diagram assets" width="760"/>
   </picture>
 </p>
 

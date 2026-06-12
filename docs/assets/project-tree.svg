@@ -19,9 +19,9 @@
       <text x="44" y="248" fill="#e2e8f0">│  │  └─ tokenService.ts</text>
       <text x="44" y="278" fill="#60a5fa">│  ├─ types/</text>
       <text x="44" y="308" fill="#60a5fa">│  └─ utils/</text>
-      <text x="44" y="338" fill="#60a5fa">├─ assets/</text>
-      <text x="44" y="368" fill="#60a5fa">├─ cicd/tests/</text>
-      <text x="44" y="398" fill="#60a5fa">├─ docs/</text>
+      <text x="44" y="338" fill="#60a5fa">├─ cicd/tests/</text>
+      <text x="44" y="368" fill="#60a5fa">├─ docs/</text>
+      <text x="44" y="398" fill="#60a5fa">│  └─ assets/</text>
       <text x="44" y="428" fill="#e2e8f0">└─ README.md</text>
     </g>
     <!-- comment column -->
@@ -32,9 +32,9 @@
       <text x="430" y="248">OAuth2 token + JWT cache</text>
       <text x="430" y="278">API request/response interfaces</text>
       <text x="430" y="308">config · errors · token cache · validation</text>
-      <text x="430" y="338">README diagrams (SVG + PNG)</text>
-      <text x="430" y="368">integration tests (framework + YAML cases)</text>
-      <text x="430" y="398">architecture · stories · guides</text>
+      <text x="430" y="338">integration tests (framework + YAML cases)</text>
+      <text x="430" y="368">architecture · stories · guides</text>
+      <text x="430" y="398">README diagrams (SVG + PNG)</text>
     </g>
   </g>
 </svg>
