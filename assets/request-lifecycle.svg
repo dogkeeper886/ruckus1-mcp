@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="820" viewBox="0 0 960 820" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="12" markerHeight="12" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M1,1 L9,5 L1,9" fill="none" stroke="#64748b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="960" height="820" rx="14" fill="#ffffff"/>
+  <rect x="0.5" y="0.5" width="959" height="819" rx="14" fill="none" stroke="#e2e8f0"/>
+
+  <!-- Start -->
+  <rect x="190" y="20" width="220" height="52" rx="26" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="300" y="52" text-anchor="middle" font-size="16" font-weight="700" fill="#1e3a8a">MCP tool call</text>
+  <line x1="300" y1="72" x2="300" y2="108" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- Resolve token -->
+  <rect x="140" y="110" width="320" height="70" rx="10" fill="#f0fdfa" stroke="#0d9488" stroke-width="1.5"/>
+  <text x="300" y="140" text-anchor="middle" font-size="16" font-weight="700" fill="#115e59">Resolve auth token</text>
+  <text x="300" y="162" text-anchor="middle" font-size="13" fill="#475569">reuse cached JWT&#160;&#183;&#160;else OAuth2 client-credentials</text>
+  <line x1="300" y1="180" x2="300" y2="218" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- Call RUCKUS One -->
+  <rect x="140" y="220" width="320" height="70" rx="10" fill="#f0fdfa" stroke="#0d9488" stroke-width="1.5"/>
+  <text x="300" y="250" text-anchor="middle" font-size="16" font-weight="700" fill="#115e59">Call RUCKUS One</text>
+  <text x="300" y="272" text-anchor="middle" font-size="13" fill="#475569">HTTPS&#160;&#183;&#160;Bearer token&#160;&#183;&#160;region endpoint</text>
+  <line x1="300" y1="290" x2="300" y2="318" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- Decision diamond -->
+  <polygon points="300,322 378,372 300,422 222,372" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="300" y="368" text-anchor="middle" font-size="15" font-weight="700" fill="#5b21b6">Async</text>
+  <text x="300" y="388" text-anchor="middle" font-size="15" font-weight="700" fill="#5b21b6">mutation?</text>
+
+  <!-- Read path (down) -->
+  <line x1="300" y1="422" x2="300" y2="628" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+  <rect x="250" y="500" width="120" height="26" rx="13" fill="#ffffff"/>
+  <text x="310" y="518" text-anchor="middle" font-size="13" font-style="italic" fill="#475569">no &#183; read</text>
+
+  <!-- Mutation path (right) -->
+  <line x1="378" y1="372" x2="558" y2="372" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="468" y="360" text-anchor="middle" font-size="13" font-style="italic" fill="#475569">yes &#183; mutation</text>
+
+  <!-- 202 box -->
+  <rect x="560" y="340" width="320" height="64" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+  <text x="720" y="368" text-anchor="middle" font-size="16" font-weight="700" fill="#9a3412">202 Accepted</text>
+  <text x="720" y="390" text-anchor="middle" font-size="13" fill="#475569">async request &#8594; { requestId }</text>
+  <line x1="720" y1="404" x2="720" y2="450" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- Poll box -->
+  <rect x="560" y="452" width="320" height="84" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+  <text x="720" y="486" text-anchor="middle" font-size="16" font-weight="700" fill="#9a3412">Poll activity</text>
+  <text x="720" y="508" text-anchor="middle" font-size="13" fill="#475569">until COMPLETED / FAILED</text>
+  <text x="720" y="526" text-anchor="middle" font-size="13" fill="#475569">/ timeout</text>
+
+  <!-- self loop -->
+  <path d="M880,478 C916,478 916,510 884,510" fill="none" stroke="#64748b" stroke-width="1.7" marker-end="url(#arr)"/>
+  <text x="902" y="498" text-anchor="middle" font-size="12" font-style="italic" fill="#475569">wait</text>
+
+  <!-- mutation exit to format -->
+  <path d="M720,536 L720,664 L482,664" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+  <rect x="660" y="600" width="120" height="26" rx="13" fill="#ffffff"/>
+  <text x="720" y="618" text-anchor="middle" font-size="13" font-style="italic" fill="#475569">resolved</text>
+
+  <!-- Format response -->
+  <rect x="120" y="630" width="360" height="72" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="300" y="660" text-anchor="middle" font-size="16" font-weight="700" fill="#5b21b6">Format MCP response</text>
+  <text x="300" y="683" text-anchor="middle" font-size="13" fill="#475569">result, or error enriched with API detail</text>
+  <line x1="300" y1="702" x2="300" y2="736" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- End -->
+  <rect x="190" y="738" width="220" height="52" rx="26" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="300" y="770" text-anchor="middle" font-size="16" font-weight="700" fill="#1e3a8a">Response to client</text>
+</svg>

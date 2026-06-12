@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" viewBox="0 0 1000 700" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect x="0" y="0" width="1000" height="700" rx="14" fill="#ffffff"/>
+  <rect x="0.5" y="0.5" width="999" height="699" rx="14" fill="none" stroke="#e2e8f0"/>
+
+  <!-- connectors (drawn first, boxes overlay the endpoints) -->
+  <g stroke="#cbd5e1" stroke-width="2.5">
+    <line x1="500" y1="350" x2="190" y2="110"/>
+    <line x1="500" y1="350" x2="810" y2="110"/>
+    <line x1="500" y1="350" x2="175" y2="360"/>
+    <line x1="500" y1="350" x2="825" y2="360"/>
+    <line x1="500" y1="350" x2="500" y2="620"/>
+  </g>
+
+  <!-- Hub -->
+  <rect x="380" y="300" width="240" height="100" rx="12" fill="#1e293b" stroke="#0f172a" stroke-width="1.5"/>
+  <text x="500" y="335" text-anchor="middle" font-size="19" font-weight="700" fill="#ffffff" font-family="'SFMono-Regular', Consolas, monospace">ruckus1-mcp</text>
+  <text x="500" y="358" text-anchor="middle" font-size="13" fill="#cbd5e1">MCP server &#183; 73 tools</text>
+  <text x="500" y="380" text-anchor="middle" font-size="12.5" fill="#94a3b8">query &#183; get &#183; create &#183; update &#183; delete</text>
+
+  <!-- Wi-Fi networks (top-left) -->
+  <rect x="40" y="64" width="300" height="96" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="190" y="92" text-anchor="middle" font-size="16" font-weight="700" fill="#1e3a8a">Wi-Fi networks (WLANs)</text>
+  <text x="190" y="115" text-anchor="middle" font-size="12.5" fill="#475569">create &#183; activate &#183; deactivate &#183; delete</text>
+  <text x="190" y="135" text-anchor="middle" font-size="12.5" fill="#475569">every captive-portal type, PSK / DPSK,</text>
+  <text x="190" y="152" text-anchor="middle" font-size="12.5" fill="#475569">Enterprise 802.1X, OWE</text>
+
+  <!-- Venues & access points (top-right) -->
+  <rect x="660" y="64" width="300" height="96" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+  <text x="810" y="92" text-anchor="middle" font-size="16" font-weight="700" fill="#9a3412">Venues &amp; access points</text>
+  <text x="810" y="115" text-anchor="middle" font-size="12.5" fill="#475569">venues &#183; AP groups &#183; access points</text>
+  <text x="810" y="135" text-anchor="middle" font-size="12.5" fill="#475569">radio / band-mode / antenna /</text>
+  <text x="810" y="152" text-anchor="middle" font-size="12.5" fill="#475569">client-admission settings</text>
+
+  <!-- Service profiles (mid-left) -->
+  <rect x="25" y="314" width="300" height="92" rx="10" fill="#f0fdfa" stroke="#0d9488" stroke-width="1.5"/>
+  <text x="175" y="342" text-anchor="middle" font-size="16" font-weight="700" fill="#115e59">Service profiles</text>
+  <text x="175" y="365" text-anchor="middle" font-size="12.5" fill="#475569">RADIUS &#183; Directory (AD / LDAP)</text>
+  <text x="175" y="385" text-anchor="middle" font-size="12.5" fill="#475569">Portal &#183; SAML IdP</text>
+
+  <!-- Identity & access (mid-right) -->
+  <rect x="675" y="314" width="300" height="92" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="825" y="342" text-anchor="middle" font-size="16" font-weight="700" fill="#5b21b6">Identity &amp; access</text>
+  <text x="825" y="365" text-anchor="middle" font-size="12.5" fill="#475569">identity groups &#183; DPSK services &#183; guest</text>
+  <text x="825" y="385" text-anchor="middle" font-size="12.5" fill="#475569">passes &#183; SMS provider &#183; roles &#183; privileges</text>
+
+  <!-- Clients & monitoring (bottom) -->
+  <rect x="350" y="574" width="300" height="92" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <text x="500" y="602" text-anchor="middle" font-size="16" font-weight="700" fill="#334155">Clients &amp; monitoring</text>
+  <text x="500" y="625" text-anchor="middle" font-size="12.5" fill="#475569">query connected clients</text>
+  <text x="500" y="645" text-anchor="middle" font-size="12.5" fill="#475569">check async activity status</text>
+</svg>
