@@ -5,6 +5,14 @@ The markdown owns **why / what** (intent); the bound `cicd/` YAML owns **how it 
 (execution). `qw-bind` links them, `qw-review-bind` audits the link, and `qw-drift` watches
 for divergence — all via `npm --prefix cicd/tests` (`audit-bind` / `drift` / `port-yaml`).
 
+## Adopting tests here — doc-first, port-forward
+
+New tests are authored **doc-first**: `qw-plan` → `qw-cases` writes the scenario here, then
+`qw-bind` links each case to its `cicd/tests/testcases/**/*.yml`. Existing cicd YAML that has
+**no** doc keeps running unchanged through the runner — we do **not** backfill a doc for every
+legacy case (*port-forward, not backfill*; STORY-028). The worked example is
+[`TS-01-venues.md`](TS-01-venues.md).
+
 ## One file = one scenario (TS), many cases (TC)
 
 A **scenario** groups related **cases**, each case a sequence of **steps**.
