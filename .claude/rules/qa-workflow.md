@@ -7,8 +7,9 @@ paths:
 
 A sibling to `dev-workflow`. Where dev-workflow turns a need into shipped code, qa-workflow
 turns a story into **trustworthy test docs** — readable markdown in `docs/tests/`, authored
-from a reviewed test plan. This repo owns the **authoring** half (markdown + GitHub); binding
-those docs to a runner and running them is the project's own layer.
+from a reviewed test plan, then **bound** to the executable cases that run them. This repo
+owns both halves now: authoring (markdown + GitHub) and the binding + drift layer (via the
+`cicd/tests` engine — `audit-bind` / `drift` / `port-yaml`).
 
 ## The flow
 
@@ -22,7 +23,13 @@ those docs to a runner and running them is the project's own layer.
    qw-cases ──────► qw-review-cases     write docs/tests/TS-*.md (the format contract)
             │
             ▼
-   → hand off to the project's binding + run layer
+   qw-bind ───────► qw-review-bind      link each case's `Script:` to its cicd YAML
+            │                            (audit-bind checks step counts match)
+            ▼
+   qw-drift                             watch for docs ↔ script / story divergence
+            │
+            ▼
+   → qw-run (`npm test` — the cicd runner)
 ```
 
 ## The test-plan issue
@@ -37,14 +44,15 @@ reads it and records the issue number in each `TS-*.md` `plan:` field.
 |----------|--------|--------|
 | `qw-plan`  | `qw-review-plan`  | does the plan cover the story? |
 | `qw-cases` | `qw-review-cases` | each doc: one job, observable, traces back |
+| `qw-bind`  | `qw-review-bind`  | each case's `Script:` resolves and step counts match |
 
-No producer ships without a review covering its output.
+No producer ships without a review covering its output. `qw-drift` is a standing watch (not a
+producer): it flags `stale` (story changed) or `unbound` (doc ↔ script diverged).
 
-## What this owns — and what it hands off
+## What this owns
 
-- **Owns:** the authoring flow + the `docs/tests/` test-doc format (the contract). Self-contained
-  — markdown + GitHub only.
-- **Hands off:** binding each case to an executable and running it is the **project's binding +
-  run layer**. Reusing vetted steps (a search index) is an **optional** project enhancement.
+- **Authoring:** the flow above + the `docs/tests/` test-doc format (the contract) — markdown + GitHub.
+- **Binding + drift:** linking each case to its executable and watching for divergence, via the
+  `cicd/tests` engine (`npm --prefix cicd/tests run audit-bind | drift | port-yaml`).
 
 The format a test doc must follow is `docs/tests/README.md`.
