@@ -1432,6 +1432,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description:
                 "SAML IdP profile ID (REQUIRED for type=saml — binds the SAML Identity Provider end users authenticate against). Use query_saml_idp_profiles or create_saml_idp_profile to get the ID.",
             },
+            identityGroupId: {
+              type: "string",
+              description:
+                "Identity Group ID to bind for captive-portal onboarding (OPTIONAL; the GUI exposes this as the Onboarding tab's 'Identity Group' selector on captive-portal networks). Use query_identity_groups to get the ID. Bound via a separate association call, mirroring the portal/directory/SAML associations.",
+            },
             wisprConfig: {
               type: "object",
               description:
@@ -1784,7 +1789,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "update_wifi_network",
         description:
-          "Update an existing WiFi network by passing only the fields you want to change. REQUIRED: networkId (use query_wifi_networks to get network ID) + networkConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics; arrays are replaced wholesale, a null value deletes a key). IN-CONFIG ATTRIBUTES: any WLAN config field, e.g. `guestPortal.walledGardens` (string[] of permitted destinations), `wlan.vlanId`, `guestPortal.temporaryConnectionEnabled`/`guestPortal.temporaryConnection` (Self Sign-In). SUB-RESOURCE ASSOCIATIONS (include these keys in networkConfig and they are routed to their own endpoints, NOT merged into the config body): `portalServiceProfileId` (use query_portal_service_profiles), `radiusServiceProfileId` + `accountingRadiusServiceProfileId` (use query_radius_server_profiles) to switch the network's RADIUS profiles, `directoryServerProfileId` (use query_directory_server_profiles) to bind/switch the Active Directory/LDAP server on a directory captive portal, and `enableAuthProxy`/`enableAccountingProxy` for RADIUS proxy settings. FOR FQDN/HOSTNAME RADIUS PROFILES: set enableAuthProxy=true (proxy settings are applied before the profile association, per WIFI-20049). At least one change is required.",
+          "Update an existing WiFi network by passing only the fields you want to change. REQUIRED: networkId (use query_wifi_networks to get network ID) + networkConfig (a PARTIAL config — unspecified fields are preserved via retrieve-then-merge, JSON Merge Patch semantics; arrays are replaced wholesale, a null value deletes a key). IN-CONFIG ATTRIBUTES: any WLAN config field, e.g. `guestPortal.walledGardens` (string[] of permitted destinations), `wlan.vlanId`, `guestPortal.temporaryConnectionEnabled`/`guestPortal.temporaryConnection` (Self Sign-In). SUB-RESOURCE ASSOCIATIONS (include these keys in networkConfig and they are routed to their own endpoints, NOT merged into the config body): `portalServiceProfileId` (use query_portal_service_profiles), `radiusServiceProfileId` + `accountingRadiusServiceProfileId` (use query_radius_server_profiles) to switch the network's RADIUS profiles, `directoryServerProfileId` (use query_directory_server_profiles) to bind/switch the Active Directory/LDAP server on a directory captive portal, `identityGroupId` (use query_identity_groups) to bind/switch the Identity Group used for captive-portal onboarding, and `enableAuthProxy`/`enableAccountingProxy` for RADIUS proxy settings. FOR FQDN/HOSTNAME RADIUS PROFILES: set enableAuthProxy=true (proxy settings are applied before the profile association, per WIFI-20049). At least one change is required.",
         inputSchema: {
           type: "object",
           properties: {
@@ -1796,7 +1801,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             networkConfig: {
               type: "object",
               description:
-                "Partial network configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). May also include sub-resource association keys (portalServiceProfileId, radiusServiceProfileId, accountingRadiusServiceProfileId, directoryServerProfileId, enableAuthProxy, enableAccountingProxy) which are routed to their own endpoints rather than merged into the config body.",
+                "Partial network configuration — only the fields to change. Merged onto the current config (retrieve-then-merge). May also include sub-resource association keys (portalServiceProfileId, radiusServiceProfileId, accountingRadiusServiceProfileId, directoryServerProfileId, identityGroupId, enableAuthProxy, enableAccountingProxy) which are routed to their own endpoints rather than merged into the config body.",
             },
             maxRetries: {
               type: "number",
@@ -5189,6 +5194,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           portalServiceProfileId,
           directoryServerProfileId,
           samlIdpProfileId,
+          identityGroupId,
           wisprConfig,
           cloudpathConfig,
           radiusServiceProfileId,
@@ -5254,6 +5260,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           portalServiceProfileId?: string;
           directoryServerProfileId?: string;
           samlIdpProfileId?: string;
+          identityGroupId?: string;
           wisprConfig?: {
             captivePortalUrl: string;
             providerName?: string;
@@ -5340,6 +5347,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           networkConfig.directoryServerProfileId = directoryServerProfileId;
         if (samlIdpProfileId !== undefined)
           networkConfig.samlIdpProfileId = samlIdpProfileId;
+        if (identityGroupId !== undefined)
+          networkConfig.identityGroupId = identityGroupId;
         if (wisprConfig !== undefined) networkConfig.wisprConfig = wisprConfig;
         if (cloudpathConfig !== undefined)
           networkConfig.cloudpathConfig = cloudpathConfig;
