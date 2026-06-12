@@ -13,7 +13,7 @@ Portal profile Terms & Conditions fields (rich-doc and URL mode) and rejection o
 
 ### TC-01: Portal profile T&C fields - rich-doc, URL mode, hyperlink builder
 
-- **Objective:** Portal profile T- **Objective:** TODOC fields - rich-doc, URL mode, hyperlink builder.
+- **Objective:** Portal profile T&C fields round-trip across rich-doc, URL, and hyperlink-builder modes.
 - **Script:** cicd/tests/testcases/integration/TC-INT-333.yml
 - **Preconditions:** valid RUCKUS One credentials in the environment.
 
@@ -32,7 +32,7 @@ Portal profile Terms & Conditions fields (rich-doc and URL mode) and rejection o
 
 ### TC-02: Portal profile rejects mutually-exclusive T&C fields (v1.1 media type)
 
-- **Objective:** Portal profile rejects mutually-exclusive T- **Objective:** TODOC fields (v1.1 media type).
+- **Objective:** a portal profile create that sets both mutually-exclusive T&C fields is rejected (negative test).
 - **Script:** cicd/tests/testcases/integration/TC-INT-342.yml
 - **Preconditions:** valid RUCKUS One credentials in the environment.
 
