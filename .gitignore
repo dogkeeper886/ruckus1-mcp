@@ -111,3 +111,6 @@ docs/session_summaries/
 
 # Playwright MCP artifacts
 .playwright-mcp/
+
+# Local agent worktrees (e.g. .claude/worktrees/<issue> for isolated parallel work)
+.claude/worktrees/
