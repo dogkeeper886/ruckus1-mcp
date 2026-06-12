@@ -3653,6 +3653,10 @@ export async function createWifiNetworkWithRetry(
     directoryServerProfileId?: string;
     // SAML captive-portal: SAML IdP profile to bind (#97)
     samlIdpProfileId?: string;
+    // Captive-portal onboarding: Identity Group to bind (#158). Confirmed by GUI
+    // trace to associate via PUT /wifiNetworks/{id}/identityGroups/{id} (versioned
+    // content type), mirroring the portal/directory/SAML associations.
+    identityGroupId?: string;
     // WISPr (3rd-party captive portal) external-provider config (#96). The AAA
     // server is supplied via radiusServiceProfileId (auth) + accountingRadiusServiceProfileId
     // (accounting), reusing the enterprise association path.
@@ -4320,6 +4324,38 @@ export async function createWifiNetworkWithRetry(
     }
   }
 
+  // Step 8: Associate Identity Group for captive-portal onboarding (#158).
+  // Confirmed by GUI trace (2026-06-12): the Onboarding tab's Identity Group
+  // selector binds via PUT /wifiNetworks/{id}/identityGroups/{id} (empty body).
+  // Unlike the other associations, this endpoint requires the versioned
+  // application/vnd.ruckus.v1+json content type.
+  let identityGroupRequestId: string | undefined;
+  if (isCaptivePortal && networkConfig.identityGroupId) {
+    console.log("[RUCKUS] Associating identity group...");
+    const identityGroupUrl = `${apiUrl}/${networkId}/identityGroups/${networkConfig.identityGroupId}`;
+
+    const identityGroupResponse = await makeRuckusApiCall(
+      {
+        method: "put",
+        url: identityGroupUrl,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.ruckus.v1+json",
+          "Content-Type": "application/vnd.ruckus.v1+json",
+        },
+      },
+      "Associate identity group",
+    );
+
+    identityGroupRequestId = identityGroupResponse.data.requestId;
+
+    if (!identityGroupRequestId) {
+      console.warn(
+        "[RUCKUS] No requestId returned from identity group association API (may be synchronous)",
+      );
+    }
+  }
+
   // Poll all operations for completion
   const requestIds = [
     { id: createRequestId, name: "Create WiFi network" },
@@ -4361,6 +4397,14 @@ export async function createWifiNetworkWithRetry(
           {
             id: samlIdpProfileRequestId,
             name: "Associate SAML IdP profile",
+          },
+        ]
+      : []),
+    ...(identityGroupRequestId
+      ? [
+          {
+            id: identityGroupRequestId,
+            name: "Associate identity group",
           },
         ]
       : []),
@@ -4907,6 +4951,7 @@ export async function updateWifiNetworkWithRetry(
     radiusServiceProfileId,
     accountingRadiusServiceProfileId,
     directoryServerProfileId,
+    identityGroupId,
     enableAuthProxy,
     enableAccountingProxy,
     ...configBody
@@ -4922,6 +4967,7 @@ export async function updateWifiNetworkWithRetry(
   const hasRadiusProfile = !!radiusServiceProfileId;
   const hasAccountingRadiusProfile = !!accountingRadiusServiceProfileId;
   const hasDirectoryProfile = !!directoryServerProfileId;
+  const hasIdentityGroup = !!identityGroupId;
 
   if (
     !hasConfigBody &&
@@ -4929,12 +4975,13 @@ export async function updateWifiNetworkWithRetry(
     !hasRadiusSettings &&
     !hasRadiusProfile &&
     !hasAccountingRadiusProfile &&
-    !hasDirectoryProfile
+    !hasDirectoryProfile &&
+    !hasIdentityGroup
   ) {
     throw new Error(
       "update_wifi_network requires at least one change: a networkConfig field to update, " +
         "portalServiceProfileId, radiusServiceProfileId, accountingRadiusServiceProfileId, " +
-        "directoryServerProfileId, enableAuthProxy, or enableAccountingProxy.",
+        "directoryServerProfileId, identityGroupId, enableAuthProxy, or enableAccountingProxy.",
     );
   }
 
@@ -5036,6 +5083,27 @@ export async function updateWifiNetworkWithRetry(
     ).data.requestId;
   }
 
+  // Step 7: Identity Group association for captive-portal onboarding (#158).
+  // Unlike the other associations, this endpoint requires the versioned
+  // application/vnd.ruckus.v1+json content type (confirmed by GUI trace).
+  let identityGroupRequestId: string | undefined;
+  if (hasIdentityGroup) {
+    identityGroupRequestId = (
+      await makeRuckusApiCall(
+        {
+          method: "put",
+          url: `${baseUrl}/identityGroups/${identityGroupId}`,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.ruckus.v1+json",
+            "Content-Type": "application/vnd.ruckus.v1+json",
+          },
+        },
+        "Associate identity group",
+      )
+    ).data.requestId;
+  }
+
   const requestIds = [
     ...(updateRequestId
       ? [{ id: updateRequestId, name: "Update WiFi network" }]
@@ -5070,6 +5138,9 @@ export async function updateWifiNetworkWithRetry(
           },
         ]
       : []),
+    ...(identityGroupRequestId
+      ? [{ id: identityGroupRequestId, name: "Associate identity group" }]
+      : []),
   ];
 
   const responseIds = {
@@ -5080,6 +5151,7 @@ export async function updateWifiNetworkWithRetry(
     radiusProfileRequestId,
     accountingRadiusProfileRequestId,
     directoryProfileRequestId,
+    identityGroupRequestId,
   };
 
   // All operations were synchronous (no requestId to poll).
