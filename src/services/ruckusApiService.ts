@@ -5633,7 +5633,8 @@ export async function queryGuestPasses(
       data: payload,
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
+        Accept: "application/vnd.ruckus.v1.1+json",
+        "Content-Type": "application/vnd.ruckus.v1.1+json",
       },
     },
     "Query guest passes",
