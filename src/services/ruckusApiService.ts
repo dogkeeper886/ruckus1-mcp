@@ -5597,6 +5597,8 @@ export async function queryGuestPasses(
     "expiryDate",
     "cog",
     "hostApprovalEmail",
+    "fullName",
+    "marketingOptIn",
     "devicesMac",
   ],
   searchString: string = "",
