@@ -35,6 +35,7 @@ information already exists upstream and is simply not reaching the operator.
 ## Status
 
 - Created: 2026-06-13
+- Completed: 2026-06-13
 - Plan: #174
 - Issues: #175
-- PR: #176 (open)
+- PR: #176 (merged)
