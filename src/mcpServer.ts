@@ -1887,7 +1887,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "array",
               items: { type: "string" },
               description:
-                'Fields to return (default: ["creationDate", "name", "passDurationHours", "id", "wifiNetworkId", "maxNumberOfClients", "notes", "clients", "guestStatus", "emailAddress", "mobilePhoneNumber", "guestType", "ssid", "socialLogin", "expiryDate", "cog", "hostApprovalEmail", "devicesMac"])',
+                'Fields to return (default: ["creationDate", "name", "passDurationHours", "id", "wifiNetworkId", "maxNumberOfClients", "notes", "clients", "guestStatus", "emailAddress", "mobilePhoneNumber", "guestType", "ssid", "socialLogin", "expiryDate", "cog", "hostApprovalEmail", "fullName", "marketingOptIn", "devicesMac"])',
             },
             searchString: {
               type: "string",
@@ -5599,6 +5599,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             "expiryDate",
             "cog",
             "hostApprovalEmail",
+            "fullName",
+            "marketingOptIn",
             "devicesMac",
           ],
           searchString = "",
