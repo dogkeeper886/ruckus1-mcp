@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "ruckus1": {
+      "command": "node",
+      "args": ["/absolute/path/to/ruckus1-mcp/dist/mcpServer.js"],
+      "env": {
+        "RUCKUS_TENANT_ID": "your-tenant-id",
+        "RUCKUS_CLIENT_ID": "your-client-id",
+        "RUCKUS_CLIENT_SECRET": "your-client-secret",
+        "RUCKUS_REGION": "your-region"
+      }
+    }
+  }
+}
